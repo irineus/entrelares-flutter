@@ -3,6 +3,7 @@ import 'package:entrelares_core/entrelares_core.dart' show PreEditNotes;
 import '../models/app_notification.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
+import '../models/invite_info.dart';
 import '../models/member.dart';
 import '../models/swap_request.dart';
 
@@ -167,6 +168,77 @@ abstract class CustodyDataSource {
   /// from anything else. The identity always comes from the JWT: the password
   /// is proof, never a claim about WHO is elevating.
   Future<String?> elevate(String password);
+
+  // ── Lote 4: sign-up and invitations ───────────────────────────────────────
+
+  /// Resolves an invitation token for an anonymous visitor, or null when the
+  /// invitation is not usable. Unknown, accepted, revoked and expired tokens
+  /// are all null — the RPC does not distinguish them, and neither may the UI.
+  Future<InviteInfo?> fetchInviteInfo(String token);
+
+  /// The FOUNDER branch. GoTrue creates the auth user carrying the metadata
+  /// `handle_new_user` reads; the trigger is what creates family + profile
+  /// atomically, so nothing here is a two-step the client could half-finish.
+  ///
+  /// Throws [SignUpFailure] with the catalog key to show — including for the
+  /// anti-enumeration "silent duplicate" shape.
+  Future<void> signUpFounder({
+    required String email,
+    required String password,
+    required String fullName,
+    required String role,
+    required String familyName,
+    required String languageCode,
+  });
+
+  /// The INVITEE branch (U-17), which is auto-confirmed and therefore cannot
+  /// go through GoTrue sign-up: the `register-invitee` Edge Function creates
+  /// the user with the service role after re-validating the invitation.
+  Future<InviteeResult> registerInvitee({
+    required String token,
+    required String fullName,
+    required String password,
+    bool confirmMigration = false,
+  });
+}
+
+/// A sign-up refusal, already translated to a catalog KEY (GoTrue answers in
+/// English whatever the reader's language).
+class SignUpFailure implements Exception {
+  final String errorKey;
+
+  const SignUpFailure(this.errorKey);
+
+  @override
+  String toString() => 'SignUpFailure($errorKey)';
+}
+
+/// How the invitee branch ended.
+sealed class InviteeResult {
+  const InviteeResult();
+}
+
+/// The account exists and is confirmed — the caller signs in immediately.
+class InviteeRegistered extends InviteeResult {
+  const InviteeRegistered();
+}
+
+/// S-11 cross-family migration: this address already belongs to another
+/// family, and joining this one DELETES that registration. The Edge Function
+/// refuses until the visitor confirms, so this is a question, not an error.
+class InviteeNeedsMigration extends InviteeResult {
+  final String? previousFamilyName;
+
+  const InviteeNeedsMigration(this.previousFamilyName);
+}
+
+/// A refusal. [message] is the function's own PT-BR text when it sent one —
+/// still not localized server-side, so it reaches an English reader in
+/// Portuguese (same as the web).
+class InviteeFailed extends InviteeResult {
+  final String? message;
+
+  const InviteeFailed(this.message);
 }
 
 /// Why the `elevate` Edge Function refused.

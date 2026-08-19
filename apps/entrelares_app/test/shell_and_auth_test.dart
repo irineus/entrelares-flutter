@@ -136,6 +136,7 @@ void main() {
         onSignIn: (_, _) async =>
             throw Exception('Invalid login credentials'),
         onForgotPassword: () {},
+        onSignUp: () {},
         prefs: prefs,
       )));
       await tester.pumpAndSettle();
@@ -182,6 +183,7 @@ void main() {
       await tester.pumpWidget(wrap(LoginScreen(
         onSignIn: (_, _) async {},
         onForgotPassword: () {},
+        onSignUp: () {},
         prefs: prefs,
       )));
       await tester.pump();
@@ -206,6 +208,7 @@ void main() {
       await tester.pumpWidget(wrap(LoginScreen(
         onSignIn: (_, _) async {},
         onForgotPassword: () {},
+        onSignUp: () {},
         prefs: prefs,
         expiredReason: SessionExpiredReason.inactivity,
       )));
@@ -221,6 +224,7 @@ void main() {
       await tester.pumpWidget(wrap(LoginScreen(
         onSignIn: (_, _) async {},
         onForgotPassword: () => forgot = true,
+        onSignUp: () {},
         prefs: prefs,
       )));
       await tester.pumpAndSettle();

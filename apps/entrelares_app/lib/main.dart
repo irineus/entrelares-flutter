@@ -16,6 +16,7 @@ import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/placeholder_screen.dart';
+import 'screens/register_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/update_password_screen.dart';
 import 'services/admin_mode.dart';
@@ -112,8 +113,18 @@ class _EntrelaresAppState extends State<EntrelaresApp>
         builder: (_, _) => LoginScreen(
           onSignIn: _signIn,
           onForgotPassword: () => _router.go('/reset-password'),
+          onSignUp: () => _router.go('/register'),
           prefs: widget.prefs,
           expiredReason: _expiredReason,
+        ),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (_, state) => RegisterScreen(
+          dataSource: _dataSource,
+          inviteToken: InviteFormRules.inviteTokenFrom(state.uri),
+          onSignIn: _signIn,
+          onBackToLogin: () => _router.go('/login'),
         ),
       ),
       GoRoute(
@@ -174,23 +185,41 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     ],
   );
 
-  /// S-02's shape in router terms: everything is guarded except the auth
-  /// surfaces. `/update-password` stays reachable in EVERY phase — the
-  /// recovery visitor is technically authenticated, and an anonymous open
-  /// shows the web's own "invalid session" message instead of bouncing.
+  /// Where an App Link wanted to go before the session gate had answered — the
+  /// state half of [RouteRules.redirect] (the decision itself is a pure mirror
+  /// with its own tests).
+  String? _pendingLocation;
+
   String? _redirect(BuildContext context, GoRouterState state) {
     final location = state.matchedLocation;
-    const public = {'/login', '/reset-password', '/update-password'};
-    return switch (_phase) {
-      _AuthPhase.gate => location == '/splash' ? null : '/splash',
-      _AuthPhase.anon => public.contains(location) ? null : '/login',
-      _AuthPhase.authed => (location == '/splash' ||
-              location == '/login' ||
-              location == '/reset-password')
-          ? '/'
-          : null,
-    };
+
+    if (_phase == _AuthPhase.gate) {
+      // Remember the destination WITH its query — the invite token lives there
+      // — for as long as the gate is still deciding.
+      if (location != RouteRules.splash) _pendingLocation = state.uri.toString();
+      return RouteRules.redirect(phase: AuthPhase.gate, location: location);
+    }
+
+    final pending = _pendingLocation;
+    final decision = RouteRules.redirect(
+      phase: _routePhase,
+      location: location,
+      pendingLocation: pending,
+    );
+    // Hand a remembered destination back exactly once (otherwise leaving that
+    // screen would bounce straight into it again), and drop it entirely once
+    // there is a session — by then it has either been used or was never usable.
+    if (decision == pending || _phase == _AuthPhase.authed) {
+      _pendingLocation = null;
+    }
+    return decision;
   }
+
+  AuthPhase get _routePhase => switch (_phase) {
+        _AuthPhase.gate => AuthPhase.gate,
+        _AuthPhase.anon => AuthPhase.anon,
+        _AuthPhase.authed => AuthPhase.authed,
+      };
 
   @override
   void initState() {
