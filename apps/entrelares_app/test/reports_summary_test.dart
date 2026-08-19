@@ -204,8 +204,7 @@ void main() {
   });
 
   group('the hub', () {
-    testWidgets('three tabs — only the F-33 PDF is still under construction',
-        (tester) async {
+    testWidgets('three tabs, each with its own report', (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 2000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(AppL10n(
@@ -227,7 +226,7 @@ void main() {
 
       await tester.tap(find.text('📄 ${l[K.repTabPdf]}'));
       await tester.pumpAndSettle();
-      expect(find.text(l[KApp.shellUnderConstructionTitle]), findsOne);
+      expect(find.text(l[K.pdfHeading]), findsOne);
     });
   });
 }
