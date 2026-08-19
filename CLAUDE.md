@@ -19,7 +19,7 @@ carries its own backlog.
 | Flutter | **3.44.7 (stable)** via FVM (`.fvmrc`) — same pin as desmalha/console |
 | JDK | 17 |
 | `minSdk` | 26 |
-| `applicationId` (per flavor) | **dev = `com.entrelares.flutter`** — different from the Play package on purpose, so the dev APK coexists with the store-installed app on the owner's device. **prod = `com.entrelares.app`** (stage 0 proved the Play package accepts a Flutter build with the same upload signature; distribution gated on the T-55 keystore). |
+| `applicationId` (per flavor) | **dev = `com.entrelares.flutter`** — different from the Play package on purpose, so the dev APK coexists with the store-installed app on the owner's device. **prod = `com.entrelares.app`** (stage 0 proved the Play package accepts a Flutter build with the same upload signature). Release signing is per flavor via git-ignored `android/key.properties` (T-55): `dev.*` = dedicated sideload keystore, `prod.*` = the PRODUCT's upload keystore — never swap them; without the file, release builds fail fast (debug unaffected). |
 | Structure | Monorepo: `apps/entrelares_app` (Flutter) + `packages/entrelares_core` (pure Dart) |
 | Environment | Build flavors (stage 3): `dev` → project `buroanotfjcgvbfmacuh`, `prod` → production — both PUBLIC configs hardcoded in `env.dart`, selected at compile time via `appFlavor`. Every Android build requires `--flavor`; flavor-less targets (`flutter test`) fall back to dev by construction. The Supabase singleton initializes once per process, so environments are per build variant, NEVER a runtime switcher. |
 
