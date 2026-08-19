@@ -42,7 +42,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await openDay(tester, future);
-    await tapSheet(tester, find.text('Bruno').last);
+    await tapSheet(tester, find.widgetWithText(ChoiceChip, 'Bruno').first);
     await tester.enterText(find.byType(TextField), 'Consulta médica');
     await pickHour(tester, 1);
     await tapSheet(tester, find.text(pt[K.commonSave]));
@@ -65,7 +65,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await openDay(tester, future);
-    await tapSheet(tester, find.text('Ana').last);
+    await tapSheet(tester, find.widgetWithText(ChoiceChip, 'Ana').first);
     await pickHour(tester, 1);
     expect(find.text(pt[K.editorNoTransitionHint]), findsOneWidget);
 
@@ -86,7 +86,7 @@ void main() {
     await openDay(tester, future);
     expect(find.text(pt[K.editorLockedHint]), findsOneWidget);
     // Chip disabled — no effect.
-    await tapSheet(tester, find.text('Bruno').last);
+    await tapSheet(tester, find.widgetWithText(ChoiceChip, 'Bruno').first);
     await tapSheet(tester, find.text(pt[K.commonSave]));
 
     expect(ds.updated.single.scheduledParentId, 1);
@@ -104,7 +104,7 @@ void main() {
 
     await openDay(tester, future);
     expect(find.text(pt[K.editorLockedHint]), findsNothing);
-    await tapSheet(tester, find.text('Bruno').last);
+    await tapSheet(tester, find.widgetWithText(ChoiceChip, 'Bruno').first);
     await tapSheet(tester, find.text(pt[K.commonSave]));
 
     // Asked first — nothing written yet.
@@ -160,7 +160,8 @@ void main() {
     expect(find.text(pt[K.editorActualParent]), findsOneWidget);
 
     // F-28 scenario A (the user is the day's planned parent): Bruno offered.
-    await tapSheet(tester, find.text('Bruno').last);
+    // The ACTUAL section renders after the scheduled one — .last targets it.
+    await tapSheet(tester, find.widgetWithText(ChoiceChip, 'Bruno').last);
     await tapSheet(tester, find.text(pt[K.commonSave]));
     expect(ds.updated.single.actualParentId, 2);
     await settleSnack(tester);

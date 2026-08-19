@@ -49,6 +49,11 @@ abstract final class KApp {
   static const String wizErrTooFewBlocks = 'app.wiz.errTooFewBlocks';
   static const String wizErrBlockDays = 'app.wiz.errBlockDays';
 
+  // ── 🔔 Resolver (lote 3) — the web's "Processando {x}/{y}..." progress
+  //    label was a pre-U-13 hardcoded literal (Home.razor:2145), frozen with
+  //    the Blazor app; same treatment as bulkProgressSaving ──
+  static const String wfProgressProcessing = 'app.wf.progressProcessing';
+
   // ── Navigation shell (lote 1) — screens the later batches fill in ──
   static const String shellUnderConstructionTitle =
       'app.shell.underConstructionTitle';
@@ -76,6 +81,7 @@ abstract final class KApp {
     bulkProgressSaving,
     wizErrTooFewBlocks,
     wizErrBlockDays,
+    wfProgressProcessing,
     shellUnderConstructionTitle,
     shellUnderConstructionBody,
   ];
@@ -110,6 +116,7 @@ abstract final class StringsAppPtBr {
     KApp.bulkProgressSaving: 'Salvando {0}/{1}...',
     KApp.wizErrTooFewBlocks: 'O ciclo deve ter pelo menos 1 bloco.',
     KApp.wizErrBlockDays: 'Cada bloco deve ter pelo menos 1 dia.',
+    KApp.wfProgressProcessing: 'Processando {0}/{1}...',
     KApp.shellUnderConstructionTitle: 'Em construção',
     KApp.shellUnderConstructionBody:
         'Esta tela chega em uma próxima atualização.',
@@ -145,6 +152,7 @@ abstract final class StringsAppEn {
     KApp.bulkProgressSaving: 'Saving {0}/{1}...',
     KApp.wizErrTooFewBlocks: 'The cycle needs at least 1 block.',
     KApp.wizErrBlockDays: 'Each block needs at least 1 day.',
+    KApp.wfProgressProcessing: 'Processing {0}/{1}...',
     KApp.shellUnderConstructionTitle: 'Under construction',
     KApp.shellUnderConstructionBody:
         'This screen arrives in an upcoming update.',

@@ -60,6 +60,9 @@ class SwapRequest {
     return DateTime.tryParse(raw)?.toLocal();
   }
 
+  /// A revert-flavored open request (`FrozenDayPanel.isRevert`).
+  bool get isRevertPending => status == 'revert_pending';
+
   /// F-24: resolved by the 48h server cron, displayed as `🤖 Automático`.
   bool get isAutoResolved =>
       resolvedBy == 'system' &&
