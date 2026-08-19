@@ -1,11 +1,12 @@
 # CLAUDE.md — Project context for Claude Code
 
 ## What this repo is
-The **T-53 stage-1 spike**: Entrelares (Blazor WASM PWA, repo `entrelares-app`) being
-rewritten in **Flutter/Dart**. The vertical slice — month calendar + day sheet against the
-REAL dev Supabase project, native Realtime, RLS-scoped read + one write path — exists to
-produce a go/no-go verdict WITH NUMBERS. If the bet lands, this becomes the product app
-repo; if not, this repo dies and nothing in production is touched.
+The **T-53 rewrite** of Entrelares (Blazor WASM PWA, repo `entrelares-app`) in
+**Flutter/Dart**. Born as the stage-1 spike (GO verdict, 19/08/2026); **stage 3 is open**:
+this repo is becoming the product app, built batch by batch per the parity map
+(`entrelares-app/docs/flutter-paridade.md`, order 1→2→3→4→6→5) behind the cutover plan
+(`entrelares-app/docs/flutter-cutover.md`). The Blazor app is frozen (owner policy,
+19/08/2026) and stays in production until the stage-4 cutover.
 
 Authority chain: `entrelares-app/CLAUDE.md` holds the product invariants (language rules,
 backlog trailer convention, working agreement) — they all apply here. This file only adds
@@ -18,9 +19,9 @@ carries its own backlog.
 | Flutter | **3.44.7 (stable)** via FVM (`.fvmrc`) — same pin as desmalha/console |
 | JDK | 17 |
 | `minSdk` | 26 |
-| `applicationId` (spike) | **`com.entrelares.flutter`** — different from the Play package on purpose, so the spike APK coexists with the store-installed app on the owner's device. Stage 3 switches to `com.entrelares.app` (stage 0 proved the Play package accepts a Flutter build with the same upload signature). |
+| `applicationId` (per flavor) | **dev = `com.entrelares.flutter`** — different from the Play package on purpose, so the dev APK coexists with the store-installed app on the owner's device. **prod = `com.entrelares.app`** (stage 0 proved the Play package accepts a Flutter build with the same upload signature; distribution gated on the T-55 keystore). |
 | Structure | Monorepo: `apps/entrelares_app` (Flutter) + `packages/entrelares_core` (pure Dart) |
-| Environment | Spike talks to **dev** (`buroanotfjcgvbfmacuh`) only, hardcoded in `env.dart`. Prod entry arrives with flavors at stage 3 — the Supabase singleton initializes once per process, so environments are per build variant, NEVER a runtime switcher. |
+| Environment | Build flavors (stage 3): `dev` → project `buroanotfjcgvbfmacuh`, `prod` → production — both PUBLIC configs hardcoded in `env.dart`, selected at compile time via `appFlavor`. Every Android build requires `--flavor`; flavor-less targets (`flutter test`) fall back to dev by construction. The Supabase singleton initializes once per process, so environments are per build variant, NEVER a runtime switcher. |
 
 ## Product invariants that survive the rewrite (from the app repo)
 - **The client MIRRORS, the database ENFORCES.** RLS, SECURITY DEFINER RPCs, sudo S-10
@@ -58,7 +59,7 @@ carries its own backlog.
 ```
 cd packages/entrelares_core && fvm dart test
 cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
-cd apps/entrelares_app && fvm flutter build apk --debug --split-per-abi
+cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per-abi
 ```
 Cloud sessions: `bash tool/setup_env.sh && source tool/env` (hosts needed:
 `storage.googleapis.com`, `dl.google.com`, `pub.dev` — all reachable in this product's

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,8 +16,8 @@ Future<void> main() async {
   // anon JWT dev still uses (until S-17) as well as the new sb_publishable_…
   // key prod already has, so the S-16 shape ports for free (stage 0).
   await Supabase.initialize(
-    url: Env.supabaseUrl,
-    publishableKey: Env.supabaseKey,
+    url: Env.current.supabaseUrl,
+    publishableKey: Env.current.supabaseKey,
   );
   runApp(const EntrelaresApp());
 }
@@ -91,7 +92,9 @@ class _EntrelaresAppState extends State<EntrelaresApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Entrelares',
+      title:
+          '${environmentTitlePrefix(isProduction: Env.current.isProduction)}'
+          'Entrelares',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4F46E5)),
         useMaterial3: true,

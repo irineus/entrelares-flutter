@@ -24,8 +24,16 @@ apps/entrelares_app/          # o app Flutter (só orquestra e apresenta)
 fvm flutter --version                                  # 3.44.7 (pinado)
 cd packages/entrelares_core && fvm dart test           # regras puras, sem emulador
 cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
-cd apps/entrelares_app && fvm flutter build apk --debug --split-per-abi
+cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per-abi
 ```
+
+**Flavors (estágio 3):** todo build Android exige `--flavor dev` ou `--flavor prod` —
+ambientes são variantes de build (o singleton do Supabase inicializa uma vez por
+processo), nunca um switcher de runtime. `dev` = `com.entrelares.flutter` contra o
+projeto dev ("Entrelares Dev" no launcher, título com `[Dev]`); `prod` =
+`com.entrelares.app` (o pacote da Play) contra produção. Distribuir o flavor prod
+está travado no keystore próprio (T-55). `fvm flutter test` não tem flavor e cai em
+dev por construção.
 
 **CI (T-54):** todo push/PR roda `.github/workflows/verify.yml` — analyze + `dart test`
 no core e analyze + `flutter test` no app, com o Flutter lido do `.fvmrc`. O build de
@@ -36,17 +44,17 @@ produto) — para gerar APK pela CI, use o `workflow_dispatch` com `build-apk`.
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.1.0+1` (spike — pré-produto) |
+| `apps/entrelares_app` | `0.2.0+2` (estágio 3 aberto — flavors dev/prod + tag `[Dev]`) |
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 
 ## Decisões herdadas (não reabrir aqui)
 
 - Flutter **3.44.7** via FVM; JDK **17**; `minSdk` **26**.
-- `applicationId` do spike: **`com.entrelares.flutter`** — deliberadamente DIFERENTE do
-  pacote da Play (`com.entrelares.app`) para o APK do spike coexistir com o app instalado
-  da loja no aparelho do owner. A troca para `com.entrelares.app` (mesma assinatura de
-  upload — validado no estágio 0) acontece no estágio 3, nunca antes.
+- `applicationId` por flavor (estágio 3): **dev = `com.entrelares.flutter`** — DIFERENTE
+  do pacote da Play de propósito, para o APK dev coexistir com o app instalado da loja no
+  aparelho do owner — e **prod = `com.entrelares.app`** (mesma assinatura de upload —
+  validado no estágio 0; distribuição travada no T-55).
 - O cliente ESPELHA, o banco IMPÕE — RLS, RPCs, sudo S-10 e revision/revision_token são a
   segurança; este app é só mais um caller.
 - Paridade é piso, não teto: onde o Flutter der melhoria natural (Realtime no lugar do

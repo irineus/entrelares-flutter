@@ -72,12 +72,16 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Build release APK (arm64)
+      # Stage 3: flavors are mandatory. CI builds the DEV flavor only — the
+      # prod flavor is gated on the T-55 upload keystore and is built locally
+      # by the owner until then.
+      - name: Build release APK (dev flavor, arm64)
         working-directory: apps/entrelares_app
-        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+        run: flutter build apk --release --flavor dev --split-per-abi --target-platform android-arm64
       # 1-day retention: the 500 MB artifact quota is account-wide (T-50).
+      # Glob: the flavor changes the APK filename (only one file matches).
       - uses: actions/upload-artifact@v4
         with:
-          name: app-arm64-v8a-release
-          path: apps/entrelares_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          name: app-dev-arm64-v8a-release
+          path: apps/entrelares_app/build/app/outputs/flutter-apk/app-*-release.apk
           retention-days: 1
