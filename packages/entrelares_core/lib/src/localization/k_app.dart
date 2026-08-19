@@ -32,6 +32,13 @@ abstract final class KApp {
   static const String errSwapPendingExists = 'app.save.swapPendingExists';
   static const String errConcurrentSaveRetry = 'app.save.concurrentRetry';
 
+  // ── F-40 proactive hint (lote 2) — the web never warns upfront (the
+  //    trigger refuses and the text propagates); this native editor explains
+  //    BEFORE the attempt, so the copy mirrors the trigger's own messages ──
+  static const String editorRetroBeyondFree = 'app.editor.retroBeyondFree';
+  static const String editorRetroBeyondPremium =
+      'app.editor.retroBeyondPremium';
+
   // ── Navigation shell (lote 1) — screens the later batches fill in ──
   static const String shellUnderConstructionTitle =
       'app.shell.underConstructionTitle';
@@ -54,6 +61,8 @@ abstract final class KApp {
     errDaySave,
     errSwapPendingExists,
     errConcurrentSaveRetry,
+    editorRetroBeyondFree,
+    editorRetroBeyondPremium,
     shellUnderConstructionTitle,
     shellUnderConstructionBody,
   ];
@@ -80,6 +89,11 @@ abstract final class StringsAppPtBr {
     KApp.errConcurrentSaveRetry:
         'Outro responsável salvou este dia primeiro — atualize o calendário e '
             'tente novamente.',
+    KApp.editorRetroBeyondFree:
+        'O plano gratuito corrige apenas os últimos {0} dias. Ative o Premium '
+            'para corrigir dias mais antigos (até {1} meses).',
+    KApp.editorRetroBeyondPremium:
+        'Correções retroativas vão até {0} meses atrás.',
     KApp.shellUnderConstructionTitle: 'Em construção',
     KApp.shellUnderConstructionBody:
         'Esta tela chega em uma próxima atualização.',
@@ -107,6 +121,11 @@ abstract final class StringsAppEn {
     KApp.errConcurrentSaveRetry:
         'The other caregiver saved this day first — refresh the calendar and '
             'try again.',
+    KApp.editorRetroBeyondFree:
+        'The free plan corrects only the last {0} days. Activate Premium to '
+            'correct older days (up to {1} months).',
+    KApp.editorRetroBeyondPremium:
+        'Retroactive corrections reach up to {0} months back.',
     KApp.shellUnderConstructionTitle: 'Under construction',
     KApp.shellUnderConstructionBody:
         'This screen arrives in an upcoming update.',

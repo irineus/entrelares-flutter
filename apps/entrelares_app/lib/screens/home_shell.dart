@@ -2,6 +2,7 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../services/admin_mode.dart';
 import '../widgets/app_l10n.dart';
 
 /// The authenticated hull — the same four destinations as the web's NavMenu
@@ -10,14 +11,54 @@ import '../widgets/app_l10n.dart';
 /// web's full page swaps.
 class HomeShell extends StatelessWidget {
   final StatefulNavigationShell shell;
+  final AdminMode adminMode;
 
-  const HomeShell({super.key, required this.shell});
+  const HomeShell({super.key, required this.shell, required this.adminMode});
 
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context).l;
     return Scaffold(
-      body: shell,
+      body: ListenableBuilder(
+        listenable: adminMode,
+        builder: (context, _) => Column(
+          children: [
+            // F-14: the persistent, explicit banner while admin mode is on —
+            // mirror of the web's MainLayout strip (shown on every tab).
+            if (adminMode.isActive)
+              Material(
+                color: const Color(0xFFB91C1C),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '🛡️ ${l[K.layoutAdminActive]} — '
+                            '${l[K.layoutAdminHint]}',
+                            style: const TextStyle(
+                                color: Colors.white, fontSize: 13),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: adminMode.deactivate,
+                          style: TextButton.styleFrom(
+                              foregroundColor: Colors.white,
+                              visualDensity: VisualDensity.compact),
+                          child: Text(l[K.layoutAdminExit]),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            Expanded(child: shell),
+          ],
+        ),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: shell.currentIndex,
         onDestinationSelected: (index) => shell.goBranch(index,

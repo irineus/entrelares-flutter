@@ -17,6 +17,7 @@ import 'screens/login_screen.dart';
 import 'screens/placeholder_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/update_password_screen.dart';
+import 'services/admin_mode.dart';
 import 'services/custody_data_source.dart';
 import 'services/session_gate.dart';
 import 'services/supabase_custody_data_source.dart';
@@ -67,6 +68,9 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     with WidgetsBindingObserver {
   late final SessionGate _gate;
   late final CustodyDataSource _dataSource;
+  // F-14: session-scoped, like the web's scoped AdminModeService — never
+  // persisted; leaving the authenticated phase always deactivates it.
+  final _adminMode = AdminMode();
   late Localization _l;
   final _refresh = _RouterRefresh();
   _AuthPhase _phase = _AuthPhase.gate;
@@ -125,13 +129,15 @@ class _EntrelaresAppState extends State<EntrelaresApp>
         ),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (_, _, shell) => HomeShell(shell: shell),
+        builder: (_, _, shell) => HomeShell(shell: shell, adminMode: _adminMode),
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/',
-              builder: (_, _) =>
-                  CalendarScreen(dataSource: _dataSource, onSignOut: _signOut),
+              builder: (_, _) => CalendarScreen(
+                  dataSource: _dataSource,
+                  adminMode: _adminMode,
+                  onSignOut: _signOut),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -220,6 +226,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
     _inactivityTimer?.cancel();
+    _adminMode.dispose();
     _refresh.dispose();
     super.dispose();
   }
@@ -232,6 +239,9 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   void _setPhase(_AuthPhase phase) {
     if (!mounted) return;
     _phase = phase;
+    // Mirror of the web's logout path: leaving the authenticated phase for
+    // ANY reason (sign-out, inactivity, dead session) drops admin mode.
+    if (phase != _AuthPhase.authed) _adminMode.deactivate();
     if (phase == _AuthPhase.authed) {
       _lastInteraction = DateTime.now();
       _inactivityTimer ??= Timer.periodic(

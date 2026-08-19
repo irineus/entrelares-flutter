@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import '../services/admin_mode.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
@@ -25,10 +26,14 @@ const swappedColor = Color(0xFFE11D48);
 
 class CalendarScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
+  final AdminMode adminMode;
   final Future<void> Function() onSignOut;
 
   const CalendarScreen(
-      {super.key, required this.dataSource, required this.onSignOut});
+      {super.key,
+      required this.dataSource,
+      required this.adminMode,
+      required this.onSignOut});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -73,6 +78,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         premiumMonths: _settings.calendarMonthsPremium,
       ));
 
+  /// F-14: bypass only with the mode ON and the profile really an admin.
+  bool get _adminBypass => isAdminBypass(
+      adminModeActive: widget.adminMode.isActive,
+      isAdmin: _ownProfile?.isAdmin ?? false);
+
   @override
   void initState() {
     super.initState();
@@ -80,9 +90,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _anchorMonth = DateTime(now.year, now.month, 1);
     _visibleMonth = _anchorMonth;
     _pageController = PageController(initialPage: _basePage);
+    widget.adminMode.addListener(_onAdminModeChanged);
     _load();
     _loadHorizonInputs();
     _watch();
+  }
+
+  void _onAdminModeChanged() {
+    if (mounted) setState(() {});
   }
 
   /// Defensive like the web: neither read may break the calendar — entitlement
@@ -117,6 +132,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   void dispose() {
+    widget.adminMode.removeListener(_onAdminModeChanged);
     _unwatch?.call();
     _pageController.dispose();
     super.dispose();
@@ -196,7 +212,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final iso = CareSchedule.isoDate(date);
     final previousIso =
         CareSchedule.isoDate(date.subtract(const Duration(days: 1)));
-    final changed = await showDaySheet(
+    final outcome = await showDaySheet(
       context: context,
       date: date,
       day: _daysByIso[iso],
@@ -205,11 +221,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
       memberViews: _memberViews,
       today: _today,
       dataSource: widget.dataSource,
+      adminBypass: _adminBypass,
+      ownProfileId: _ownProfile?.id,
+      // F-40 proactive gate wants the REAL entitlement (fail-closed mirror);
+      // when the read failed it gets null and the gate steps aside — the
+      // trigger's own refusal propagates instead of a wrongful client block.
+      isPremium: _entitlementFailed
+          ? null
+          : Family.isPremiumFamily(_family, DateTime.now().toUtc()),
+      settings: _settings,
     );
-    if (changed == true) {
+    if (outcome != null) {
       _load(silent: true);
       if (mounted) {
-        showAppSnack(context, AppL10n.of(context).l[K.toastSaved]);
+        showAppSnack(
+            context,
+            AppL10n.of(context).l[outcome == DaySheetOutcome.cleared
+                ? K.toastDayCleared
+                : K.toastSaved]);
       }
     }
   }
@@ -283,6 +312,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
       appBar: AppBar(
         title: Text(title),
         actions: [
+          // F-14: the explicit admin-mode toggle — mirror of the web's NavMenu
+          // button. Only a real admin sees it; the shell shows the persistent
+          // banner while it is on.
+          if (_ownProfile?.isAdmin == true)
+            IconButton(
+              tooltip: l[widget.adminMode.isActive
+                  ? K.navAdminExit
+                  : K.navAdminEnter],
+              icon: Icon(
+                widget.adminMode.isActive
+                    ? Icons.shield
+                    : Icons.shield_outlined,
+                color: widget.adminMode.isActive
+                    ? const Color(0xFFB91C1C)
+                    : null,
+              ),
+              onPressed: widget.adminMode.toggle,
+            ),
           // U-13: the signed-in picker — a switch persists to the profile so
           // the server-side senders follow (best-effort, in _setLanguage).
           PopupMenuButton<AppLanguage>(
