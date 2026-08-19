@@ -238,6 +238,61 @@ abstract class CustodyDataSource {
   /// Delete is deliberately NOT Premium-gated (a family that lapses must still
   /// be able to clean up), but the DB refuses a role still in use.
   Future<void> deleteCustomRole(int roleId);
+
+  // ── Lote 4: profile, account and the LGPD export ──────────────────────────
+
+  /// My own name. A plain profile update — RLS bounds it to my row.
+  Future<void> updateOwnName(int profileId, String fullName);
+
+  /// Another member's name, admin-only by DB rule.
+  Future<void> updateMemberName(int profileId, String fullName);
+
+  /// Admin-only; audited into `account_logs` as `role_changed`.
+  Future<void> setMemberRole({required int profileId, required int roleId});
+
+  /// Admin-only AND sudo-gated (`ELEVATION_REQUIRED:`) — granting admin is the
+  /// one membership change that hands out powers, so it costs a password.
+  Future<void> setMemberAdmin({required int profileId, required bool isAdmin});
+
+  /// Sends the password-reset e-mail to [email]. Used both for "I forgot mine"
+  /// and for an admin helping another member.
+  Future<void> sendPasswordReset(String email);
+
+  /// Starts an e-mail change. GoTrue only APPLIES it once the confirmation
+  /// link is clicked, so success here means "link sent", never "changed".
+  Future<void> updateOwnEmail(String email);
+
+  Future<void> updateOwnPassword(String password);
+
+  /// The `log_account_action` RPC — a whitelist of three self-actions
+  /// (`password_changed`, `email_change_requested`, `data_exported`). The
+  /// account log is append-only and family-scoped.
+  Future<void> logAccountAction(String action);
+
+  /// F-17: every row RLS lets this member read, for the LGPD export.
+  Future<ExportBundle> fetchExportData(int myProfileId);
+}
+
+/// The raw material of the F-17 export. Assembling it into the published JSON
+/// shape is a pure step (`ExportService.buildPayload`), so the payload can be
+/// asserted without a backend.
+class ExportBundle {
+  final List<CareSchedule> schedules;
+  final List<SwapRequest> swapRequests;
+  final List<AppNotification> notifications;
+
+  /// The audit trail, still untyped: the audit MODEL arrives with the reports
+  /// slice (lote 6). Carrying the rows through as maps keeps the export
+  /// COMPLETE meanwhile — an LGPD export missing a category would be the
+  /// wrong thing to defer.
+  final List<Map<String, dynamic>> activityLog;
+
+  const ExportBundle({
+    this.schedules = const [],
+    this.swapRequests = const [],
+    this.notifications = const [],
+    this.activityLog = const [],
+  });
 }
 
 /// A sign-up refusal, already translated to a catalog KEY (GoTrue answers in

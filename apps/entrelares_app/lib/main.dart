@@ -18,6 +18,7 @@ import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/placeholder_screen.dart';
+import 'screens/profile_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/update_password_screen.dart';
@@ -168,14 +169,35 @@ class _EntrelaresAppState extends State<EntrelaresApp>
                 dataSource: _dataSource,
                 adminMode: _adminMode,
                 onOpenCustomRoles: () => _router.go('/family/custom-roles'),
+                // F-16: own card opens my profile; another member's opens
+                // theirs, and the screen itself re-checks that I may look.
+                onOpenProfile: (member, isOwn) => _router.go(
+                    isOwn ? '/family/profile' : '/family/profile/${member.id}'),
               ),
               routes: [
                 // Nested so the bottom bar stays put — the web navigates away
-                // to `/custom-roles` because it has no persistent tab shell.
+                // to `/custom-roles` and `/profile` because it has no
+                // persistent tab shell.
                 GoRoute(
                   path: 'custom-roles',
                   builder: (_, _) =>
                       CustomRolesScreen(dataSource: _dataSource),
+                ),
+                GoRoute(
+                  path: 'profile',
+                  builder: (_, _) =>
+                      ProfileScreen(dataSource: _dataSource, sudo: _sudo),
+                  routes: [
+                    GoRoute(
+                      path: ':id',
+                      builder: (_, state) => ProfileScreen(
+                        dataSource: _dataSource,
+                        sudo: _sudo,
+                        profileId:
+                            int.tryParse(state.pathParameters['id'] ?? ''),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

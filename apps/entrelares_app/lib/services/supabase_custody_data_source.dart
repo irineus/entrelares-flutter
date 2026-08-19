@@ -989,6 +989,81 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
     await _client.rpc('delete_custom_role', params: {'p_role_id': roleId});
   }
 
+  // ── Lote 4: profile, account and the LGPD export ─────────────────────────
+
+  @override
+  Future<void> updateOwnName(int profileId, String fullName) async {
+    await _client
+        .from('profiles')
+        .update({'full_name': fullName.trim()}).eq('id', profileId);
+  }
+
+  @override
+  Future<void> updateMemberName(int profileId, String fullName) async {
+    await _client.rpc('update_member_name',
+        params: {'p_profile_id': profileId, 'p_full_name': fullName.trim()});
+  }
+
+  @override
+  Future<void> setMemberRole(
+      {required int profileId, required int roleId}) async {
+    await _client.rpc('set_member_role',
+        params: {'p_profile_id': profileId, 'p_role_id': roleId});
+  }
+
+  @override
+  Future<void> setMemberAdmin(
+      {required int profileId, required bool isAdmin}) async {
+    // Raises `ELEVATION_REQUIRED:` without a live sudo window — the caller
+    // wraps this in runWithSudo, which retries once after the prompt.
+    await _client.rpc('set_member_admin',
+        params: {'p_profile_id': profileId, 'p_is_admin': isAdmin});
+  }
+
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    await _client.auth.resetPasswordForEmail(email.trim(),
+        redirectTo: DeepLinkUrls.updatePassword);
+  }
+
+  @override
+  Future<void> updateOwnEmail(String email) async {
+    await _client.auth.updateUser(UserAttributes(email: email.trim()),
+        emailRedirectTo: DeepLinkUrls.login);
+  }
+
+  @override
+  Future<void> updateOwnPassword(String password) async {
+    await _client.auth.updateUser(UserAttributes(password: password));
+  }
+
+  @override
+  Future<void> logAccountAction(String action) async {
+    await _client.rpc('log_account_action', params: {'p_action': action});
+  }
+
+  @override
+  Future<ExportBundle> fetchExportData(int myProfileId) async {
+    // All four reads are RLS-scoped: the export can only ever contain what
+    // this member is already allowed to see in the app.
+    final results = await Future.wait([
+      _client.from('care_schedules').select().order('schedule_date'),
+      _client.from('swap_requests').select().order('created_at'),
+      _client
+          .from('notifications')
+          .select()
+          .eq('recipient_profile_id', myProfileId)
+          .order('created_at'),
+      _client.from('activity_logs').select().order('created_at'),
+    ]);
+    return ExportBundle(
+      schedules: (results[0]).map(CareSchedule.fromJson).toList(),
+      swapRequests: (results[1]).map(SwapRequest.fromJson).toList(),
+      notifications: (results[2]).map(AppNotification.fromJson).toList(),
+      activityLog: (results[3]).map(Map<String, dynamic>.from).toList(),
+    );
+  }
+
   /// The `error` field an Edge Function puts in its body, when there is one.
   static String? _functionErrorText(FunctionException e) {
     final details = e.details;

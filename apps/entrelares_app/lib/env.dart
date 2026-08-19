@@ -44,4 +44,9 @@ class Env {
   /// Anything that is not the `prod` flavor falls back to dev: `flutter test`
   /// and flavor-less targets must never touch production.
   static const current = appFlavor == 'prod' ? prod : dev;
+
+  /// Mirrors `pubspec.yaml`'s `version:` — the web's `AppVersion.Display`.
+  /// Only the F-17 export reads it, and a stale value there would misdate an
+  /// LGPD record, so `env_version_test.dart` fails the build if the two drift.
+  static const String appVersion = '0.2.17+19';
 }
