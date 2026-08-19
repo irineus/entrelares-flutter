@@ -1,3 +1,5 @@
+import 'package:entrelares_core/entrelares_core.dart'
+    show isUniqueDayConflict;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/care_schedule.dart';
@@ -116,6 +118,80 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   @override
   Future<void> deleteDay(int id) async {
     await _client.from('care_schedules').delete().eq('id', id);
+  }
+
+  @override
+  Future<int> bulkInsertNewDays(List<CareSchedule> days,
+      {void Function(int percent)? onProgress}) async {
+    if (days.isEmpty) return 0;
+    final dates = days.map((d) => d.scheduleDate).toList()
+      ..sort((a, b) => a.compareTo(b));
+    final first = dates.first;
+    final last = dates.last;
+
+    Future<Set<String>> existingDates() async {
+      final rows = await _client
+          .from('care_schedules')
+          .select('schedule_date')
+          .gte('schedule_date', CareSchedule.isoDate(first))
+          .lte('schedule_date', CareSchedule.isoDate(last));
+      return {for (final r in rows) r['schedule_date'] as String};
+    }
+
+    final existing = await existingDates();
+    onProgress?.call(20);
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final toInsert = [
+      for (final d in days)
+        // Past days are immutable; already-assigned days are kept.
+        if (!d.scheduleDate.isBefore(today) &&
+            !existing.contains(CareSchedule.isoDate(d.scheduleDate)))
+          d,
+    ];
+    onProgress?.call(30);
+    if (toInsert.isEmpty) {
+      onProgress?.call(100);
+      return 0;
+    }
+
+    // T-33: another member may create one of these days between the check and
+    // the batch INSERT — on the UNIQUE(family, date) collision, re-fetch,
+    // drop the collided days and retry the remainder once (web mirror).
+    Future<int> insertBatch(List<CareSchedule> batch) async {
+      try {
+        await _client
+            .from('care_schedules')
+            .insert([for (final d in batch) d.toInsertJson()]);
+        return batch.length;
+      } catch (e) {
+        if (!isUniqueDayConflict(e.toString())) rethrow;
+        final fresh = await existingDates();
+        final remainder = [
+          for (final d in batch)
+            if (!fresh.contains(CareSchedule.isoDate(d.scheduleDate))) d,
+        ];
+        if (remainder.isEmpty) return 0;
+        await _client
+            .from('care_schedules')
+            .insert([for (final d in remainder) d.toInsertJson()]);
+        return remainder.length;
+      }
+    }
+
+    const batchSize = 10;
+    final totalBatches = (toInsert.length + batchSize - 1) ~/ batchSize;
+    var inserted = 0;
+    var batchesDone = 0;
+    for (var i = 0; i < toInsert.length; i += batchSize) {
+      final end =
+          i + batchSize > toInsert.length ? toInsert.length : i + batchSize;
+      inserted += await insertBatch(toInsert.sublist(i, end));
+      batchesDone++;
+      onProgress?.call(30 + (batchesDone * 70 ~/ totalBatches));
+    }
+    return inserted;
   }
 
   @override

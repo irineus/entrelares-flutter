@@ -52,6 +52,13 @@ abstract class CustodyDataSource {
   /// mirrors with [isClearDayBlocked]); the trigger enforces regardless.
   Future<void> deleteDay(int id);
 
+  /// The wizard's write path — mirror of `CustodyService.BulkUpsertAsync`:
+  /// inserts only NEW future days (past and already-assigned days are
+  /// skipped, never overwritten) and returns how many were created; the
+  /// caller derives the "kept" count. [onProgress] reports 0–100.
+  Future<int> bulkInsertNewDays(List<CareSchedule> days,
+      {void Function(int percent)? onProgress});
+
   /// Starts listening for care_schedules changes; [onChange] fires on any
   /// insert/update/delete visible to this session. Returns a dispose callback.
   Future<void Function()> watchChanges(void Function() onChange);
