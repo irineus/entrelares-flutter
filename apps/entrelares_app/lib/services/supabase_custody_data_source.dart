@@ -91,6 +91,16 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   }
 
   @override
+  Future<CareSchedule?> fetchDay(DateTime date) async {
+    final row = await _client
+        .from('care_schedules')
+        .select()
+        .eq('schedule_date', CareSchedule.isoDate(date))
+        .maybeSingle();
+    return row == null ? null : CareSchedule.fromJson(row);
+  }
+
+  @override
   Future<void> insertDay(CareSchedule day) async {
     await _client.from('care_schedules').insert(day.toInsertJson());
   }
@@ -101,6 +111,11 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
         .from('care_schedules')
         .update(day.toUpdateJson())
         .eq('id', day.id);
+  }
+
+  @override
+  Future<void> deleteDay(int id) async {
+    await _client.from('care_schedules').delete().eq('id', id);
   }
 
   @override

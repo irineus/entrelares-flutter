@@ -38,10 +38,19 @@ abstract class CustodyDataSource {
   /// defaults on failure, as the web does.
   Future<Map<String, String>> fetchPublicSettings();
 
+  /// One day's row, or null when unassigned — mirror of the web's
+  /// `GetScheduleForDateAsync` (the T-27 transition check on the 1st of the
+  /// month needs the previous month's last day).
+  Future<CareSchedule?> fetchDay(DateTime date);
+
   Future<void> insertDay(CareSchedule day);
 
   /// Full-row update carrying the T-33/T-35 echo (see CareSchedule).
   Future<void> updateDay(CareSchedule day);
+
+  /// Clears an assigned day. Admin-only by DB rule (QA July 2026 — the UI
+  /// mirrors with [isClearDayBlocked]); the trigger enforces regardless.
+  Future<void> deleteDay(int id);
 
   /// Starts listening for care_schedules changes; [onChange] fires on any
   /// insert/update/delete visible to this session. Returns a dispose callback.

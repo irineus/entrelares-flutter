@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:entrelares_app/screens/home_shell.dart';
 import 'package:entrelares_app/screens/login_screen.dart';
+import 'package:entrelares_app/services/admin_mode.dart';
 import 'package:entrelares_app/screens/placeholder_screen.dart';
 import 'package:entrelares_app/screens/reset_password_screen.dart';
 import 'package:entrelares_app/screens/update_password_screen.dart';
@@ -25,12 +26,13 @@ Widget wrap(Widget child, {AppLanguage language = AppLanguage.ptBr}) =>
 
 void main() {
   group('HomeShell', () {
-    Widget shellApp() {
+    Widget shellApp({AdminMode? adminMode}) {
       final router = GoRouter(
         initialLocation: '/',
         routes: [
           StatefulShellRoute.indexedStack(
-            builder: (_, _, shell) => HomeShell(shell: shell),
+            builder: (_, _, shell) =>
+                HomeShell(shell: shell, adminMode: adminMode ?? AdminMode()),
             branches: [
               StatefulShellBranch(routes: [
                 GoRoute(
@@ -94,6 +96,28 @@ void main() {
       await tester.tap(find.text(pt[K.navCalendar]));
       await tester.pumpAndSettle();
       expect(find.text('CALENDARIO'), findsOneWidget);
+    });
+
+    testWidgets('F-14: the admin banner is persistent while the mode is on '
+        'and its Sair exits', (tester) async {
+      final adminMode = AdminMode();
+      await tester.pumpWidget(shellApp(adminMode: adminMode));
+      await tester.pumpAndSettle();
+      expect(find.textContaining(pt[K.layoutAdminActive]), findsNothing);
+
+      adminMode.toggle();
+      await tester.pumpAndSettle();
+      expect(find.textContaining(pt[K.layoutAdminActive]), findsOneWidget);
+
+      // Persistent across tabs, like the web's MainLayout strip.
+      await tester.tap(find.text(pt[K.navReports]));
+      await tester.pumpAndSettle();
+      expect(find.textContaining(pt[K.layoutAdminActive]), findsOneWidget);
+
+      await tester.tap(find.text(pt[K.layoutAdminExit]));
+      await tester.pumpAndSettle();
+      expect(adminMode.isActive, isFalse);
+      expect(find.textContaining(pt[K.layoutAdminActive]), findsNothing);
     });
   });
 

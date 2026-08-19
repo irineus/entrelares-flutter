@@ -10,6 +10,7 @@ import 'package:entrelares_app/models/care_schedule.dart';
 import 'package:entrelares_app/models/family.dart';
 import 'package:entrelares_app/models/member.dart';
 import 'package:entrelares_app/screens/calendar_screen.dart';
+import 'package:entrelares_app/services/admin_mode.dart';
 import 'package:entrelares_app/services/custody_data_source.dart';
 import 'package:entrelares_app/widgets/app_l10n.dart';
 
@@ -18,6 +19,7 @@ class FakeCustodyDataSource implements CustodyDataSource {
   List<CareSchedule> days;
   final List<CareSchedule> inserted = [];
   final List<CareSchedule> updated = [];
+  final List<int> deleted = [];
   Family? family;
   Object? throwOnFamily;
   Map<String, String> publicSettings = const {};
@@ -70,9 +72,26 @@ class FakeCustodyDataSource implements CustodyDataSource {
   }
 
   @override
+  Future<CareSchedule?> fetchDay(DateTime date) async {
+    for (final d in days) {
+      if (CareSchedule.isoDate(d.scheduleDate) == CareSchedule.isoDate(date)) {
+        return d;
+      }
+    }
+    return null;
+  }
+
+  @override
   Future<void> insertDay(CareSchedule day) async {
     if (throwOnWrite != null) throw throwOnWrite!;
     inserted.add(day);
+  }
+
+  @override
+  Future<void> deleteDay(int id) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    deleted.add(id);
+    days = days.where((d) => d.id != id).toList();
   }
 
   @override
@@ -106,12 +125,15 @@ CareSchedule row(int id, DateTime date, int scheduled,
     });
 
 Widget app(FakeCustodyDataSource ds,
-        {AppLanguage language = AppLanguage.ptBr}) =>
+        {AppLanguage language = AppLanguage.ptBr, AdminMode? adminMode}) =>
     AppL10n(
       l: Localization(language),
       setLanguage: (_) async {},
       child: MaterialApp(
-        home: CalendarScreen(dataSource: ds, onSignOut: () async {}),
+        home: CalendarScreen(
+            dataSource: ds,
+            adminMode: adminMode ?? AdminMode(),
+            onSignOut: () async {}),
       ),
     );
 
@@ -127,6 +149,21 @@ Future<void> openDay(WidgetTester tester, int day) async {
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+/// The full editor is taller than the sheet's viewport — scroll the target
+/// into view before tapping.
+Future<void> tapSheet(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+/// Lets the save/clear SnackBar's dismiss timer fire so none outlives a test.
+Future<void> settleSnack(WidgetTester tester) async {
+  await tester.pump(const Duration(seconds: 9));
   await tester.pumpAndSettle();
 }
 
@@ -157,12 +194,11 @@ void main() {
     final day = futureDay;
     if (day == null) return;
     await openDay(tester, day);
-    expect(find.text('Quem fica com a criança neste dia?'), findsOneWidget);
+    // Since lote 2 the sheet is the FULL editor — the planned-parent label.
+    expect(find.text('Responsável Agendado (Planejado)'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Bruno'));
-    await tester.pump();
-    await tester.tap(find.text('Salvar'));
-    await tester.pumpAndSettle();
+    await tapSheet(tester, find.widgetWithText(ChoiceChip, 'Bruno'));
+    await tapSheet(tester, find.text('Salvar'));
 
     expect(ds.inserted, hasLength(1));
     expect(ds.inserted.single.scheduledParentId, 2);
@@ -171,9 +207,7 @@ void main() {
 
     // The save confirmation SnackBar (web: Toast.ShowSuccess(K.ToastSaved)).
     expect(find.text('Salvo com sucesso'), findsOneWidget);
-    // Let its dismiss timer fire so no timer outlives the test.
-    await tester.pump(const Duration(milliseconds: 3100));
-    await tester.pumpAndSettle();
+    await settleSnack(tester);
   });
 
   testWidgets(
@@ -189,21 +223,21 @@ void main() {
     await tester.pumpAndSettle();
 
     await openDay(tester, day);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Bruno'));
-    await tester.pump();
-    await tester.tap(find.text('Salvar'));
-    await tester.pumpAndSettle();
+    // S-09 (lote 2): the planned parent of an assigned day is locked for
+    // non-admins — the note is the editable surface that triggers the update.
+    await tester.enterText(find.byType(TextField), 'Trocar mochila');
+    await tapSheet(tester, find.text('Salvar'));
 
     expect(ds.updated, hasLength(1));
     final sent = ds.updated.single;
     expect(sent.id, 5);
-    expect(sent.scheduledParentId, 2);
+    expect(sent.scheduledParentId, 1);
+    expect(sent.notes, 'Trocar mochila');
     final json = sent.toUpdateJson();
     expect(json['submitted_token'], 'tok-5', reason: 'T-35 echo must survive');
     expect(json['revision'], 4, reason: 'T-33 revision as read');
 
-    await tester.pump(const Duration(milliseconds: 3100));
-    await tester.pumpAndSettle();
+    await settleSnack(tester);
   });
 
   testWidgets('day conflict shows the "salvou primeiro" message',
@@ -220,10 +254,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await openDay(tester, day);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Bruno'));
-    await tester.pump();
-    await tester.tap(find.text('Salvar'));
-    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Nota qualquer');
+    await tapSheet(tester, find.text('Salvar'));
 
     expect(
         find.textContaining('salvou este dia primeiro'), findsOneWidget);
@@ -281,7 +313,7 @@ void main() {
     expect(find.text('Ana'), findsOneWidget, reason: 'names never translate');
 
     await openDay(tester, day);
-    expect(find.text('Who has the child on this day?'), findsOneWidget);
+    expect(find.text('Planned caregiver'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
     expect(find.textContaining('(swapped)'), findsOneWidget);
   });

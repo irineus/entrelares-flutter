@@ -10,6 +10,7 @@ export 'src/bulk_rules.dart';
 export 'src/calendar_rules.dart';
 export 'src/date_math.dart';
 export 'src/day_protection_rules.dart';
+export 'src/editor_rules.dart';
 export 'src/entitlement_rules.dart';
 export 'src/freemium_rules.dart';
 export 'src/environment_rules.dart';
