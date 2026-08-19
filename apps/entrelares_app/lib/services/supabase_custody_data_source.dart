@@ -5,6 +5,7 @@ import '../deep_link_urls.dart';
 import '../models/app_notification.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
+import '../models/family_deletion.dart';
 import '../models/family_invitation.dart';
 import '../models/invite_info.dart';
 import '../models/member.dart';
@@ -1062,6 +1063,89 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
       notifications: (results[2]).map(AppNotification.fromJson).toList(),
       activityLog: (results[3]).map(Map<String, dynamic>.from).toList(),
     );
+  }
+
+  // ── Lote 4: leaving, family deletion (S-11) and re-consent (S-15) ────────
+
+  @override
+  Future<PendingFamilyDeletion?> fetchPendingFamilyDeletion() async {
+    final rows = await _client
+        .from('family_deletion_requests')
+        .select()
+        .eq('status', 'pending')
+        .limit(1);
+    if (rows.isEmpty) return null;
+    final request = FamilyDeletionRequest.fromJson(rows.first);
+    final answers = await _client
+        .from('family_deletion_responses')
+        .select()
+        .eq('request_id', request.id);
+    return PendingFamilyDeletion(
+        request, answers.map(FamilyDeletionResponse.fromJson).toList());
+  }
+
+  @override
+  Future<void> requestFamilyDeletion() async {
+    await _client.rpc('request_family_deletion');
+  }
+
+  @override
+  Future<void> respondFamilyDeletion(bool? agree) async {
+    // A null answer DELETES my row server-side — "aguardando" is the absence
+    // of a response, not a third value.
+    await _client.rpc('respond_family_deletion', params: {'p_agree': agree});
+  }
+
+  @override
+  Future<void> withdrawFamilyDeletion() async {
+    await _client.rpc('withdraw_family_deletion');
+  }
+
+  @override
+  Future<void> executeFamilyDeletion() async {
+    await _client.rpc('execute_family_deletion');
+  }
+
+  @override
+  Future<void> purgeNow() async {
+    try {
+      await _client.functions.invoke('purge-deleted');
+    } catch (_) {
+      // The row is already scheduled for now; the cron finishes the job.
+    }
+  }
+
+  @override
+  Future<void> requestAccountDeletion({int? successorProfileId}) async {
+    final params = <String, dynamic>{};
+    // Omitted rather than null: the RPC's own default decides whether a
+    // successor is even required.
+    if (successorProfileId != null) {
+      params['p_new_admin_id'] = successorProfileId;
+    }
+    await _client.rpc('request_account_deletion', params: params);
+  }
+
+  @override
+  Future<void> cancelAccountDeletion() async {
+    await _client.rpc('cancel_account_deletion');
+  }
+
+  @override
+  Future<void> sendAccountEmail(String emailType, {int? profileId}) async {
+    try {
+      await _client.functions.invoke('send-account-email', body: {
+        'emailType': emailType,
+        'profileId': ?profileId,
+        'environmentPrefix': environmentPrefix,
+      });
+    } catch (_) {/* best-effort, as in the web */}
+  }
+
+  @override
+  Future<void> acceptCurrentPolicy() async {
+    await _client.rpc('accept_current_policy',
+        params: {'p_version': PolicyVersions.current});
   }
 
   /// The `error` field an Edge Function puts in its body, when there is one.

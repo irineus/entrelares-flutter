@@ -6,6 +6,23 @@ import '../services/admin_mode.dart';
 import '../services/notification_badge.dart';
 import '../widgets/app_l10n.dart';
 
+/// What the shell needs to paint the S-11 banner: the deadline, whether the
+/// family already agreed unanimously, and whether I am the one who asked (the
+/// requester can withdraw; everyone else has to answer).
+class FamilyDeletionBanner {
+  final DateTime scheduledFor;
+  final bool allAgreed;
+  final bool iAmRequester;
+  final VoidCallback onTap;
+
+  const FamilyDeletionBanner({
+    required this.scheduledFor,
+    required this.allAgreed,
+    required this.iAmRequester,
+    required this.onTap,
+  });
+}
+
 /// The authenticated hull — the same four destinations as the web's NavMenu
 /// bottom tab bar (Calendário, Família, Avisos, Relatórios). Branch state is
 /// preserved per tab by the indexed stack, the native improvement over the
@@ -16,11 +33,18 @@ class HomeShell extends StatelessWidget {
   final AdminMode adminMode;
   final NotificationBadge badge;
 
+  /// S-11: the live family-deletion request, if there is one. The banner sits
+  /// above every tab because the deadline applies to the whole app, and it is
+  /// the only way a member who never opens Família learns their family is
+  /// scheduled for removal.
+  final FamilyDeletionBanner? deletionBanner;
+
   const HomeShell(
       {super.key,
       required this.shell,
       required this.adminMode,
-      required this.badge});
+      required this.badge,
+      this.deletionBanner});
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +86,7 @@ class HomeShell extends StatelessWidget {
                   ),
                 ),
               ),
+            if (deletionBanner != null) _deletionBanner(context, l),
             Expanded(child: shell),
           ],
         ),
@@ -103,6 +128,38 @@ class HomeShell extends StatelessWidget {
                 selectedIcon: const Icon(Icons.bar_chart),
                 label: l[K.navReports]),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _deletionBanner(BuildContext context, Localization l) {
+    final banner = deletionBanner!;
+    return Material(
+      color: const Color(0xFF7F1D1D),
+      child: InkWell(
+        onTap: banner.onTap,
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Text(
+              // Unanimity already reached reads differently from a request
+              // still collecting answers — the deadline means something else
+              // in each case.
+              banner.allAgreed
+                  ? '🗑️ ${l[K.layoutFamilyDeletionConfirmed]} '
+                      '${l.format(K.layoutFamilyDeletionConfirmedUntil, [
+                        l.formatDate(banner.scheduledFor.toLocal())
+                      ])}'
+                  : '🗑️ ${l[K.layoutFamilyDeletionRequested]} — '
+                      '${l.format(banner.iAmRequester ? K.layoutFamilyDeletionRequester : K.layoutFamilyDeletionOther, [
+                        l.formatDateShort(banner.scheduledFor.toLocal())
+                      ])}',
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
         ),
       ),
     );

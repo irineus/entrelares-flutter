@@ -26,8 +26,7 @@ import '../widgets/sudo_sheet.dart';
 /// sudo-gated**, and each of those calls goes through [runWithSudo], which
 /// asks before acting AND retries once when the server disagrees.
 ///
-/// Deliberately NOT here yet: leaving the family (S-11) and the onboarding
-/// reopen links (U-23) — PRs 5 and 6 of this lote.
+/// Deliberately NOT here yet: the onboarding reopen links (U-23) — PR 6.
 class ProfileScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
   final SudoService sudo;
@@ -42,12 +41,21 @@ class ProfileScreen extends StatefulWidget {
   /// tests need to reach.
   final Future<void> Function(String fileName, String json)? deliverExport;
 
+  /// Called once the exit is scheduled — the shell routes to `/leaving` and
+  /// keeps them there.
+  final VoidCallback? onLeaving;
+
+  /// Opens the Família page, where a pending family deletion is resolved.
+  final VoidCallback? onOpenFamily;
+
   const ProfileScreen({
     super.key,
     required this.dataSource,
     required this.sudo,
     this.profileId,
     this.deliverExport,
+    this.onLeaving,
+    this.onOpenFamily,
   });
 
   @override
@@ -78,8 +86,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _exporting = false;
 
+  // S-11 — leaving the family
+  PendingFamilyDeletion? _pendingDeletion;
+  bool _confirmingLeave = false;
+  bool _leaving = false;
+  int? _successorId;
+
   bool get _isOwn => _target?.id == _me?.id;
   bool get _iAmAdmin => _me?.isAdmin == true;
+
+  List<LifecycleMember> get _lifecycleMembers => _members
+      .map((m) => LifecycleMember(
+          id: m.id, isActiveMember: m.isActiveMember, isAdmin: m.isAdmin))
+      .toList();
+
+  /// Leaving as the last live member is really deleting the family, and the
+  /// screen must say so BEFORE the button is pressed.
+  bool get _isLastMember =>
+      _me != null &&
+      FamilyLifecycleRules.isLastActiveMember(_lifecycleMembers, _me!.id);
+
+  /// The only admin has to name a successor: the DB promotes them before
+  /// letting me go, because a family with no admin could never invite, rename
+  /// or resolve anything again.
+  bool get _needsSuccessor =>
+      _me != null &&
+      FamilyLifecycleRules.needsSuccessor(_lifecycleMembers, _me!.id);
 
   @override
   void initState() {
@@ -103,6 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       widget.dataSource.fetchOwnProfile(),
       widget.dataSource.fetchRoles(),
       widget.dataSource.fetchOwnFamily(),
+      widget.dataSource.fetchPendingFamilyDeletion(),
     ]);
     if (!mounted) return;
     final members = results[0] as List<Member>;
@@ -122,6 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _target = target;
       _roles = results[2] as List<Role>;
       _family = results[3] as Family?;
+      _pendingDeletion = results[4] as PendingFamilyDeletion?;
       _nameDraft.text = target?.fullName ?? '';
       _roleDraft = target?.roleId;
       _loading = false;
@@ -331,6 +365,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await Share.shareXFiles([XFile(file.path, mimeType: 'application/json')]);
   }
 
+  Future<void> _leaveFamily(Localization l) async {
+    if (_leaving) return;
+    setState(() => _leaving = true);
+    try {
+      final ran = await runWithSudo(
+        context: context,
+        sudo: widget.sudo,
+        action: () => widget.dataSource.requestAccountDeletion(
+            successorProfileId: _needsSuccessor ? _successorId : null),
+      );
+      if (!mounted) return;
+      if (!ran) {
+        setState(() => _leaving = false);
+        return;
+      }
+      // Best-effort, as in the web: the exit is already scheduled.
+      await widget.dataSource
+          .sendAccountEmail('member_left', profileId: _me?.id);
+      if (!mounted) return;
+      // From here the router confines them to /leaving until they cancel or
+      // sign out.
+      widget.onLeaving?.call();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _leaving = false);
+      showAppSnack(
+          context, translateSaveError(e.toString(), l[K.errSaveFailed], l),
+          type: AppSnackType.error);
+    }
+  }
+
   Future<void> _openWebPage(String url) async {
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
@@ -380,6 +445,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _passwordSection(l, target),
             const SizedBox(height: 24),
             _lgpdSection(l),
+            const SizedBox(height: 24),
+            _leaveSection(l),
           ],
           const SizedBox(height: 24),
           _legalFooter(l),
@@ -540,6 +607,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       );
+
+  /// S-11 — leaving. Two different acts share one button, and the copy is what
+  /// tells them apart: the LAST live member is deleting the family, everyone
+  /// else is only deleting their own account.
+  Widget _leaveSection(Localization l) {
+    final theme = Theme.of(context);
+    final last = _isLastMember;
+
+    // Blocked while the family itself is on the way out — the DB refuses too,
+    // and the two flows would race for the same rows.
+    if (_pendingDeletion != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionTitle(l[last ? K.profLeaveTitleLast : K.profLeaveTitle]),
+          const SizedBox(height: 8),
+          Text(l[K.profLeaveBlocked], style: theme.textTheme.bodySmall),
+          TextButton(
+            onPressed: widget.onOpenFamily,
+            child: Text(l[K.profFamilyPageLink]),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(l[last ? K.profLeaveTitleLast : K.profLeaveTitle]),
+        const SizedBox(height: 8),
+        Text(l[last ? K.profLeaveLastIntro : K.profLeaveIntro],
+            style: theme.textTheme.bodySmall),
+        const SizedBox(height: 8),
+        for (final consequence in last
+            ? [K.profLeaveLastConsequenceData, K.profLeaveLastConsequenceCancel]
+            : [
+                K.profLeaveConsequenceAccount,
+                K.profLeaveConsequenceDays,
+                K.profLeaveConsequenceHistory,
+                K.profLeaveConsequenceNotice,
+                if (_needsSuccessor) K.profLeaveConsequenceSuccessor,
+              ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child:
+                Text('• ${l[consequence]}', style: theme.textTheme.bodySmall),
+          ),
+        if (_needsSuccessor) ...[
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int>(
+            initialValue: _successorId,
+            decoration: InputDecoration(
+              labelText: l[K.profSuccessorLabel],
+              hintText: l[K.profSuccessorPlaceholder],
+            ),
+            items: [
+              for (final candidate in FamilyLifecycleRules.successorCandidates(
+                  _lifecycleMembers, _me!.id))
+                DropdownMenuItem(
+                  value: candidate.id,
+                  child: Text(_members
+                          .where((m) => m.id == candidate.id)
+                          .map((m) => m.fullName)
+                          .firstOrNull ??
+                      ''),
+                ),
+            ],
+            onChanged: (value) => setState(() => _successorId = value),
+          ),
+        ],
+        const SizedBox(height: 12),
+        if (!_confirmingLeave)
+          OutlinedButton(
+            onPressed: () => setState(() => _confirmingLeave = true),
+            child: Text(l[last ? K.profLeaveOpenLast : K.profLeaveOpen]),
+          )
+        else ...[
+          Text(l[last ? K.profLeaveConfirmTextLast : K.profLeaveConfirmText],
+              style: TextStyle(color: theme.colorScheme.error)),
+          const SizedBox(height: 8),
+          FilledButton(
+            onPressed: _leaving || (_needsSuccessor && _successorId == null)
+                ? null
+                : () => _leaveFamily(l),
+            child:
+                Text(l[last ? K.profLeaveConfirmLast : K.profLeaveConfirm]),
+          ),
+          TextButton(
+            onPressed: () => setState(() => _confirmingLeave = false),
+            child: Text(
+                l[last ? K.profLeaveKeepFamily : K.profLeaveKeepAccount]),
+          ),
+        ],
+      ],
+    );
+  }
 
   /// The stores accept an external legal link, and one copy of the text beats
   /// three that can drift (owner decision, lote 4).

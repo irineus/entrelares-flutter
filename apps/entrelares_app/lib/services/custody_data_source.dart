@@ -3,6 +3,7 @@ import 'package:entrelares_core/entrelares_core.dart' show PreEditNotes;
 import '../models/app_notification.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
+import '../models/family_deletion.dart';
 import '../models/family_invitation.dart';
 import '../models/invite_info.dart';
 import '../models/member.dart';
@@ -271,6 +272,57 @@ abstract class CustodyDataSource {
 
   /// F-17: every row RLS lets this member read, for the LGPD export.
   Future<ExportBundle> fetchExportData(int myProfileId);
+
+  // ── Lote 4: leaving, family deletion (S-11) and re-consent (S-15) ─────────
+
+  /// The family's live deletion request and its answers, or null when there is
+  /// none. At most one `pending` row can exist (partial unique index).
+  Future<PendingFamilyDeletion?> fetchPendingFamilyDeletion();
+
+  /// Sudo-gated. Admin-only, and refused while the family has a single live
+  /// member — that person deletes the family by leaving instead.
+  Future<void> requestFamilyDeletion();
+
+  /// [agree] null REMOVES my answer (back to "aguardando"). Deliberately NOT
+  /// sudo-gated: agreeing is not the destructive act, executing is.
+  Future<void> respondFamilyDeletion(bool? agree);
+
+  /// Sudo-gated; the requester's own way out.
+  Future<void> withdrawFamilyDeletion();
+
+  /// Sudo-gated. Admin-only and re-checks unanimity server-side; sets the
+  /// deadline to now.
+  Future<void> executeFamilyDeletion();
+
+  /// Runs the purge immediately after [executeFamilyDeletion] instead of
+  /// waiting for the cron. Best-effort: the row is already scheduled.
+  Future<void> purgeNow();
+
+  /// S-11: schedules MY exit (30 days). [successorProfileId] is required by the
+  /// DB when I am the only admin — it promotes them BEFORE letting me go.
+  /// Sudo-gated.
+  Future<void> requestAccountDeletion({int? successorProfileId});
+
+  /// Sudo-gated. Refused when the family already filled my seat.
+  Future<void> cancelAccountDeletion();
+
+  /// Best-effort account e-mails (`member_left`, `member_returned`,
+  /// `family_deletion_requested` and friends) through `send-account-email`.
+  Future<void> sendAccountEmail(String emailType, {int? profileId});
+
+  /// S-15: records acceptance of [PolicyVersions.current]. The RPC REFUSES a
+  /// version that is not the one `app_settings` declares, so a client that is
+  /// behind fails loudly instead of stamping an unconsented version.
+  Future<void> acceptCurrentPolicy();
+}
+
+/// The family-deletion request together with the answers to it — they are
+/// always read as a pair, and the panel needs both to say anything true.
+class PendingFamilyDeletion {
+  final FamilyDeletionRequest request;
+  final List<FamilyDeletionResponse> responses;
+
+  const PendingFamilyDeletion(this.request, this.responses);
 }
 
 /// The raw material of the F-17 export. Assembling it into the published JSON

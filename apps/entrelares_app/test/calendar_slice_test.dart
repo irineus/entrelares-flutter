@@ -508,6 +508,76 @@ class FakeCustodyDataSource implements CustodyDataSource {
     exportFetches++;
     return exportBundle;
   }
+
+  // ── Lote 4: leaving, family deletion (S-11) and re-consent (S-15) ──
+  PendingFamilyDeletion? pendingDeletion;
+
+  /// Thrown by whichever lifecycle write is exercised next.
+  Object? throwOnLifecycle;
+
+  int deletionRequests = 0;
+  int withdrawals = 0;
+  int executions = 0;
+  int purges = 0;
+  int policyAccepts = 0;
+  int cancelledExits = 0;
+  final List<bool?> deletionResponses = [];
+  final List<int?> accountDeletions = [];
+  final List<String> accountEmails = [];
+
+  @override
+  Future<PendingFamilyDeletion?> fetchPendingFamilyDeletion() async =>
+      pendingDeletion;
+
+  @override
+  Future<void> requestFamilyDeletion() async {
+    if (throwOnLifecycle != null) throw throwOnLifecycle!;
+    deletionRequests++;
+  }
+
+  @override
+  Future<void> respondFamilyDeletion(bool? agree) async {
+    if (throwOnLifecycle != null) throw throwOnLifecycle!;
+    deletionResponses.add(agree);
+  }
+
+  @override
+  Future<void> withdrawFamilyDeletion() async {
+    if (throwOnLifecycle != null) throw throwOnLifecycle!;
+    withdrawals++;
+  }
+
+  @override
+  Future<void> executeFamilyDeletion() async {
+    if (throwOnLifecycle != null) throw throwOnLifecycle!;
+    executions++;
+  }
+
+  @override
+  Future<void> purgeNow() async => purges++;
+
+  @override
+  Future<void> requestAccountDeletion({int? successorProfileId}) async {
+    if (throwOnLifecycle != null) throw throwOnLifecycle!;
+    accountDeletions.add(successorProfileId);
+  }
+
+  @override
+  Future<void> cancelAccountDeletion() async {
+    if (throwOnLifecycle != null) throw throwOnLifecycle!;
+    cancelledExits++;
+  }
+
+  @override
+  Future<void> sendAccountEmail(String emailType, {int? profileId}) async {
+    accountEmails.add(emailType);
+  }
+
+  @override
+  Future<void> acceptCurrentPolicy() async {
+    if (throwOnLifecycle != null) throw throwOnLifecycle!;
+    policyAccepts++;
+  }
 }
 
 const ana = Member(id: 1, fullName: 'Ana Souza', colorSlot: 1, userId: 'u1');

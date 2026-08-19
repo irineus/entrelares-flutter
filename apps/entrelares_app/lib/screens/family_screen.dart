@@ -10,8 +10,10 @@ import '../models/member.dart';
 import '../models/role.dart';
 import '../services/admin_mode.dart';
 import '../services/custody_data_source.dart';
+import '../services/sudo_service.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
+import '../widgets/sudo_sheet.dart';
 
 /// `/family` — port of `FamilyPage.razor`.
 ///
@@ -20,13 +22,18 @@ import '../widgets/app_snack.dart';
 /// split is the web's and it survives here, because the profile page is also
 /// where e-mail, password, LGPD export and leaving the family live.
 ///
-/// Deliberately NOT here yet: the premium/billing block and the family-deletion
-/// panel. Billing is lote 5 by the parity map's order, and deletion rides with
-/// the S-11 slice — the same kind of honest fatia lote 2 made when it shipped
-/// the calendar without the swap workflow.
+/// Deliberately NOT here yet: the premium/billing block (lote 5 by the parity
+/// map's order — and the store build must never carry an external checkout
+/// link, T-38).
+///
+/// The S-11 family-deletion panel DOES live here, and its rule is unusual
+/// enough to state: unanimity means every voter has an explicit `agreed` row.
+/// A missing answer is not consent — silence never deletes a family — and one
+/// refusal ends the request outright.
 class FamilyScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
   final AdminMode adminMode;
+  final SudoService sudo;
 
   /// Opens the F-41 page. Null hides the link (nothing to navigate to).
   final VoidCallback? onOpenCustomRoles;
@@ -35,12 +42,17 @@ class FamilyScreen extends StatefulWidget {
   /// Null leaves the cards inert.
   final void Function(Member member, bool isOwn)? onOpenProfile;
 
+  /// Called when the family is gone — every session must end.
+  final Future<void> Function()? onFamilyDeleted;
+
   const FamilyScreen({
     super.key,
     required this.dataSource,
     required this.adminMode,
+    required this.sudo,
     this.onOpenCustomRoles,
     this.onOpenProfile,
+    this.onFamilyDeleted,
   });
 
   @override
@@ -67,6 +79,12 @@ class _FamilyScreenState extends State<FamilyScreen> {
   int _inviteRoleId = 0;
   String? _inviteErrorKey;
   bool _sendingInvite = false;
+
+  // S-11 family deletion
+  PendingFamilyDeletion? _deletion;
+  bool _confirmingRequest = false;
+  bool _confirmingExecute = false;
+  bool _deletionBusy = false;
 
   @override
   void initState() {
@@ -128,9 +146,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
       final invitations = active < settings.maxCaregivers
           ? await widget.dataSource.fetchOpenInvitations()
           : <FamilyInvitation>[];
+      final deletion = await widget.dataSource.fetchPendingFamilyDeletion();
 
       if (!mounted) return;
       setState(() {
+        _deletion = deletion;
         _family = family;
         _members = members;
         _roles = results[2] as List<Role>;
@@ -321,6 +341,8 @@ class _FamilyScreenState extends State<FamilyScreen> {
               const SizedBox(height: 24),
               _adminModeSection(l),
             ],
+            const SizedBox(height: 24),
+            _deletionSection(l),
           ],
         ),
       ),
@@ -570,6 +592,305 @@ class _FamilyScreenState extends State<FamilyScreen> {
         ),
         const SizedBox(height: 8),
         Text(l[K.famInviteWhatsapp], style: theme.textTheme.bodySmall),
+      ],
+    );
+  }
+
+  // ── S-11: deleting the whole family ──────────────────────────────────────
+
+  List<LifecycleMember> get _lifecycleMembers => _members
+      .map((m) => LifecycleMember(
+          id: m.id, isActiveMember: m.isActiveMember, isAdmin: m.isAdmin))
+      .toList();
+
+  List<DeletionVote> get _votes =>
+      (_deletion?.responses ?? const [])
+          .map((r) => DeletionVote(profileId: r.profileId, agreed: r.agreed))
+          .toList();
+
+  bool get _allAgreed {
+    final deletion = _deletion;
+    if (deletion == null) return false;
+    return FamilyLifecycleRules.allAgreed(
+      members: _lifecycleMembers,
+      requesterProfileId: deletion.request.requestedBy,
+      votes: _votes,
+    );
+  }
+
+  Future<void> _runDeletionAction(
+    Localization l, {
+    required Future<void> Function() action,
+    required bool sudo,
+    String? successKey,
+  }) async {
+    if (_deletionBusy) return;
+    setState(() => _deletionBusy = true);
+    try {
+      final ran = sudo
+          ? await runWithSudo(
+              context: context, sudo: widget.sudo, action: action)
+          : await action().then((_) => true);
+      if (!mounted) return;
+      setState(() {
+        _deletionBusy = false;
+        _confirmingRequest = false;
+        _confirmingExecute = false;
+      });
+      if (!ran) return;
+      if (successKey != null) showAppSnack(context, l[successKey]);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _deletionBusy = false);
+      showAppSnack(
+          context, translateSaveError(e.toString(), l[K.errSaveFailed], l),
+          type: AppSnackType.error);
+    }
+  }
+
+  Future<void> _executeNow(Localization l) async {
+    if (_deletionBusy) return;
+    setState(() => _deletionBusy = true);
+    try {
+      final ran = await runWithSudo(
+        context: context,
+        sudo: widget.sudo,
+        action: widget.dataSource.executeFamilyDeletion,
+      );
+      if (!mounted) return;
+      if (!ran) {
+        setState(() => _deletionBusy = false);
+        return;
+      }
+      // Best-effort: the row is already scheduled for now, so the cron would
+      // finish the job anyway — this just makes it immediate.
+      await widget.dataSource.purgeNow();
+      // Every session ends here, including this one: the family is gone.
+      await widget.onFamilyDeleted?.call();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _deletionBusy = false);
+      showAppSnack(
+          context, translateSaveError(e.toString(), l[K.errSaveFailed], l),
+          type: AppSnackType.error);
+    }
+  }
+
+  Widget _deletionSection(Localization l) {
+    final deletion = _deletion;
+    if (deletion != null) return _deletionPendingPanel(l, deletion);
+
+    // Nothing pending: an admin with company may open one. A lone member
+    // deletes the family by LEAVING, which is the profile page's flow.
+    if (!FamilyLifecycleRules.canRequestFamilyDeletion(
+        isAdmin: _isAdmin, activeMemberCount: _activeMemberCount)) {
+      return const SizedBox.shrink();
+    }
+    return _deletionRequestPanel(l);
+  }
+
+  Widget _deletionRequestPanel(Localization l) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(l[K.famDelReqTitle]),
+        const SizedBox(height: 8),
+        Text(l[K.famDelReqIntro], style: theme.textTheme.bodySmall),
+        const SizedBox(height: 8),
+        for (final consequence in [
+          K.famDelReqConsequenceData,
+          K.famDelReqConsequenceNotice,
+          K.famDelReqConsequenceUnanimity,
+          K.famDelReqConsequenceWithdraw,
+        ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text('• ${l[consequence]}',
+                style: theme.textTheme.bodySmall),
+          ),
+        const SizedBox(height: 12),
+        if (!_confirmingRequest)
+          OutlinedButton(
+            onPressed: () => setState(() => _confirmingRequest = true),
+            child: Text(l[K.famDelReqOpen]),
+          )
+        else ...[
+          // Two steps on purpose: the first press opens a question, the second
+          // answers it. Nothing destructive is one tap away.
+          Text(l[K.famDelReqConfirmText]),
+          const SizedBox(height: 8),
+          FilledButton(
+            onPressed: _deletionBusy
+                ? null
+                : () => _runDeletionAction(
+                      l,
+                      sudo: true,
+                      successKey: K.famToastDeletionRequested,
+                      action: () async {
+                        await widget.dataSource.requestFamilyDeletion();
+                        await widget.dataSource
+                            .sendAccountEmail('family_deletion_requested');
+                      },
+                    ),
+            child: Text(l[K.famDelReqConfirm]),
+          ),
+          TextButton(
+            onPressed: () => setState(() => _confirmingRequest = false),
+            child: Text(l[K.famDelReqKeep]),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _deletionPendingPanel(
+      Localization l, PendingFamilyDeletion deletion) {
+    final theme = Theme.of(context);
+    final request = deletion.request;
+    final iAmRequester = request.requestedBy == _me?.id;
+    final allAgreed = _allAgreed;
+    final myVote =
+        _me == null ? null : FamilyLifecycleRules.voteOf(_votes, _me!.id);
+    final requesterName = _members
+            .where((m) => m.id == request.requestedBy)
+            .map((m) => m.fullName)
+            .firstOrNull ??
+        l[K.famRequesterFallback];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(l[K.famDelTitle]),
+        const SizedBox(height: 8),
+        if (allAgreed) ...[
+          Text(l.format(K.famDelAllAgreed,
+              [l.formatDate(request.scheduledFor.toLocal())])),
+          const SizedBox(height: 4),
+          Text(_isAdmin ? l[K.famDelAllAgreedAdmin] : l[K.famDelAllAgreedMember],
+              style: theme.textTheme.bodySmall),
+        ] else
+          Text(l.format(K.famDelRequested, [
+            requesterName,
+            l.formatDateShort(request.requestedAt.toLocal()),
+            l.formatDate(request.scheduledFor.toLocal()),
+          ])),
+        const SizedBox(height: 12),
+        for (final consequence in [
+          K.famDelConsequenceSilence,
+          K.famDelConsequenceUnanimity,
+          K.famDelConsequenceBlocked,
+          K.famDelConsequenceExport,
+        ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text('• ${l[consequence]}',
+                style: theme.textTheme.bodySmall),
+          ),
+        const SizedBox(height: 12),
+        // Who said what — an absent row reads "aguardando", never "concordou".
+        for (final voter in FamilyLifecycleRules.voters(
+            _lifecycleMembers, request.requestedBy))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              '${_members.where((m) => m.id == voter.id).map((m) => m.fullName).firstOrNull ?? ''}'
+              ' — ${switch (FamilyLifecycleRules.voteOf(_votes, voter.id)) {
+                true => l[K.famDelVoteAgreed],
+                false => l[K.famDelVoteRefused],
+                null => l[K.famDelVoteWaiting],
+              }}',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+        const SizedBox(height: 12),
+        if (iAmRequester)
+          OutlinedButton(
+            onPressed: _deletionBusy
+                ? null
+                : () => _runDeletionAction(
+                      l,
+                      sudo: true,
+                      successKey: K.famToastWithdrawn,
+                      action: () async {
+                        await widget.dataSource.withdrawFamilyDeletion();
+                        await widget.dataSource
+                            .sendAccountEmail('family_deletion_withdrawn');
+                      },
+                    ),
+            child: Text(l[K.famDelWithdraw]),
+          )
+        else ...[
+          // Refusing is NOT sudo-gated: it is the safe answer, and putting a
+          // password in front of "keep my family" would be backwards.
+          OutlinedButton(
+            onPressed: _deletionBusy
+                ? null
+                : () => _runDeletionAction(
+                      l,
+                      sudo: false,
+                      successKey: K.famToastRefused,
+                      action: () async {
+                        await widget.dataSource.respondFamilyDeletion(false);
+                        await widget.dataSource
+                            .sendAccountEmail('family_deletion_refused');
+                      },
+                    ),
+            child: Text(l[K.famDelRefuseKeep]),
+          ),
+          const SizedBox(height: 8),
+          if (myVote == true)
+            TextButton(
+              onPressed: _deletionBusy
+                  ? null
+                  : () => _runDeletionAction(
+                        l,
+                        sudo: false,
+                        successKey: K.famToastAgreementUndone,
+                        // A null answer REMOVES the row — back to waiting,
+                        // which is not the same as refusing.
+                        action: () =>
+                            widget.dataSource.respondFamilyDeletion(null),
+                      ),
+              child: Text(l[K.famDelUndoAgreement]),
+            )
+          else
+            TextButton(
+              onPressed: _deletionBusy
+                  ? null
+                  : () => _runDeletionAction(
+                        l,
+                        sudo: false,
+                        successKey: K.famToastAgreed,
+                        action: () =>
+                            widget.dataSource.respondFamilyDeletion(true),
+                      ),
+              child: Text(l[K.famDelAgree]),
+            ),
+        ],
+        if (FamilyLifecycleRules.canExecuteNow(
+            isAdmin: _isAdmin, allAgreed: allAgreed)) ...[
+          const SizedBox(height: 12),
+          if (!_confirmingExecute)
+            OutlinedButton(
+              onPressed: () => setState(() => _confirmingExecute = true),
+              child: Text(l[K.famDelExecuteNowOpen]),
+            )
+          else ...[
+            Text(l[K.famDelExecuteConfirmText],
+                style: TextStyle(color: theme.colorScheme.error)),
+            const SizedBox(height: 8),
+            FilledButton(
+              onPressed: _deletionBusy ? null : () => _executeNow(l),
+              child: Text(l[K.famDelExecuteNow]),
+            ),
+            TextButton(
+              onPressed: () => setState(() => _confirmingExecute = false),
+              child: Text(l[K.famDelBack]),
+            ),
+          ],
+        ],
       ],
     );
   }
