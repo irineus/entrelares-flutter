@@ -23,7 +23,6 @@ abstract final class KApp {
   static const String sheetTransitionAt = 'app.sheet.transitionAt';
   static const String sheetTransition = 'app.sheet.transition';
   static const String sheetNote = 'app.sheet.note';
-  static const String sheetPastImmutable = 'app.sheet.pastImmutable';
   static const String sheetWhoQuestion = 'app.sheet.whoQuestion';
   static const String sheetSave = 'app.sheet.save';
   static const String errDaySave = 'app.sheet.saveError';
@@ -50,7 +49,6 @@ abstract final class KApp {
     sheetTransitionAt,
     sheetTransition,
     sheetNote,
-    sheetPastImmutable,
     sheetWhoQuestion,
     sheetSave,
     errDaySave,
@@ -73,7 +71,6 @@ abstract final class StringsAppPtBr {
     KApp.sheetTransitionAt: 'Dia de transição — troca às {0}',
     KApp.sheetTransition: 'Dia de transição',
     KApp.sheetNote: 'Observação: {0}',
-    KApp.sheetPastImmutable: 'Dias passados são imutáveis.',
     KApp.sheetWhoQuestion: 'Quem fica com a criança neste dia?',
     KApp.sheetSave: 'Salvar',
     KApp.errDaySave: 'Não foi possível salvar o dia.',
@@ -101,7 +98,6 @@ abstract final class StringsAppEn {
     KApp.sheetTransitionAt: 'Transition day — handoff at {0}',
     KApp.sheetTransition: 'Transition day',
     KApp.sheetNote: 'Note: {0}',
-    KApp.sheetPastImmutable: 'Past days cannot be changed.',
     KApp.sheetWhoQuestion: 'Who has the child on this day?',
     KApp.sheetSave: 'Save',
     KApp.errDaySave: 'Could not save the day.',

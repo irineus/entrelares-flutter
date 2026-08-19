@@ -1,0 +1,157 @@
+// TodayCard (T-53 lote 1) — the widget states of the web's TodayCard.razor:
+// responsible row with badges and the next-handoff block, the no-responsible
+// hint, the F-31 invite nudge (which wins over everything), the back-to-today
+// affordance, and the English rendering.
+import 'package:entrelares_core/entrelares_core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:entrelares_app/widgets/app_l10n.dart';
+import 'package:entrelares_app/widgets/today_card.dart';
+
+const ana = MemberView(id: 1, fullName: 'Ana Souza', colorSlot: 1);
+const bruno = MemberView(id: 2, fullName: 'Bruno Lima', colorSlot: 2);
+
+final today = DateTime(2026, 8, 19);
+
+Widget wrap(Widget child, {AppLanguage language = AppLanguage.ptBr}) =>
+    AppL10n(
+      l: Localization(language),
+      setLanguage: (_) async {},
+      child: MaterialApp(home: Scaffold(body: child)),
+    );
+
+TodayCard card({
+  TodayGlance? glance,
+  DateTime? nextHandoff,
+  bool viewingCurrentMonth = true,
+  bool showInviteNudge = false,
+  VoidCallback? onGoToToday,
+  VoidCallback? onInvite,
+}) =>
+    TodayCard(
+      glance: glance ??
+          todayGlance(
+            userProfileId: 1,
+            scheduledParentId: null,
+            actualParentId: null,
+            handoffTime: null,
+            members: const [ana, bruno],
+          ),
+      userFullName: 'Ana Souza',
+      today: today,
+      nextHandoffDate: nextHandoff,
+      viewingCurrentMonth: viewingCurrentMonth,
+      showInviteNudge: showInviteNudge,
+      onGoToToday: onGoToToday ?? () {},
+      onInvite: onInvite ?? () {},
+    );
+
+void main() {
+  testWidgets('responsible row: greeting, date heading, name, next handoff',
+      (tester) async {
+    final glance = todayGlance(
+      userProfileId: 1,
+      scheduledParentId: 2,
+      actualParentId: null,
+      handoffTime: null,
+      members: const [ana, bruno],
+    );
+    await tester.pumpWidget(wrap(card(
+        glance: glance, nextHandoff: DateTime(2026, 8, 22))));
+
+    expect(find.text('Olá, Ana Souza!'), findsOneWidget);
+    expect(find.text('quarta-feira, 19 de agosto'), findsOneWidget);
+    expect(find.text('Responsável hoje'), findsOneWidget);
+    expect(find.text('Bruno Lima'), findsOneWidget);
+    expect(find.text('B'), findsOneWidget, reason: 'naive avatar letter');
+    expect(find.text('Próxima troca'), findsOneWidget);
+    expect(find.text('sáb, 22/08'), findsOneWidget);
+    expect(find.text('em 3 dias'), findsOneWidget);
+    // Current month: the card is not tappable, no hint.
+    expect(find.text('↩ Voltar para hoje'), findsNothing);
+  });
+
+  testWidgets('swapped day shows both badges — 🔄 and the ⏰ time',
+      (tester) async {
+    final glance = todayGlance(
+      userProfileId: 1,
+      scheduledParentId: 1,
+      actualParentId: 2,
+      handoffTime: '18:30:00',
+      members: const [ana, bruno],
+    );
+    await tester.pumpWidget(wrap(card(glance: glance)));
+
+    expect(find.text('🔄 Trocado'), findsOneWidget);
+    expect(find.text('⏰ 18:30'), findsOneWidget);
+  });
+
+  testWidgets('no schedule: the 📭 hint, and no handoff line', (tester) async {
+    await tester.pumpWidget(wrap(card()));
+
+    expect(find.text('Dia sem responsável'), findsOneWidget);
+    expect(
+        find.text('Toque em um dia no calendário para definir'), findsOneWidget);
+    expect(find.text('Próxima troca'), findsNothing);
+  });
+
+  testWidgets('the F-31 invite nudge wins over the responsible row',
+      (tester) async {
+    var invited = false;
+    final glance = todayGlance(
+      userProfileId: 1,
+      scheduledParentId: 1,
+      actualParentId: null,
+      handoffTime: null,
+      members: const [ana],
+    );
+    await tester.pumpWidget(wrap(card(
+      glance: glance,
+      showInviteNudge: true,
+      onInvite: () => invited = true,
+    )));
+
+    expect(find.text('Convide o outro responsável'), findsOneWidget);
+    expect(find.text('Responsável hoje'), findsNothing);
+
+    await tester.tap(find.text('Convidar'));
+    expect(invited, isTrue);
+  });
+
+  testWidgets('viewing another month: hint shows and the tap goes to today',
+      (tester) async {
+    var wentToToday = false;
+    await tester.pumpWidget(wrap(card(
+      viewingCurrentMonth: false,
+      onGoToToday: () => wentToToday = true,
+    )));
+
+    expect(find.text('↩ Voltar para hoje'), findsOneWidget);
+    await tester.tap(find.byType(InkWell).first);
+    expect(wentToToday, isTrue);
+  });
+
+  testWidgets('an English session renders the card in English',
+      (tester) async {
+    final glance = todayGlance(
+      userProfileId: 1,
+      scheduledParentId: 2,
+      actualParentId: null,
+      handoffTime: null,
+      members: const [ana, bruno],
+    );
+    await tester.pumpWidget(wrap(
+      card(glance: glance, nextHandoff: DateTime(2026, 8, 20)),
+      language: AppLanguage.en,
+    ));
+
+    expect(find.text('Hi, Ana Souza!'), findsOneWidget);
+    expect(find.text('Wednesday, August 19'), findsOneWidget);
+    expect(find.text('Caregiver today'), findsOneWidget);
+    expect(find.text('Next handover'), findsOneWidget);
+    expect(find.text('tomorrow'), findsOneWidget);
+    expect(find.text('Bruno Lima'), findsOneWidget,
+        reason: 'names never translate');
+  });
+}

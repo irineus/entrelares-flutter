@@ -124,11 +124,31 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
   em qualquer lugar reseta; o resume do lifecycle reavalia na hora (tempo em background
   conta, como a aba escondida no web). Expirou → signOut local + banner no login.
 
+## Espelhos e Today at a Glance (lote 1 — PR3)
+
+- **Card Today at a Glance:** port do `TodayCard.razor` no topo do calendário — responsável
+  de hoje (efetivo `actual ?? scheduled`), badges 🔄/⏰, próxima troca (janela de 90 dias,
+  primeiro dia com responsável efetivo diferente — mesmo scan do web), nudge de convite
+  F-31 (admin sozinho na família) e "voltar para hoje" quando navegando outro mês. A
+  projeção que no web vivia inline (sem teste) virou regra pura em `today_rules.dart`.
+- **Espelho T-41 (settings):** seam `parseIntSetting`/`parseBoolSetting` (semântica .NET
+  `TryParse`) + `PublicSettings` com os 10 acessores e fallbacks dos seeds; o fetch
+  (`app_settings` público via RLS) está no data source — o primeiro consumidor é o clamp
+  de horizonte (lote 2).
+- **Espelho F-32 (entitlement):** `computeIsPremium` (premium OR comp F-58 OR trial
+  estritamente futuro) + `describePlan` (countdown com piso de 1 dia), fail-closed por
+  construção (`Family` null → free); consumo de UI chega com os gates (lotes 2/5).
+- **UX feedback:** `showAppSnack` (sucesso/erro/info, um por vez, toque dispensa, duração
+  espelhada `3 s + 35 ms/char > 40, teto 8 s`) — primeiro uso: "Salvo com sucesso" no save
+  do sheet; banner âmbar de dia passado no sheet (`K.editorPastReadonly`). O gate "toast
+  nunca com literal" (port do `NoToast_CarriesALiteralString`) entrou junto, como o
+  registro do PR1 prometia.
+
 ## Versionamento
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.2.3+5` (T-53 lote 1 PR2 — casco go_router, App Links + recovery, throttling S-01, inatividade S-04) |
+| `apps/entrelares_app` | `0.2.4+6` (T-53 lote 1 PR3 — card Today at a Glance, espelhos T-41/F-32, SnackBar + banner âmbar) |
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 

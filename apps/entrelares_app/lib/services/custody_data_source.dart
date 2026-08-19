@@ -1,4 +1,5 @@
 import '../models/care_schedule.dart';
+import '../models/family.dart';
 import '../models/member.dart';
 
 /// What the calendar slice needs from the backend — an interface so widget
@@ -22,6 +23,20 @@ abstract class CustodyDataSource {
 
   /// All rows of [year]/[month]. RLS scopes the family server-side.
   Future<List<CareSchedule>> fetchMonth(int year, int month);
+
+  /// Rows from [from] (inclusive) through [from] + [days], date-ascending —
+  /// the Today card's row + next-handoff scan window (mirror of the web's
+  /// `GetNextHandoffDateAsync` fetch; the scan itself is pure, in core).
+  Future<List<CareSchedule>> fetchUpcoming(DateTime from, int days);
+
+  /// F-32: the signed-in user's family row (RLS yields at most one), or null.
+  /// The entitlement mirror fails CLOSED on null by construction.
+  Future<Family?> fetchOwnFamily();
+
+  /// T-41: the PUBLIC `app_settings` rows as key→value (RLS exposes only the
+  /// public ones). Callers cache load-once and fall back to the seeded
+  /// defaults on failure, as the web does.
+  Future<Map<String, String>> fetchPublicSettings();
 
   Future<void> insertDay(CareSchedule day);
 

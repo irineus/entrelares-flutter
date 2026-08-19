@@ -19,6 +19,10 @@ class Member {
   /// e-mail arrives in the same language as the app did.
   final String? languageDetected;
 
+  /// Family admin (🛡️). Client-side it only gates AFFORDANCES (the F-31
+  /// invite nudge here); every admin power is re-checked by RLS/triggers.
+  final bool isAdmin;
+
   const Member({
     required this.id,
     required this.fullName,
@@ -27,6 +31,7 @@ class Member {
     this.leftAt,
     this.language,
     this.languageDetected,
+    this.isAdmin = false,
   });
 
   /// A live, present member holds a family seat (Profile.IsActiveMember).
@@ -40,6 +45,7 @@ class Member {
         leftAt: json['left_at'] as String?,
         language: json['language'] as String?,
         languageDetected: json['language_detected'] as String?,
+        isAdmin: (json['is_admin'] as bool?) ?? false,
       );
 
   MemberView toView() => MemberView(

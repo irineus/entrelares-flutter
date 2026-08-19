@@ -186,8 +186,25 @@ class _DaySheetState extends State<_DaySheet> {
             ],
             const SizedBox(height: 16),
             if (_isPast)
-              Text(l[KApp.sheetPastImmutable],
-                  style: Theme.of(context).textTheme.bodySmall)
+              // The web's amber readonly banner (Home.razor .readonly-banner):
+              // the only blocked-day state that exists in this lote — frozen
+              // and admin-override arrive with lotes 3/2.
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  l[K.editorPastReadonly],
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      fontSize: 13, color: Color(0xFF92400E)),
+                ),
+              )
             else ...[
               Text(l[KApp.sheetWhoQuestion],
                   style: Theme.of(context).textTheme.labelLarge),

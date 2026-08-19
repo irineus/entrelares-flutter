@@ -7,7 +7,9 @@ library;
 
 export 'src/auth_rules.dart';
 export 'src/calendar_rules.dart';
+export 'src/entitlement_rules.dart';
 export 'src/environment_rules.dart';
+export 'src/feedback_rules.dart';
 export 'src/localization/app_language.dart';
 export 'src/localization/date_formats.dart';
 export 'src/localization/k.dart';
@@ -18,3 +20,5 @@ export 'src/localization/notification_renderer.dart';
 export 'src/localization/strings_en.dart';
 export 'src/localization/strings_pt_br.dart';
 export 'src/save_errors.dart';
+export 'src/settings_rules.dart';
+export 'src/today_rules.dart';

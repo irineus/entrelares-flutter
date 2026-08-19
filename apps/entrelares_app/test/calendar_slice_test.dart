@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:entrelares_app/models/care_schedule.dart';
+import 'package:entrelares_app/models/family.dart';
 import 'package:entrelares_app/models/member.dart';
 import 'package:entrelares_app/screens/calendar_screen.dart';
 import 'package:entrelares_app/services/custody_data_source.dart';
@@ -17,6 +18,8 @@ class FakeCustodyDataSource implements CustodyDataSource {
   List<CareSchedule> days;
   final List<CareSchedule> inserted = [];
   final List<CareSchedule> updated = [];
+  Family? family;
+  Map<String, String> publicSettings = const {};
   Object? throwOnWrite;
   void Function()? realtimeCallback;
   int monthFetches = 0;
@@ -28,6 +31,23 @@ class FakeCustodyDataSource implements CustodyDataSource {
 
   @override
   Future<Member?> fetchOwnProfile() async => members.firstOrNull;
+
+  @override
+  Future<List<CareSchedule>> fetchUpcoming(DateTime from, int days) async {
+    final start = DateTime(from.year, from.month, from.day);
+    final end = start.add(Duration(days: days));
+    return this
+        .days
+        .where((d) =>
+            !d.scheduleDate.isBefore(start) && !d.scheduleDate.isAfter(end))
+        .toList();
+  }
+
+  @override
+  Future<Family?> fetchOwnFamily() async => family;
+
+  @override
+  Future<Map<String, String>> fetchPublicSettings() async => publicSettings;
 
   @override
   Future<void> updateOwnLanguage(int profileId, String languageCode) async {}
@@ -144,6 +164,12 @@ void main() {
     expect(ds.inserted.single.scheduledParentId, 2);
     expect(ds.inserted.single.scheduleDate, dayOfMonth(day));
     expect(ds.updated, isEmpty);
+
+    // The save confirmation SnackBar (web: Toast.ShowSuccess(K.ToastSaved)).
+    expect(find.text('Salvo com sucesso'), findsOneWidget);
+    // Let its dismiss timer fire so no timer outlives the test.
+    await tester.pump(const Duration(milliseconds: 3100));
+    await tester.pumpAndSettle();
   });
 
   testWidgets(
@@ -171,6 +197,9 @@ void main() {
     final json = sent.toUpdateJson();
     expect(json['submitted_token'], 'tok-5', reason: 'T-35 echo must survive');
     expect(json['revision'], 4, reason: 'T-33 revision as read');
+
+    await tester.pump(const Duration(milliseconds: 3100));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('day conflict shows the "salvou primeiro" message',
@@ -212,7 +241,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(finder);
     await tester.pumpAndSettle();
-    expect(find.text('Dias passados são imutáveis.'), findsOneWidget);
+    // The amber readonly banner (web: .readonly-banner / K.editorPastReadonly).
+    expect(
+        find.text('🔒 Dia passado — apenas visualização'), findsOneWidget);
     expect(find.text('Salvar'), findsNothing);
   });
 
