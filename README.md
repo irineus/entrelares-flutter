@@ -115,7 +115,7 @@ Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 - `applicationId` por flavor (estágio 3): **dev = `com.entrelares.flutter`** — DIFERENTE
   do pacote da Play de propósito, para o APK dev coexistir com o app instalado da loja no
   aparelho do owner — e **prod = `com.entrelares.app`** (mesma assinatura de upload —
-  validado no estágio 0; distribuição travada no T-55).
+  validado no estágio 0; assinatura release por flavor entregue no T-55).
 - O cliente ESPELHA, o banco IMPÕE — RLS, RPCs, sudo S-10 e revision/revision_token são a
   segurança; este app é só mais um caller.
 - Paridade é piso, não teto: onde o Flutter der melhoria natural (Realtime no lugar do
