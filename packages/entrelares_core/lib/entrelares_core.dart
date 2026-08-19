@@ -6,4 +6,5 @@
 library;
 
 export 'src/calendar_rules.dart';
+export 'src/environment_rules.dart';
 export 'src/save_errors.dart';

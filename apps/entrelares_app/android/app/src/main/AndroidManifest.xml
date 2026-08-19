@@ -5,7 +5,7 @@
          pilot lesson 2.1). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="Entrelares"
+        android:label="${appName}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
