@@ -1,19 +1,34 @@
 # T-54 — the repo's gate: analyze + tests on every push/PR.
-# The APK build stays OUT of the gate on purpose: it is minutes-expensive and
-# the account's 2000 min/mo are shared with the product repos (same constraint
-# that shaped T-50). Need an APK from CI? workflow_dispatch below.
+# The APK build and the E2E emulator lane stay OUT of the gate on purpose: both
+# are minutes-expensive and the account's 2000 min/mo are shared with the
+# product repos (same constraint that shaped T-50). The E2E lane runs daily on
+# a schedule and on demand; an APK comes from workflow_dispatch.
 name: verify
 
 on:
   push:
     branches: [main]
   pull_request:
+  # T-53 lote 3: the E2E lane runs on a schedule, not on every push — an
+  # emulator run costs ~10-15 min of the account-wide 2000 min/mo (the same
+  # constraint that keeps the APK build out of the gate). 06:10 UTC daily.
+  schedule:
+    - cron: "10 6 * * *"
   workflow_dispatch:
     inputs:
       build-apk:
         description: "Also build the debug APK (arm64, split-per-abi)"
         type: boolean
         default: false
+      run-e2e:
+        description: "Also run the E2E lane on an emulator (two-user swap flow)"
+        type: boolean
+        default: false
+      e2e-pack:
+        description: "E2E pack: p0 (smoke) or full"
+        type: choice
+        options: [p0, full]
+        default: p0
 
 concurrency:
   group: verify-${{ github.ref }}
@@ -53,6 +68,58 @@ jobs:
           flutter pub get
           flutter analyze
           flutter test
+
+  # T-54's E2E lane (opened by lote 3, the first two-user flow). It drives the
+  # REAL app on an emulator against the DEV project, with the throwaway-family
+  # pattern the web suite already pays for (`E2E-<runId>`, `@resend.dev`,
+  # `purge_e2e_family` — whose double-signature guard lives in the DATABASE, so
+  # a fixture bug cannot delete a real family). NOT on every push: scheduled
+  # daily + on demand, because an emulator run is minutes-expensive.
+  e2e:
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.run-e2e)
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          channel: stable
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # KVM must be writable for a hardware-accelerated emulator; without it
+      # the run falls back to software rendering and times out.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # The service_role key never enters the repo: it arrives as a secret and
+      # reaches the fixture through --dart-define only.
+      - name: E2E — two-user swap flow on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          working-directory: apps/entrelares_app
+          script: >-
+            flutter test integration_test/swap_workflow_test.dart
+            --flavor dev
+            --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
+            --dart-define=E2E_PACK=${{ inputs.e2e-pack || 'p0' }}
 
   apk:
     if: github.event_name == 'workflow_dispatch' && inputs.build-apk

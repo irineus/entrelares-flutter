@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionName / versionCode. Bump on every functional change handed to the
 # owner, same rule as the product repos.
-version: 0.2.12+14
+version: 0.2.13+15
 
 environment:
   sdk: ^3.12.2
@@ -59,6 +59,14 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # T-53 lote 3 — the E2E lane the parity map opens with the first two-user
+  # flow (the swap workflow). `integration_test` drives the REAL app on a real
+  # emulator against the dev project; the throwaway-family pattern is the same
+  # one the web suite pays for (`E2E-<runId>`, `@resend.dev`, purge_e2e_family).
+  integration_test:
+    sdk: flutter
+  http: ^1.2.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
