@@ -54,6 +54,22 @@ abstract final class KApp {
   //    the Blazor app; same treatment as bulkProgressSaving ──
   static const String wfProgressProcessing = 'app.wf.progressProcessing';
 
+  // ── Sudo S-10 (lote 4) — the outcomes `SudoService.ElevateAsync` builds
+  //    itself in the web, as hardcoded PT literals; the catalogued rule ports,
+  //    the residue does not. The SERVER's own message is preferred whenever the
+  //    response carries one (pilot QA round 2) — these are the fallbacks ──
+  static const String sudoErrCooldown = 'app.sudo.errCooldown';
+  static const String sudoErrNoSession = 'app.sudo.errNoSession';
+  static const String sudoErrWrongPassword = 'app.sudo.errWrongPassword';
+  static const String sudoErrGeneric = 'app.sudo.errGeneric';
+  static const String sudoErrConnection = 'app.sudo.errConnection';
+
+  // ── Invite form (lote 4) — the web kept the "pick a role" refusal as a
+  //    pre-U-13 hardcoded PT literal (FamilyPage.razor:1311); same treatment
+  //    as the wizard's, and safe to catalogue because this sentence has no
+  //    server twin to stay byte-identical with (unlike CustomRoleRules') ──
+  static const String inviteErrRoleRequired = 'app.invite.errRoleRequired';
+
   // ── Navigation shell (lote 1) — screens the later batches fill in ──
   static const String shellUnderConstructionTitle =
       'app.shell.underConstructionTitle';
@@ -82,6 +98,12 @@ abstract final class KApp {
     wizErrTooFewBlocks,
     wizErrBlockDays,
     wfProgressProcessing,
+    sudoErrCooldown,
+    sudoErrNoSession,
+    sudoErrWrongPassword,
+    sudoErrGeneric,
+    sudoErrConnection,
+    inviteErrRoleRequired,
     shellUnderConstructionTitle,
     shellUnderConstructionBody,
   ];
@@ -117,6 +139,14 @@ abstract final class StringsAppPtBr {
     KApp.wizErrTooFewBlocks: 'O ciclo deve ter pelo menos 1 bloco.',
     KApp.wizErrBlockDays: 'Cada bloco deve ter pelo menos 1 dia.',
     KApp.wfProgressProcessing: 'Processando {0}/{1}...',
+    KApp.sudoErrCooldown: 'Muitas tentativas. Aguarde {0} segundos.',
+    KApp.sudoErrNoSession: 'Sessão inválida. Entre novamente.',
+    KApp.sudoErrWrongPassword: 'Senha incorreta.',
+    KApp.sudoErrGeneric: 'Não foi possível confirmar. Tente novamente.',
+    KApp.sudoErrConnection:
+        'Falha na conexão com o servidor. Verifique sua internet e tente '
+            'novamente.',
+    KApp.inviteErrRoleRequired: 'Selecione o papel da pessoa convidada.',
     KApp.shellUnderConstructionTitle: 'Em construção',
     KApp.shellUnderConstructionBody:
         'Esta tela chega em uma próxima atualização.',
@@ -153,6 +183,13 @@ abstract final class StringsAppEn {
     KApp.wizErrTooFewBlocks: 'The cycle needs at least 1 block.',
     KApp.wizErrBlockDays: 'Each block needs at least 1 day.',
     KApp.wfProgressProcessing: 'Processing {0}/{1}...',
+    KApp.sudoErrCooldown: 'Too many attempts. Wait {0} seconds.',
+    KApp.sudoErrNoSession: 'Invalid session. Sign in again.',
+    KApp.sudoErrWrongPassword: 'Wrong password.',
+    KApp.sudoErrGeneric: 'Could not confirm. Try again.',
+    KApp.sudoErrConnection:
+        'Connection to the server failed. Check your internet and try again.',
+    KApp.inviteErrRoleRequired: 'Select the role of the person you are inviting.',
     KApp.shellUnderConstructionTitle: 'Under construction',
     KApp.shellUnderConstructionBody:
         'This screen arrives in an upcoming update.',

@@ -22,6 +22,7 @@ import 'services/admin_mode.dart';
 import 'services/custody_data_source.dart';
 import 'services/notification_badge.dart';
 import 'services/session_gate.dart';
+import 'services/sudo_service.dart';
 import 'services/supabase_custody_data_source.dart';
 import 'widgets/app_l10n.dart';
 
@@ -71,6 +72,9 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   late final SessionGate _gate;
   late final CustodyDataSource _dataSource;
   late final NotificationBadge _badge;
+  // S-10: session-scoped like admin mode, and for a stronger reason — an
+  // elevation window must never outlive the session that earned it.
+  late final SudoService _sudo;
   // F-14: session-scoped, like the web's scoped AdminModeService — never
   // persisted; leaving the authenticated phase always deactivates it.
   final _adminMode = AdminMode();
@@ -197,6 +201,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
         environmentPrefix:
             environmentTitlePrefix(isProduction: Env.current.isProduction));
     _badge = NotificationBadge(_dataSource);
+    _sudo = SudoService(_dataSource);
     _l = Localization(widget.initialLanguage);
     _openGate();
     _authSub = _client.auth.onAuthStateChange.listen((state) {
@@ -234,6 +239,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     _authSub?.cancel();
     _inactivityTimer?.cancel();
     _adminMode.dispose();
+    _sudo.dispose();
     _badge.dispose();
     _refresh.dispose();
     super.dispose();
@@ -248,8 +254,12 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     if (!mounted) return;
     _phase = phase;
     // Mirror of the web's logout path: leaving the authenticated phase for
-    // ANY reason (sign-out, inactivity, dead session) drops admin mode.
-    if (phase != _AuthPhase.authed) _adminMode.deactivate();
+    // ANY reason (sign-out, inactivity, dead session) drops admin mode — and
+    // the S-10 elevation window with it.
+    if (phase != _AuthPhase.authed) {
+      _adminMode.deactivate();
+      _sudo.reset();
+    }
     if (phase == _AuthPhase.authed) {
       _lastInteraction = DateTime.now();
       _inactivityTimer ??= Timer.periodic(
