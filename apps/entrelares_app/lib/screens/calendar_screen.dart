@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import '../models/swap_request.dart';
 import '../services/admin_mode.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
@@ -13,6 +14,7 @@ import '../widgets/app_snack.dart';
 import '../widgets/today_card.dart';
 import 'bulk_sheet.dart';
 import 'day_sheet.dart';
+import 'frozen_day_sheet.dart';
 import 'wizard_sheet.dart';
 
 /// F-27 slot palette (slot 0 = gray: inactive/unknown); swapped is its own
@@ -55,9 +57,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
   // Today + the next-handoff window ([today, today + 91] — the web scans
   // [tomorrow, tomorrow + 90]; one query serves the card's row and the scan).
   List<CareSchedule> _upcoming = const [];
+  // F-12: the visible month's OPEN swap requests — the frozen-day source
+  // (paint, guards, panel). Keyed alongside _daysByIso on every load.
+  Map<String, SwapRequest> _frozenByIso = const {};
   bool _loading = true;
   String? _loadError;
   void Function()? _unwatch;
+  void Function()? _unwatchWorkflow;
 
   // F-39 horizon inputs (T-41 settings + F-32 entitlement), loaded once like
   // the web's OnInitialized. The web call site is deliberately fail-OPEN: a
@@ -138,12 +144,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _unwatch = await widget.dataSource.watchChanges(() {
       if (mounted) _load(silent: true);
     });
+    // Lote 3: the workflow channel — a request opened/resolved by the other
+    // member repaints the frozen days without a manual refresh.
+    _unwatchWorkflow = await widget.dataSource.watchWorkflowChanges(() {
+      if (mounted) _load(silent: true);
+    });
   }
 
   @override
   void dispose() {
     widget.adminMode.removeListener(_onAdminModeChanged);
     _unwatch?.call();
+    _unwatchWorkflow?.call();
     _pageController.dispose();
     super.dispose();
   }
@@ -157,6 +169,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final members = await widget.dataSource.fetchMembers();
       final days = await widget.dataSource
           .fetchMonth(_visibleMonth.year, _visibleMonth.month);
+      final frozen = await widget.dataSource
+          .fetchFrozenRequestsForMonth(_visibleMonth.year, _visibleMonth.month);
       final ownProfile = await widget.dataSource.fetchOwnProfile();
       final upcoming = await widget.dataSource
           .fetchUpcoming(_today, nextHandoffWindowDays + 1);
@@ -165,6 +179,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _members = members;
         _daysByIso = {
           for (final d in days) CareSchedule.isoDate(d.scheduleDate): d
+        };
+        // Web parity (Home's frozenRequests.First per day): one request per
+        // date matters — the DB's one-pending-per-date index guarantees it.
+        _frozenByIso = {
+          for (final r in frozen) CareSchedule.isoDate(r.scheduleDate): r
         };
         _ownProfile = ownProfile;
         _upcoming = upcoming;
@@ -275,7 +294,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
       _toggleDaySelection(date);
       return;
     }
+    // Web parity (HandleDayClick): a day with a pending request opens the
+    // frozen panel instead of the editor — for everyone, admins included.
+    final frozen = _frozenByIso[CareSchedule.isoDate(date)];
+    if (frozen != null) {
+      _openFrozenDay(frozen);
+      return;
+    }
     _openDay(date);
+  }
+
+  Future<void> _openFrozenDay(SwapRequest request) async {
+    HapticFeedback.selectionClick();
+    final outcome = await showFrozenDaySheet(
+      context: context,
+      request: request,
+      allProfiles: _members,
+      ownProfileId: _ownProfile?.id,
+      dataSource: widget.dataSource,
+    );
+    if (outcome != null) {
+      _load(silent: true);
+      if (mounted) {
+        showAppSnack(
+            context, AppL10n.of(context).l[frozenOutcomeToastKey(outcome)]);
+      }
+    }
   }
 
   void _cancelSelection() {
@@ -294,6 +338,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       today: _today,
       dataSource: widget.dataSource,
       adminBypass: _adminBypass,
+      frozenDates: [for (final r in _frozenByIso.values) r.scheduleDate],
     );
     if (summary != null) {
       // Mirror of FinishBulkSave: the selection clears (armed state stays),
@@ -340,6 +385,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ? null
           : Family.isPremiumFamily(_family, DateTime.now().toUtc()),
       settings: _settings,
+      frozenDates: [for (final r in _frozenByIso.values) r.scheduleDate],
     );
     if (outcome != null) {
       _load(silent: true);
@@ -504,6 +550,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       : _MonthGrid(
                           month: month,
                           daysByIso: isVisible ? _daysByIso : const {},
+                          frozenByIso: isVisible ? _frozenByIso : const {},
+                          ownProfileId: _ownProfile?.id,
                           views: views,
                           today: _today,
                           loading: _loading && isVisible,
@@ -595,6 +643,8 @@ class _Legend extends StatelessWidget {
 class _MonthGrid extends StatelessWidget {
   final DateTime month;
   final Map<String, CareSchedule> daysByIso;
+  final Map<String, SwapRequest> frozenByIso;
+  final int? ownProfileId;
   final List<MemberView> views;
   final DateTime today;
   final bool loading;
@@ -605,6 +655,8 @@ class _MonthGrid extends StatelessWidget {
   const _MonthGrid({
     required this.month,
     required this.daysByIso,
+    required this.frozenByIso,
+    required this.ownProfileId,
     required this.views,
     required this.today,
     required this.loading,
@@ -612,6 +664,36 @@ class _MonthGrid extends StatelessWidget {
     required this.onDayTap,
     required this.onDayLongPress,
   });
+
+  /// The F-12 cell badge — mirror of Home.razor's day-frozen markup: 🔔 when
+  /// the request awaits MY response (overdue gets the red variant), ⏳ when it
+  /// awaits someone else; the semantics label carries the web's title text.
+  _FrozenMark? _markFor(SwapRequest? frozen, Localization l) {
+    if (frozen == null) return null;
+    final awaitingMe = frozen.targetProfileId == ownProfileId;
+    final overdue =
+        frozen.toView().priorityTag(DateTime.now()) == SwapPriorityTag.overdue;
+    if (awaitingMe) {
+      return _FrozenMark(
+        badge: '🔔',
+        overdue: overdue,
+        label: l[overdue ? K.calOverdueAwaitingYou : K.calAwaitingYou],
+      );
+    }
+    String? targetName;
+    for (final v in views) {
+      if (v.id == frozen.targetProfileId) {
+        targetName = v.fullName;
+        break;
+      }
+    }
+    return _FrozenMark(
+      badge: '⏳',
+      overdue: false,
+      label: l
+          .format(K.calAwaitingFrom, [targetName ?? l[K.calOtherCaregiver]]),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -663,6 +745,10 @@ class _MonthGrid extends StatelessWidget {
                   date: DateTime(month.year, month.month, day),
                   day: daysByIso[CareSchedule.isoDate(
                       DateTime(month.year, month.month, day))],
+                  frozenMark: _markFor(
+                      frozenByIso[CareSchedule.isoDate(
+                          DateTime(month.year, month.month, day))],
+                      AppL10n.of(context).l),
                   views: views,
                   isToday: CareSchedule.isoDate(
                           DateTime(month.year, month.month, day)) ==
@@ -679,9 +765,19 @@ class _MonthGrid extends StatelessWidget {
   }
 }
 
+/// What a frozen day paints on its cell (computed in [_MonthGrid._markFor]).
+class _FrozenMark {
+  final String badge; // 🔔 (mine) · ⏳ (theirs)
+  final bool overdue;
+  final String label; // semantics — the web's badge title
+  const _FrozenMark(
+      {required this.badge, required this.overdue, required this.label});
+}
+
 class _DayCell extends StatelessWidget {
   final DateTime date;
   final CareSchedule? day;
+  final _FrozenMark? frozenMark;
   final List<MemberView> views;
   final bool isToday;
   final bool isSelected;
@@ -691,6 +787,7 @@ class _DayCell extends StatelessWidget {
   const _DayCell({
     required this.date,
     required this.day,
+    required this.frozenMark,
     required this.views,
     required this.isToday,
     required this.isSelected,
@@ -754,7 +851,25 @@ class _DayCell extends StatelessWidget {
                               ? Colors.white
                               : Theme.of(context).hintColor)),
                 ),
-                if (day?.handoffTime != null)
+                // Web parity: the frozen badge REPLACES the handoff badge.
+                if (frozenMark != null)
+                  Semantics(
+                    label: frozenMark!.label,
+                    child: Container(
+                      padding: frozenMark!.overdue
+                          ? const EdgeInsets.symmetric(horizontal: 3)
+                          : EdgeInsets.zero,
+                      decoration: frozenMark!.overdue
+                          ? BoxDecoration(
+                              color: const Color(0xFFFEE2E2),
+                              borderRadius: BorderRadius.circular(6),
+                            )
+                          : null,
+                      child: Text(frozenMark!.badge,
+                          style: const TextStyle(fontSize: 9)),
+                    ),
+                  )
+                else if (day?.handoffTime != null)
                   Icon(Icons.swap_horiz,
                       size: 10, color: Theme.of(context).hintColor),
               ],

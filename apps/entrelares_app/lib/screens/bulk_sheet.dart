@@ -24,6 +24,7 @@ Future<String?> showBulkSheet({
   required DateTime today,
   required CustodyDataSource dataSource,
   required bool adminBypass,
+  Iterable<DateTime> frozenDates = const [],
 }) {
   return showModalBottomSheet<String>(
     context: context,
@@ -36,6 +37,7 @@ Future<String?> showBulkSheet({
       today: today,
       dataSource: dataSource,
       adminBypass: adminBypass,
+      frozenDates: frozenDates,
     ),
   );
 }
@@ -48,6 +50,10 @@ class _BulkSheet extends StatefulWidget {
   final CustodyDataSource dataSource;
   final bool adminBypass;
 
+  /// F-12: the month's frozen dates — days with an open swap request never
+  /// join the bulk write set (wired since lote 3).
+  final Iterable<DateTime> frozenDates;
+
   const _BulkSheet({
     required this.selectedDays,
     required this.daysByIso,
@@ -55,6 +61,7 @@ class _BulkSheet extends StatefulWidget {
     required this.today,
     required this.dataSource,
     required this.adminBypass,
+    required this.frozenDates,
   });
 
   @override
@@ -175,7 +182,7 @@ class _BulkSheetState extends State<_BulkSheet> {
       selectedDates: widget.selectedDays,
       today: widget.today,
       adminBypass: widget.adminBypass,
-      frozenDates: const [],
+      frozenDates: widget.frozenDates,
       existingFor: _existingFor,
       clearScheduledParent: true,
     );
@@ -225,8 +232,7 @@ class _BulkSheetState extends State<_BulkSheet> {
         selectedDates: widget.selectedDays,
         today: widget.today,
         adminBypass: widget.adminBypass,
-        // F-12: the frozen set joins with the swap workflow (lote 3).
-        frozenDates: const [],
+        frozenDates: widget.frozenDates,
         existingFor: _existingFor,
         clearScheduledParent: false,
       );
