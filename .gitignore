@@ -1,0 +1,32 @@
+# --- Flutter / Dart ---
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+.vscode/
+
+# FVM: only .fvmrc is versioned
+.fvm/
+
+# Pub
+# pubspec.lock IS versioned for the app (reproducible builds); pure Dart
+# packages (packages/*) keep theirs out by convention:
+packages/*/pubspec.lock
+
+# --- Android ---
+**/android/.gradle/
+**/android/local.properties
+**/android/captures/
+**/android/app/release/
+**/android/.kotlin/
+*.keystore
+*.jks
+
+# --- iOS / macOS ---
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/flutter_export_environment.sh
