@@ -54,6 +54,10 @@ abstract final class KApp {
   //    the Blazor app; same treatment as bulkProgressSaving ──
   static const String wfProgressProcessing = 'app.wf.progressProcessing';
 
+  // ── Native affordances the web has no word for (lote 4) — the system share
+  //    sheet replaces "copie o link e mande no WhatsApp" ──
+  static const String commonShare = 'app.common.share';
+
   // ── Sudo S-10 (lote 4) — the outcomes `SudoService.ElevateAsync` builds
   //    itself in the web, as hardcoded PT literals; the catalogued rule ports,
   //    the residue does not. The SERVER's own message is preferred whenever the
@@ -63,6 +67,14 @@ abstract final class KApp {
   static const String sudoErrWrongPassword = 'app.sudo.errWrongPassword';
   static const String sudoErrGeneric = 'app.sudo.errGeneric';
   static const String sudoErrConnection = 'app.sudo.errConnection';
+
+  // ── Custom roles F-41 (lote 4) — four labels the web left as pre-U-13
+  //    literals (CustomRolesPage.razor:73/86/216). Client-only strings with no
+  //    server twin, so cataloguing them is a strict improvement ──
+  static const String rolesCreateTitle = 'app.roles.createTitle';
+  static const String rolesEditTitle = 'app.roles.editTitle';
+  static const String rolesToastUpdated = 'app.roles.toastUpdated';
+  static const String rolesNoEmoji = 'app.roles.noEmoji';
 
   // ── Invite form (lote 4) — the web kept the "pick a role" refusal as a
   //    pre-U-13 hardcoded PT literal (FamilyPage.razor:1311); same treatment
@@ -98,11 +110,16 @@ abstract final class KApp {
     wizErrTooFewBlocks,
     wizErrBlockDays,
     wfProgressProcessing,
+    commonShare,
     sudoErrCooldown,
     sudoErrNoSession,
     sudoErrWrongPassword,
     sudoErrGeneric,
     sudoErrConnection,
+    rolesCreateTitle,
+    rolesEditTitle,
+    rolesToastUpdated,
+    rolesNoEmoji,
     inviteErrRoleRequired,
     shellUnderConstructionTitle,
     shellUnderConstructionBody,
@@ -139,6 +156,7 @@ abstract final class StringsAppPtBr {
     KApp.wizErrTooFewBlocks: 'O ciclo deve ter pelo menos 1 bloco.',
     KApp.wizErrBlockDays: 'Cada bloco deve ter pelo menos 1 dia.',
     KApp.wfProgressProcessing: 'Processando {0}/{1}...',
+    KApp.commonShare: 'Compartilhar',
     KApp.sudoErrCooldown: 'Muitas tentativas. Aguarde {0} segundos.',
     KApp.sudoErrNoSession: 'Sessão inválida. Entre novamente.',
     KApp.sudoErrWrongPassword: 'Senha incorreta.',
@@ -146,6 +164,10 @@ abstract final class StringsAppPtBr {
     KApp.sudoErrConnection:
         'Falha na conexão com o servidor. Verifique sua internet e tente '
             'novamente.',
+    KApp.rolesCreateTitle: 'Criar papel',
+    KApp.rolesEditTitle: 'Editar papel',
+    KApp.rolesToastUpdated: 'Papel atualizado!',
+    KApp.rolesNoEmoji: 'Sem emoji',
     KApp.inviteErrRoleRequired: 'Selecione o papel da pessoa convidada.',
     KApp.shellUnderConstructionTitle: 'Em construção',
     KApp.shellUnderConstructionBody:
@@ -183,12 +205,17 @@ abstract final class StringsAppEn {
     KApp.wizErrTooFewBlocks: 'The cycle needs at least 1 block.',
     KApp.wizErrBlockDays: 'Each block needs at least 1 day.',
     KApp.wfProgressProcessing: 'Processing {0}/{1}...',
+    KApp.commonShare: 'Share',
     KApp.sudoErrCooldown: 'Too many attempts. Wait {0} seconds.',
     KApp.sudoErrNoSession: 'Invalid session. Sign in again.',
     KApp.sudoErrWrongPassword: 'Wrong password.',
     KApp.sudoErrGeneric: 'Could not confirm. Try again.',
     KApp.sudoErrConnection:
         'Connection to the server failed. Check your internet and try again.',
+    KApp.rolesCreateTitle: 'Create role',
+    KApp.rolesEditTitle: 'Edit role',
+    KApp.rolesToastUpdated: 'Role updated!',
+    KApp.rolesNoEmoji: 'No emoji',
     KApp.inviteErrRoleRequired: 'Select the role of the person you are inviting.',
     KApp.shellUnderConstructionTitle: 'Under construction',
     KApp.shellUnderConstructionBody:

@@ -9,8 +9,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:entrelares_app/models/app_notification.dart';
 import 'package:entrelares_app/models/care_schedule.dart';
 import 'package:entrelares_app/models/family.dart';
+import 'package:entrelares_app/models/family_invitation.dart';
 import 'package:entrelares_app/models/invite_info.dart';
 import 'package:entrelares_app/models/member.dart';
+import 'package:entrelares_app/models/role.dart';
 import 'package:entrelares_app/models/swap_request.dart';
 import 'package:entrelares_app/screens/calendar_screen.dart';
 import 'package:entrelares_app/services/admin_mode.dart';
@@ -366,6 +368,75 @@ class FakeCustodyDataSource implements CustodyDataSource {
       'confirmMigration': confirmMigration,
     });
     return inviteeResult;
+  }
+
+  // ── Lote 4: family page, invitations and custom roles ──
+  List<Role> roles = const [];
+  List<FamilyInvitation> invitations = const [];
+
+  /// Thrown by whichever family/invitation/role write is exercised next.
+  Object? throwOnFamilyWrite;
+
+  /// Whether [sendInvitationEmail] reports success.
+  bool inviteEmailSucceeds = true;
+
+  final List<String> renames = [];
+  final List<Map<String, Object?>> createdInvitations = [];
+  final List<int> revokedInvitations = [];
+  final List<int> mailedInvitations = [];
+  final List<Map<String, Object?>> customRoleWrites = [];
+  final List<int> deletedRoles = [];
+
+  @override
+  Future<List<Role>> fetchRoles() async => roles;
+
+  @override
+  Future<void> renameFamily(String name) async {
+    if (throwOnFamilyWrite != null) throw throwOnFamilyWrite!;
+    renames.add(name);
+    family = Family(id: family?.id ?? 1, name: name, plan: family?.plan ?? 'free');
+  }
+
+  @override
+  Future<List<FamilyInvitation>> fetchOpenInvitations() async => invitations;
+
+  @override
+  Future<int> createInvitation(
+      {required String email, required int roleId}) async {
+    if (throwOnFamilyWrite != null) throw throwOnFamilyWrite!;
+    createdInvitations.add({'email': email, 'roleId': roleId});
+    return 42;
+  }
+
+  @override
+  Future<void> revokeInvitation(int invitationId) async {
+    if (throwOnFamilyWrite != null) throw throwOnFamilyWrite!;
+    revokedInvitations.add(invitationId);
+  }
+
+  @override
+  Future<bool> sendInvitationEmail(int invitationId) async {
+    mailedInvitations.add(invitationId);
+    return inviteEmailSucceeds;
+  }
+
+  @override
+  Future<void> createCustomRole({required String label, String? emoji}) async {
+    if (throwOnFamilyWrite != null) throw throwOnFamilyWrite!;
+    customRoleWrites.add({'label': label, 'emoji': emoji, 'id': null});
+  }
+
+  @override
+  Future<void> updateCustomRole(
+      {required int roleId, required String label, String? emoji}) async {
+    if (throwOnFamilyWrite != null) throw throwOnFamilyWrite!;
+    customRoleWrites.add({'label': label, 'emoji': emoji, 'id': roleId});
+  }
+
+  @override
+  Future<void> deleteCustomRole(int roleId) async {
+    if (throwOnFamilyWrite != null) throw throwOnFamilyWrite!;
+    deletedRoles.add(roleId);
   }
 }
 

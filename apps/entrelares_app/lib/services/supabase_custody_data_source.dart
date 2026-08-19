@@ -5,8 +5,10 @@ import '../deep_link_urls.dart';
 import '../models/app_notification.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
+import '../models/family_invitation.dart';
 import '../models/invite_info.dart';
 import '../models/member.dart';
+import '../models/role.dart';
 import '../models/swap_request.dart';
 import 'custody_data_source.dart';
 
@@ -903,6 +905,88 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
     } catch (_) {
       return const InviteeFailed(null);
     }
+  }
+
+  // ── Lote 4: family page, invitations and custom roles (F-41) ─────────────
+
+  @override
+  Future<List<Role>> fetchRoles() async {
+    final rows = await _client.from('roles').select().order('id');
+    return rows.map(Role.fromJson).toList();
+  }
+
+  @override
+  Future<void> renameFamily(String name) async {
+    await _client.rpc('rename_family', params: {'p_name': name.trim()});
+  }
+
+  @override
+  Future<List<FamilyInvitation>> fetchOpenInvitations() async {
+    final rows = await _client
+        .from('family_invitations')
+        .select()
+        .isFilter('accepted_at', null)
+        .isFilter('revoked_at', null)
+        .order('created_at', ascending: true);
+    return rows.map(FamilyInvitation.fromJson).toList();
+  }
+
+  @override
+  Future<int> createInvitation(
+      {required String email, required int roleId}) async {
+    final data = await _client.rpc('create_invitation',
+        params: {'p_email': email.trim(), 'p_role_id': roleId});
+    final row = data is List ? (data.isEmpty ? null : data.first) : data;
+    return row is Map ? (row['invitation_id'] as int? ?? 0) : 0;
+  }
+
+  @override
+  Future<void> revokeInvitation(int invitationId) async {
+    await _client
+        .rpc('revoke_invitation', params: {'p_invitation_id': invitationId});
+  }
+
+  @override
+  Future<bool> sendInvitationEmail(int invitationId) async {
+    try {
+      await _client.functions.invoke('send-swap-email', body: {
+        'emailType': 'invitation',
+        'invitationId': invitationId,
+        'environmentPrefix': environmentPrefix,
+      });
+      return true;
+    } catch (_) {
+      // The invitation exists regardless; the page falls back to the link.
+      return false;
+    }
+  }
+
+  @override
+  Future<void> createCustomRole({required String label, String? emoji}) async {
+    final params = <String, dynamic>{'p_label': label.trim()};
+    // Omitted rather than blank: the RPC's default is NULL, and sending an
+    // empty string would store one.
+    final clean = (emoji ?? '').trim();
+    if (clean.isNotEmpty) params['p_emoji'] = clean;
+    await _client.rpc('create_custom_role', params: params);
+  }
+
+  @override
+  Future<void> updateCustomRole(
+      {required int roleId, required String label, String? emoji}) async {
+    final params = <String, dynamic>{
+      'p_role_id': roleId,
+      'p_label': label.trim(),
+    };
+    // Same shape as create — and here the omission is what CLEARS an emoji.
+    final clean = (emoji ?? '').trim();
+    if (clean.isNotEmpty) params['p_emoji'] = clean;
+    await _client.rpc('update_custom_role', params: params);
+  }
+
+  @override
+  Future<void> deleteCustomRole(int roleId) async {
+    await _client.rpc('delete_custom_role', params: {'p_role_id': roleId});
   }
 
   /// The `error` field an Edge Function puts in its body, when there is one.

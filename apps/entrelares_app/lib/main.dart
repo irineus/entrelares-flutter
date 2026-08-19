@@ -12,6 +12,8 @@ import 'deep_link_urls.dart';
 import 'env.dart';
 import 'models/member.dart';
 import 'screens/calendar_screen.dart';
+import 'screens/custom_roles_screen.dart';
+import 'screens/family_screen.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
 import 'screens/notifications_screen.dart';
@@ -162,8 +164,20 @@ class _EntrelaresAppState extends State<EntrelaresApp>
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/family',
-              builder: (_, _) =>
-                  const PlaceholderScreen(titleKey: K.navFamily),
+              builder: (_, _) => FamilyScreen(
+                dataSource: _dataSource,
+                adminMode: _adminMode,
+                onOpenCustomRoles: () => _router.go('/family/custom-roles'),
+              ),
+              routes: [
+                // Nested so the bottom bar stays put — the web navigates away
+                // to `/custom-roles` because it has no persistent tab shell.
+                GoRoute(
+                  path: 'custom-roles',
+                  builder: (_, _) =>
+                      CustomRolesScreen(dataSource: _dataSource),
+                ),
+              ],
             ),
           ]),
           StatefulShellBranch(routes: [

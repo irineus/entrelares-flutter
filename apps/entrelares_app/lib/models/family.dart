@@ -6,12 +6,18 @@ import 'package:entrelares_core/entrelares_core.dart';
 /// `admin_set_comp` — the client never writes any of this.
 class Family {
   final int id;
+
+  /// Free text the family chose; renamed only through the `rename_family` RPC,
+  /// which audits the change into `account_logs`.
+  final String name;
+
   final String plan;
   final DateTime? trialEndsAt;
   final DateTime? compPremiumAt;
 
   const Family({
     required this.id,
+    this.name = '',
     required this.plan,
     this.trialEndsAt,
     this.compPremiumAt,
@@ -19,6 +25,7 @@ class Family {
 
   factory Family.fromJson(Map<String, dynamic> json) => Family(
         id: json['id'] as int,
+        name: (json['name'] as String?) ?? '',
         plan: (json['plan'] as String?) ?? 'free',
         trialEndsAt: _utc(json['trial_ends_at'] as String?),
         compPremiumAt: _utc(json['comp_premium_at'] as String?),

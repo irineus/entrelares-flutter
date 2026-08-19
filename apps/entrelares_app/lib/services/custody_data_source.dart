@@ -3,8 +3,10 @@ import 'package:entrelares_core/entrelares_core.dart' show PreEditNotes;
 import '../models/app_notification.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
+import '../models/family_invitation.dart';
 import '../models/invite_info.dart';
 import '../models/member.dart';
+import '../models/role.dart';
 import '../models/swap_request.dart';
 
 /// What the calendar slice needs from the backend — an interface so widget
@@ -200,6 +202,42 @@ abstract class CustodyDataSource {
     required String password,
     bool confirmMigration = false,
   });
+
+  // ── Lote 4: family page, invitations and custom roles (F-41) ──────────────
+
+  /// Every role this family may use: the 21 built-ins plus its own custom
+  /// rows. RLS does the narrowing.
+  Future<List<Role>> fetchRoles();
+
+  /// Admin-only by DB rule; the rename is audited into `account_logs`.
+  Future<void> renameFamily(String name);
+
+  /// Invitations that are neither accepted nor revoked — pending AND expired,
+  /// since the page offers a resend for the latter.
+  Future<List<FamilyInvitation>> fetchOpenInvitations();
+
+  /// `create_invitation` — which also REVOKES this address's previous open
+  /// invitation before counting seats, so a resend never trips its own cap.
+  /// That is what makes the call safe to retry. Returns the new row's id.
+  Future<int> createInvitation({required String email, required int roleId});
+
+  Future<void> revokeInvitation(int invitationId);
+
+  /// Best-effort: the invitation exists either way, and the copyable link is
+  /// the fallback the page always shows. Returns whether the mail went out.
+  Future<bool> sendInvitationEmail(int invitationId);
+
+  /// F-41. Server-enforced: admin, Premium, no duplicate (case-insensitive,
+  /// against built-ins too). The client pre-checks only length/emoji.
+  Future<void> createCustomRole({required String label, String? emoji});
+
+  /// Omitting [emoji] CLEARS it — the RPC nulls a blank value.
+  Future<void> updateCustomRole(
+      {required int roleId, required String label, String? emoji});
+
+  /// Delete is deliberately NOT Premium-gated (a family that lapses must still
+  /// be able to clean up), but the DB refuses a role still in use.
+  Future<void> deleteCustomRole(int roleId);
 }
 
 /// A sign-up refusal, already translated to a catalog KEY (GoTrue answers in
