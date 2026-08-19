@@ -25,6 +25,9 @@ fvm flutter --version                                  # 3.44.7 (pinado)
 cd packages/entrelares_core && fvm dart test           # regras puras, sem emulador
 cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
 cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per-abi
+# E2E (lote 3): app real em emulador contra o projeto dev — exige a service_role key
+cd apps/entrelares_app && fvm flutter test integration_test/swap_workflow_test.dart \
+  --flavor dev --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
 ```
 
 **Flavors (estágio 3):** todo build Android exige `--flavor dev` ou `--flavor prod` —
@@ -41,6 +44,16 @@ APK fica FORA do gate (cota de 2000 min/mês da conta, compartilhada com os repo
 produto) — para gerar APK pela CI, use o `workflow_dispatch` com `build-apk`. O APK
 da CI é **debug** (o runner não tem — e nunca terá — os keystores do T-55; release é
 build local por construção).
+
+**Lane E2E (aberta pelo lote 3 do T-53):** `integration_test/` dirige o app REAL em
+emulador contra o projeto dev, no primeiro fluxo de 2 usuários (workflow de troca) —
+o **banco é a asserção**, não a UI. Família descartável por execução no mesmo padrão
+da suíte web (`E2E-<runId>`, e-mails `@resend.dev`, teardown sempre via
+`purge_e2e_family`, cuja guarda de assinatura dupla vive no BANCO; varredura de
+órfãs > 2h no início). Também fora do gate por custo de minutos: roda **agendada
+(06:10 UTC diário)** e sob demanda pelo `workflow_dispatch` (`run-e2e`, com
+`e2e-pack` = `p0` de fumaça ou `full`). A `service_role` do dev chega só pelo secret
+`SUPABASE_SERVICE_ROLE_DEV` → `--dart-define`; nunca entra no repositório.
 
 ## Assinatura (release) — T-55
 

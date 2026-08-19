@@ -61,6 +61,11 @@ cd packages/entrelares_core && fvm dart test
 cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
 cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per-abi
 ```
+Lane E2E (aberta no lote 3): `apps/entrelares_app/integration_test/` — app real em
+emulador contra o projeto dev, família descartável (`E2E-<runId>`, `@resend.dev`,
+`purge_e2e_family` no teardown). Fora do gate por custo de minutos: agendada
+(06:10 UTC) + `workflow_dispatch` (`run-e2e`, `e2e-pack` p0/full). A service_role do
+dev chega só por `--dart-define` a partir do secret `SUPABASE_SERVICE_ROLE_DEV`.
 Cloud sessions: `bash tool/setup_env.sh && source tool/env` (hosts needed:
 `storage.googleapis.com`, `dl.google.com`, `pub.dev` — all reachable in this product's
 cloud policy; if one is blocked, STOP and report the domain, no unofficial mirrors).
