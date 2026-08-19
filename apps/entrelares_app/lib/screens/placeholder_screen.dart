@@ -5,7 +5,9 @@ import '../widgets/app_l10n.dart';
 
 /// A shell destination whose screen belongs to a later batch of the parity
 /// map. The tab bar is complete from lote 1 on (same four destinations as the
-/// web's NavMenu); each batch only swaps this filling for the real screen.
+/// web's NavMenu); each batch swapped this filling for the real screen, and
+/// with Relatórios (lote 6) the last one is gone — what remains is the cheap
+/// branch filling the shell/navigation test builds its four destinations from.
 class PlaceholderScreen extends StatelessWidget {
   /// Catalog key of the destination's nav label (doubles as the app bar
   /// title, exactly what the web page titles do).

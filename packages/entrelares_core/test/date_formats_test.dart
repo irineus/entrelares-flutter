@@ -111,6 +111,13 @@ void main() {
       expect(en.formatMonthYear(2026, 8), 'August 2026');
     });
 
+    test('the bare month name is what the report filters list', () {
+      expect(ptBr.monthName(1), 'janeiro');
+      expect(ptBr.monthName(12), 'dezembro');
+      expect(en.monthName(1), 'January');
+      expect(en.monthName(12), 'December');
+    });
+
     test('weekday abbreviations follow the language, dot trimmed', () {
       expect(ptBr.weekdayAbbrev(DateTime.wednesday), 'qua');
       expect(en.weekdayAbbrev(DateTime.wednesday), 'Wed');

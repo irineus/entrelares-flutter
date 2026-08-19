@@ -343,6 +343,12 @@ abstract class CustodyDataSource {
   // All family-scoped by RLS; the client only READS here — every audit row is
   // written by a trigger or a definer RPC.
 
+  /// Every `care_schedules` row of the period, date-ascending — the Resumo
+  /// screen and the F-33 document read the same way (mirror of
+  /// `CustodyService.GetSchedulesForPeriodAsync`).
+  Future<List<CareSchedule>> fetchSchedulesForPeriod(
+      DateTime start, DateTime end);
+
   /// The newest page of calendar changes ("Recentes" tab). One page is
   /// [auditPageSize] rows; a FULL page means "there may be more".
   Future<List<ActivityLog>> fetchRecentActivityLogs({int offset = 0});

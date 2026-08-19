@@ -119,6 +119,11 @@ extension DateFormats on Localization {
     return formatDate(parsed);
   }
 
+  /// A month name on its own: `agosto` · `August` — the report filters, where
+  /// the web reads `DisplayCulture.DateTimeFormat.GetMonthName(m)`.
+  String monthName(int month) =>
+      isEnglish ? _enMonthsFull[month - 1] : _ptMonthsFull[month - 1];
+
   /// The calendar header: `agosto de 2026` · `August 2026`. Month names are
   /// display culture in the web (`"MMMM 'de' yyyy"` pt-BR / `"MMMM yyyy"`
   /// en-US), mirrored here as tables.
