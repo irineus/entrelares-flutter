@@ -154,4 +154,38 @@ abstract class CustodyDataSource {
   /// more than one subscriber. Returns a dispose callback.
   Future<void Function()> watchWorkflowChanges(void Function() onChange,
       {void Function(bool connected)? onStatus});
+
+  // ── Lote 4: sudo elevation (S-10) ─────────────────────────────────────────
+
+  /// Exchanges the current password for the server's elevation window. Returns
+  /// the `elevated_until` ISO instant the `elevate` Edge Function reports, or
+  /// null when the response omits it (the caller falls back to the local
+  /// 5-minute estimate).
+  ///
+  /// Throws [ElevationRefused] when the function answers with an error — the
+  /// caller distinguishes a wrong password (which feeds the local throttle)
+  /// from anything else. The identity always comes from the JWT: the password
+  /// is proof, never a claim about WHO is elevating.
+  Future<String?> elevate(String password);
+}
+
+/// Why the `elevate` Edge Function refused.
+///
+/// [serverMessage] is the function's OWN text and is preferred over any
+/// client-side guess (pilot lesson 4: never collapse the server's error into a
+/// generic one). The flags exist so the local throttle counts only genuine
+/// wrong-password answers — a network hiccup must not spend an attempt.
+class ElevationRefused implements Exception {
+  final String? serverMessage;
+  final bool wrongPassword;
+  final bool rateLimited;
+
+  const ElevationRefused({
+    this.serverMessage,
+    this.wrongPassword = false,
+    this.rateLimited = false,
+  });
+
+  @override
+  String toString() => 'ElevationRefused(${serverMessage ?? 'no message'})';
 }

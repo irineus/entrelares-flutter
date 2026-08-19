@@ -778,4 +778,44 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
         .subscribe(_statusCallback(onStatus));
     return () => _client.removeChannel(channel);
   }
+
+  // ── Lote 4: sudo elevation (S-10) ─────────────────────────────────────────
+
+  @override
+  Future<String?> elevate(String password) async {
+    // Pilot QA round 2 (console): a STALE access token makes `elevate` answer
+    // 401 no matter how right the password is, and the user reads "senha
+    // incorreta" while typing the correct one. Refresh first, best-effort —
+    // if the refresh itself fails the call below reports the real problem.
+    try {
+      await _client.auth.refreshSession();
+    } catch (_) {/* the invoke below surfaces a dead session honestly */}
+
+    try {
+      final response = await _client.functions
+          .invoke('elevate', body: {'password': password});
+      final data = response.data;
+      if (data is Map && data['elevated_until'] is String) {
+        return data['elevated_until'] as String;
+      }
+      return null;
+    } on FunctionException catch (e) {
+      throw ElevationRefused(
+        // Pilot lesson 4: the function's own PT-BR text, never a guess.
+        serverMessage: _functionErrorText(e),
+        wrongPassword: e.status == 401,
+        rateLimited: e.status == 429,
+      );
+    }
+  }
+
+  /// The `error` field an Edge Function puts in its body, when there is one.
+  static String? _functionErrorText(FunctionException e) {
+    final details = e.details;
+    if (details is Map && details['error'] is String) {
+      final text = (details['error'] as String).trim();
+      if (text.isNotEmpty) return text;
+    }
+    return null;
+  }
 }

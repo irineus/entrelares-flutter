@@ -291,6 +291,30 @@ class FakeCustodyDataSource implements CustodyDataSource {
     workflowCallbacks.add(onChange);
     return () => workflowCallbacks.remove(onChange);
   }
+
+  // ── Lote 4: sudo elevation (S-10) ──
+  /// Passwords the fake accepts; anything else answers like the real 401.
+  String? sudoPassword;
+
+  /// What [elevate] reports as `elevated_until`; null exercises the local
+  /// 5-minute fallback.
+  String? sudoElevatedUntil;
+
+  /// Set to answer with a transport failure instead of a verdict.
+  Object? throwOnElevate;
+
+  final List<String> elevateAttempts = [];
+
+  @override
+  Future<String?> elevate(String password) async {
+    elevateAttempts.add(password);
+    if (throwOnElevate != null) throw throwOnElevate!;
+    if (sudoPassword != null && password == sudoPassword) {
+      return sudoElevatedUntil;
+    }
+    throw const ElevationRefused(
+        serverMessage: 'Senha incorreta.', wrongPassword: true);
+  }
 }
 
 const ana = Member(id: 1, fullName: 'Ana Souza', colorSlot: 1, userId: 'u1');
