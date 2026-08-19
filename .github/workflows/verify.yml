@@ -121,6 +121,24 @@ jobs:
             --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
             --dart-define=E2E_PACK=${{ inputs.e2e-pack || 'p0' }}
 
+      # Lote 4 — the account/family pack. A separate emulator step rather than
+      # one file with both, so a failure names which surface broke and the two
+      # families never share a run id.
+      - name: E2E — account and family flows on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          working-directory: apps/entrelares_app
+          script: >-
+            flutter test integration_test/account_flows_test.dart
+            --flavor dev
+            --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
+            --dart-define=E2E_PACK=${{ inputs.e2e-pack || 'p0' }}
+
   apk:
     if: github.event_name == 'workflow_dispatch' && inputs.build-apk
     needs: verify

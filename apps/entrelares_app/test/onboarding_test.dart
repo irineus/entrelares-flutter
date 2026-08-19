@@ -1,0 +1,353 @@
+// U-23 — the first-run checklist, the "Como funciona a troca" sheet and the
+// 4-stop tour.
+//
+// The property the whole feature rests on: the checklist reads REAL family
+// state. A card that ticked itself off from a "seen" flag would tell someone
+// they had finished something they never did — worse than showing no card at
+// all, because the card's entire claim is that it describes THEIR family.
+//
+// The one deliberate exception is understanding, which is nobody's row.
+import 'package:entrelares_core/entrelares_core.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:entrelares_app/models/care_schedule.dart';
+import 'package:entrelares_app/models/member.dart';
+import 'package:entrelares_app/screens/calendar_screen.dart';
+import 'package:entrelares_app/services/admin_mode.dart';
+import 'package:entrelares_app/services/custody_data_source.dart';
+import 'package:entrelares_app/services/onboarding_service.dart';
+import 'package:entrelares_app/widgets/app_l10n.dart';
+import 'package:entrelares_app/widgets/onboarding.dart';
+
+import 'calendar_slice_test.dart' show FakeCustodyDataSource, bruno;
+
+/// A founder alone in a fresh family: nothing done, nothing dismissed.
+const fresh = Member(id: 1, fullName: 'Ana Souza', userId: 'u1', colorSlot: 1);
+
+Member seenTour({DateTime? dismissed, DateTime? explained}) => Member(
+      id: 1,
+      fullName: 'Ana Souza',
+      userId: 'u1',
+      colorSlot: 1,
+      onboardingTourSeenAt: DateTime.utc(2026, 8, 1),
+      onboardingDismissedAt: dismissed,
+      onboardingSwapExplainedAt: explained,
+    );
+
+FakeCustodyDataSource source({
+  List<Member> members = const [fresh],
+  List<CareSchedule> days = const [],
+}) =>
+    FakeCustodyDataSource(members: members, days: days.toList());
+
+Future<void> pumpCalendar(
+  WidgetTester tester,
+  FakeCustodyDataSource ds, {
+  OnboardingService? onboarding,
+  TourKeys? tourKeys,
+  VoidCallback? onOpenFamily,
+}) async {
+  await tester.binding.setSurfaceSize(const Size(600, 1200));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(AppL10n(
+    l: Localization(AppLanguage.ptBr),
+    setLanguage: (_) async {},
+    child: MaterialApp(
+      home: CalendarScreen(
+        dataSource: ds,
+        adminMode: AdminMode(),
+        onSignOut: () async {},
+        onboarding: onboarding ?? OnboardingService(ds),
+        tourKeys: tourKeys,
+        onOpenFamily: onOpenFamily,
+      ),
+    ),
+  ));
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  final l = Localization(AppLanguage.ptBr);
+
+  group('the launcher', () {
+    testWidgets('a fresh family sees 0 de 3', (tester) async {
+      await pumpCalendar(tester, source());
+
+      expect(find.text(l[K.onbChecklistTitle]), findsOne);
+      expect(find.text(l.format(K.onbChecklistProgress, [0, 3])), findsOne);
+    });
+
+    testWidgets('an invitee arrives with 2 de 3 — it falls out of reading real '
+        'state, not a special case', (tester) async {
+      final ds = source(
+        members: const [fresh, bruno],
+        days: [
+          CareSchedule(
+            id: 1,
+            scheduleDate: DateTime.now(),
+            scheduledParentId: 1,
+            revision: 1,
+            revisionToken: 't',
+          ),
+        ],
+      );
+      await pumpCalendar(tester, ds);
+
+      expect(find.text(l.format(K.onbChecklistProgress, [2, 3])), findsOne);
+    });
+
+    testWidgets('finishing everything removes the card', (tester) async {
+      final ds = source(
+        members: [seenTour(explained: DateTime.utc(2026, 8, 2)), bruno],
+        days: [
+          CareSchedule(
+            id: 1,
+            scheduleDate: DateTime.now(),
+            scheduledParentId: 1,
+            revision: 1,
+            revisionToken: 't',
+          ),
+        ],
+      );
+      await pumpCalendar(tester, ds);
+
+      expect(find.text(l[K.onbChecklistTitle]), findsNothing);
+    });
+
+    testWidgets('dismissing hides it and stamps the profile', (tester) async {
+      final ds = source();
+      await pumpCalendar(tester, ds);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(ds.stamps, contains(OnboardingStamp.dismissed));
+      expect(find.text(l[K.onbChecklistTitle]), findsNothing);
+    });
+
+    testWidgets('a dismissed profile costs NO onboarding queries — the '
+        'calendar is the hottest screen in the app', (tester) async {
+      final ds = source(members: [seenTour(dismissed: DateTime.utc(2026, 8, 3))]);
+      await pumpCalendar(tester, ds);
+
+      expect(ds.onboardingFactReads, isEmpty);
+      expect(find.text(l[K.onbChecklistTitle]), findsNothing);
+    });
+  });
+
+  group('the checklist sheet', () {
+    testWidgets('lists the three steps with their marks', (tester) async {
+      await pumpCalendar(tester, source());
+
+      await tester.tap(find.text(l[K.onbChecklistTitle]));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l[K.onbStepInviteTitle]), findsOne);
+      expect(find.text(l[K.onbStepPlanTitle]), findsOne);
+      expect(find.text(l[K.onbStepSwapTitle]), findsOne);
+      expect(find.text('⬜'), findsNWidgets(3));
+    });
+
+    testWidgets('the invite step navigates to the family page', (tester) async {
+      var opened = false;
+      await pumpCalendar(tester, source(), onOpenFamily: () => opened = true);
+
+      await tester.tap(find.text(l[K.onbChecklistTitle]));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l[K.onbStepInviteAction]));
+      await tester.pumpAndSettle();
+
+      expect(opened, isTrue);
+    });
+
+    testWidgets('opening the explanation IS completing step 3 — stamped '
+        'before the sheet renders', (tester) async {
+      final ds = source();
+      await pumpCalendar(tester, ds);
+
+      await tester.tap(find.text(l[K.onbChecklistTitle]));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l[K.onbStepSwapAction]));
+      await tester.pumpAndSettle();
+
+      expect(ds.stamps, contains(OnboardingStamp.swapExplained));
+      expect(find.text(l[K.onbSwapSheetTitle]), findsOne);
+      expect(find.text(l[K.onbSwapPlannedTitle]), findsOne);
+      expect(find.text(l[K.onbSwapHistoryTitle]), findsOne);
+    });
+
+    testWidgets('a completed step keeps its action and swaps the hint',
+        (tester) async {
+      await pumpCalendar(tester, source(members: const [fresh, bruno]));
+
+      await tester.tap(find.text(l[K.onbChecklistTitle]));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l[K.onbStepInviteDoneHint]), findsOne);
+      expect(find.text(l[K.onbStepInviteAction]), findsOne);
+    });
+  });
+
+  group('the guided tour', () {
+    testWidgets('runs on the first session and walks the four stops',
+        (tester) async {
+      await pumpCalendar(tester, source(), tourKeys: TourKeys());
+
+      expect(find.text(l[K.tourTodayTitle]), findsOne);
+      expect(find.text(l.format(K.tourProgress, [1, 4])), findsOne);
+      // No "previous" on the first stop.
+      expect(find.text(l[K.tourPrevious]), findsNothing);
+
+      for (final title in [
+        l[K.tourColoursTitle],
+        l[K.tourWizardTitle],
+        l[K.tourNotificationsTitle],
+      ]) {
+        await tester.tap(find.text(l[K.tourNext]));
+        await tester.pumpAndSettle();
+        expect(find.text(title), findsOne);
+      }
+
+      // The last stop finishes instead of advancing.
+      expect(find.text(l[K.tourNext]), findsNothing);
+      expect(find.text(l[K.tourFinish]), findsOne);
+    });
+
+    testWidgets('going back is possible from the second stop on',
+        (tester) async {
+      await pumpCalendar(tester, source(), tourKeys: TourKeys());
+
+      await tester.tap(find.text(l[K.tourNext]));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l[K.tourPrevious]));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l[K.tourTodayTitle]), findsOne);
+    });
+
+    testWidgets('finishing stamps it and hands over to the checklist',
+        (tester) async {
+      final ds = source();
+      await pumpCalendar(tester, ds, tourKeys: TourKeys());
+
+      await tester.tap(find.text(l[K.tourSkip]));
+      await tester.pumpAndSettle();
+
+      expect(ds.stamps, contains(OnboardingStamp.tourSeen));
+      // The hand-off: a first-run tour ends on the checklist, not on nothing.
+      expect(find.text(l[K.onbChecklistIntro]), findsOne);
+    });
+
+    testWidgets('does NOT run for someone who already saw it', (tester) async {
+      await pumpCalendar(tester, source(members: [seenTour()]),
+          tourKeys: TourKeys());
+
+      expect(find.text(l[K.tourTodayTitle]), findsNothing);
+    });
+
+    testWidgets('every stop has a registered target on this screen — the Dart '
+        'twin of the web\'s selector-existence test', (tester) async {
+      final keys = TourKeys();
+      await pumpCalendar(tester, source(members: [seenTour()]), tourKeys: keys);
+
+      // The notifications tab belongs to the shell, which this harness does
+      // not build; the other three must be here and measurable.
+      for (final target in [
+        TourTarget.todayCard,
+        TourTarget.calendarLegend,
+        TourTarget.wizardButton,
+      ]) {
+        expect(keys.isMounted(target), isTrue,
+            reason: '$target has no widget registered on the calendar');
+        expect(keys.rectOf(target), isNotNull);
+      }
+    });
+
+    testWidgets('a target with no widget degrades to a card with no spotlight',
+        (tester) async {
+      final keys = TourKeys();
+      await pumpCalendar(tester, source(members: [seenTour()]), tourKeys: keys);
+
+      // Never registered by this harness.
+      expect(keys.isMounted(TourTarget.notificationsTab), isFalse);
+      expect(keys.rectOf(TourTarget.notificationsTab), isNull);
+    });
+  });
+
+  group('the service', () {
+    test('skips the swap-participation read once the explanation is stamped',
+        () async {
+      final ds = source();
+      final service = OnboardingService(ds);
+
+      await service.loadSignals(
+          me: seenTour(explained: DateTime.utc(2026, 8, 2)),
+          members: const [fresh]);
+
+      expect(ds.onboardingFactReads, [false]);
+    });
+
+    test('asks for an open invitation only while nobody holds the second seat',
+        () async {
+      final ds = source()..openInvitationExists = true;
+      final service = OnboardingService(ds);
+
+      final alone =
+          await service.loadSignals(me: fresh, members: const [fresh]);
+      expect(alone.hasOpenInvitation, isTrue);
+
+      final together =
+          await service.loadSignals(me: fresh, members: const [fresh, bruno]);
+      expect(together.hasOpenInvitation, isFalse,
+          reason: 'a live second member already settles the step');
+    });
+
+    test('reopening raises the session flag AND clears the stored dismissal',
+        () async {
+      final ds = source();
+      final service = OnboardingService(ds);
+
+      await service.reopenChecklist();
+
+      expect(service.checklistReopened, isTrue);
+      expect(ds.dismissalsCleared, 1);
+    });
+
+    test('a reopened checklist loads its signals even while dismissed',
+        () async {
+      final ds = source();
+      final service = OnboardingService(ds)..checklistReopened = true;
+
+      await service.loadSignals(
+          me: seenTour(dismissed: DateTime.utc(2026, 8, 3)),
+          members: const [fresh]);
+
+      expect(ds.onboardingFactReads, isNotEmpty,
+          reason: 'an explicit request must never silently do nothing');
+    });
+  });
+
+  testWidgets('an English session renders the checklist in English',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(600, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final ds = source();
+    await tester.pumpWidget(AppL10n(
+      l: Localization(AppLanguage.en),
+      setLanguage: (_) async {},
+      child: MaterialApp(
+        home: CalendarScreen(
+          dataSource: ds,
+          adminMode: AdminMode(),
+          onSignOut: () async {},
+          onboarding: OnboardingService(ds),
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text(Localization(AppLanguage.en)[K.onbChecklistTitle]),
+        findsOne);
+  });
+}

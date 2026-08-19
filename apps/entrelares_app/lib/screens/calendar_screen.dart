@@ -18,6 +18,8 @@ import 'bulk_sheet.dart';
 import 'day_sheet.dart';
 import 'frozen_day_sheet.dart';
 import 'resolve_sheet.dart';
+import '../services/onboarding_service.dart';
+import '../widgets/onboarding.dart';
 import 'wizard_sheet.dart';
 
 /// F-27 slot palette (slot 0 = gray: inactive/unknown); swapped is its own
@@ -36,11 +38,22 @@ class CalendarScreen extends StatefulWidget {
   final AdminMode adminMode;
   final Future<void> Function() onSignOut;
 
+  /// U-23 — the first-run surfaces. Null in tests that do not exercise them
+  /// (and in any host that has no tour targets to offer).
+  final OnboardingService? onboarding;
+  final TourKeys? tourKeys;
+
+  /// Where the checklist's "Convidar" step sends the user.
+  final VoidCallback? onOpenFamily;
+
   const CalendarScreen(
       {super.key,
       required this.dataSource,
       required this.adminMode,
-      required this.onSignOut});
+      required this.onSignOut,
+      this.onboarding,
+      this.tourKeys,
+      this.onOpenFamily});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -58,6 +71,10 @@ class _CalendarScreenState extends State<CalendarScreen>
   List<Member> _members = const [];
   Map<String, CareSchedule> _daysByIso = const {};
   Member? _ownProfile;
+
+  // U-23 — first-run onboarding.
+  OnboardingSignals? _onboardingSignals;
+  bool _tourShown = false;
   // Today + the next-handoff window ([today, today + 91] — the web scans
   // [tomorrow, tomorrow + 90]; one query serves the card's row and the scan).
   List<CareSchedule> _upcoming = const [];
@@ -239,6 +256,7 @@ class _CalendarScreenState extends State<CalendarScreen>
         _loading = false;
         _loadError = null;
       });
+      unawaited(_refreshOnboarding(ownProfile, members));
     } catch (e) {
       if (!mounted) return;
       final l = AppL10n.of(context).l;
@@ -249,6 +267,80 @@ class _CalendarScreenState extends State<CalendarScreen>
             : l[KApp.errCalendarLoad];
       });
     }
+  }
+
+  // ── U-23: first-run onboarding ──────────────────────────────────────────
+
+  /// The checklist's own signal for "days are planned" costs a query; the
+  /// month already in hand answers it for free whenever it is not empty
+  /// (the web ORs exactly the same way).
+  OnboardingSignals? get _effectiveSignals => _onboardingSignals?.copyWith(
+      hasAnyPlannedDay:
+          _onboardingSignals!.hasAnyPlannedDay || _daysByIso.isNotEmpty);
+
+  bool get _showChecklist {
+    final signals = _effectiveSignals;
+    if (signals == null || _loading) return false;
+    return OnboardingSteps.shouldShowChecklist(signals,
+        reopened: widget.onboarding?.checklistReopened ?? false);
+  }
+
+  Future<void> _refreshOnboarding(Member? me, List<Member> members) async {
+    final onboarding = widget.onboarding;
+    if (onboarding == null || me == null) return;
+    final signals =
+        await onboarding.loadSignals(me: me, members: members);
+    if (!mounted) return;
+    setState(() => _onboardingSignals = signals);
+
+    // The tour runs ONCE, on the first authenticated session, and hands over
+    // to the checklist when it ends — the web's FinishTour does the same.
+    final replay = onboarding.tourReplayRequested;
+    if (!_tourShown &&
+        widget.tourKeys != null &&
+        (replay || me.onboardingTourSeenAt == null)) {
+      _tourShown = true;
+      onboarding.tourReplayRequested = false;
+      await showGuidedTour(context: context, keys: widget.tourKeys!);
+      await onboarding.markTourSeen();
+      if (mounted && !replay && _showChecklist) await _openChecklist();
+    }
+  }
+
+  Future<void> _openChecklist() async {
+    final signals = _effectiveSignals;
+    if (signals == null) return;
+    final action =
+        await showOnboardingChecklist(context: context, signals: signals);
+    if (!mounted || action == null) return;
+    switch (action) {
+      case OnboardingAction.invite:
+        widget.onOpenFamily?.call();
+      case OnboardingAction.plan:
+        await _openWizard();
+      case OnboardingAction.explainSwaps:
+        await _explainSwaps();
+      case OnboardingAction.replayTour:
+        if (widget.tourKeys == null) return;
+        await showGuidedTour(context: context, keys: widget.tourKeys!);
+    }
+  }
+
+  /// Opening the explanation IS completing the step — stamped BEFORE the sheet
+  /// renders, so a reader who closes it immediately still gets the credit.
+  Future<void> _explainSwaps() async {
+    await widget.onboarding?.markSwapExplanationSeen();
+    if (!mounted) return;
+    setState(() => _onboardingSignals =
+        _onboardingSignals?.copyWith(hasOpenedSwapExplanation: true));
+    await showHowSwapsWork(context);
+  }
+
+  Future<void> _dismissChecklist() async {
+    await widget.onboarding?.markChecklistDismissed();
+    if (!mounted) return;
+    setState(() => _onboardingSignals =
+        _onboardingSignals?.copyWith(checklistDismissed: true));
   }
 
   int _pageForMonth(DateTime month) =>
@@ -586,6 +678,7 @@ class _CalendarScreenState extends State<CalendarScreen>
               onPressed: () => setState(() => _selectionArmed = true),
             ),
           IconButton(
+            key: widget.tourKeys?.keyFor(TourTarget.wizardButton),
             tooltip: l[K.calWizard],
             icon: const Icon(Icons.event_repeat),
             onPressed: _openWizard,
@@ -635,8 +728,20 @@ class _CalendarScreenState extends State<CalendarScreen>
       ),
       body: Column(
         children: [
-          if (_ownProfile != null) _todayCard(context),
-          _Legend(members: _members, views: views),
+          if (_showChecklist)
+            OnboardingLauncher(
+              signals: _effectiveSignals!,
+              onOpen: _openChecklist,
+              onDismiss: _dismissChecklist,
+            ),
+          if (_ownProfile != null)
+            KeyedSubtree(
+                key: widget.tourKeys?.keyFor(TourTarget.todayCard),
+                child: _todayCard(context)),
+          KeyedSubtree(
+            key: widget.tourKeys?.keyFor(TourTarget.calendarLegend),
+            child: _Legend(members: _members, views: views),
+          ),
           const Divider(height: 1),
           Expanded(
             child: PageView.builder(

@@ -308,6 +308,53 @@ class E2eFamily {
 
   /// Always runs, green or red. The RPC re-validates the double signature
   /// server-side and returns the auth users to remove.
+  // ── Lote 4 helpers (account, family and legal) ───────────────────────────
+
+  /// Another throwaway address in this run's namespace — an invitee that never
+  /// signs up, so the family's own purge takes the invitation with it.
+  String disposableEmail(String who) =>
+      'delivered+e2e-$runId-$who$emailDomain';
+
+  /// Invitations neither accepted nor revoked — what the Família page lists.
+  Future<List<Map<String, dynamic>>> openInvitations() async {
+    final rows = await _get('/rest/v1/family_invitations'
+        '?family_id=eq.$familyId&accepted_at=is.null&revoked_at=is.null'
+        '&select=id,email,role_id,token,expires_at');
+    return rows.cast<Map<String, dynamic>>();
+  }
+
+  /// Every invitation, including the revoked ones — the revoke assertion needs
+  /// to see the row it just closed.
+  Future<List<Map<String, dynamic>>> allInvitations() async {
+    final rows = await _get('/rest/v1/family_invitations'
+        '?family_id=eq.$familyId&select=id,email,revoked_at');
+    return rows.cast<Map<String, dynamic>>();
+  }
+
+  Future<Map<String, dynamic>?> profileOf(int profileId) async {
+    final rows = await _get(
+        '/rest/v1/profiles?id=eq.$profileId&select=id,is_admin,role_id,full_name');
+    return rows.isEmpty ? null : rows.first as Map<String, dynamic>;
+  }
+
+  Future<int> roleIdOf(String roleName) async {
+    final roles = await _get('/rest/v1/roles?select=id,role_name');
+    return (roles.firstWhere((r) =>
+            (r as Map)['role_name'].toString().toLowerCase() ==
+            roleName.toLowerCase()) as Map)['id'] as int;
+  }
+
+  /// Lifts the family past the F-37 free cap so the invite FORM renders. The
+  /// cap itself is the DB's business and has its own server-side tests; this
+  /// lane is here to exercise the screen behind it.
+  Future<void> setPlan(String plan) async {
+    await http.patch(
+      Uri.parse('$_url/rest/v1/families?id=eq.$familyId'),
+      headers: {..._headers, 'Content-Type': 'application/json'},
+      body: jsonEncode({'plan': plan}),
+    );
+  }
+
   Future<void> purge() async {
     try {
       final result =

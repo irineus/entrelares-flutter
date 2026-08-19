@@ -27,10 +27,12 @@ import 'screens/update_password_screen.dart';
 import 'services/admin_mode.dart';
 import 'services/custody_data_source.dart';
 import 'services/notification_badge.dart';
+import 'services/onboarding_service.dart';
 import 'services/session_gate.dart';
 import 'services/sudo_service.dart';
 import 'services/supabase_custody_data_source.dart';
 import 'widgets/app_l10n.dart';
+import 'widgets/onboarding.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -183,7 +185,8 @@ class _EntrelaresAppState extends State<EntrelaresApp>
             shell: shell,
             adminMode: _adminMode,
             badge: _badge,
-            deletionBanner: _deletionBanner),
+            deletionBanner: _deletionBanner,
+            tourKeys: _tourKeys),
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(
@@ -191,7 +194,10 @@ class _EntrelaresAppState extends State<EntrelaresApp>
               builder: (_, _) => CalendarScreen(
                   dataSource: _dataSource,
                   adminMode: _adminMode,
-                  onSignOut: _signOut),
+                  onSignOut: _signOut,
+                  onboarding: _onboarding,
+                  tourKeys: _tourKeys,
+                  onOpenFamily: () => _router.go('/family')),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -223,6 +229,11 @@ class _EntrelaresAppState extends State<EntrelaresApp>
                     dataSource: _dataSource,
                     sudo: _sudo,
                     onOpenFamily: () => _router.go('/family'),
+                    onReopenOnboarding: ({required bool replayTour}) async {
+                      await _onboarding.reopenChecklist();
+                      _onboarding.tourReplayRequested = replayTour;
+                      if (mounted) _router.go('/');
+                    },
                     onLeaving: () {
                       _isLeaving = true;
                       _router.go('/leaving');
@@ -276,6 +287,11 @@ class _EntrelaresAppState extends State<EntrelaresApp>
 
   /// S-11: what the shell's persistent deletion banner shows, or null.
   FamilyDeletionBanner? _deletionBanner;
+
+  /// U-23 — the checklist/tour state and the shared registry of tour targets
+  /// (they live in two different subtrees: the tab bar and the calendar).
+  late final OnboardingService _onboarding;
+  final _tourKeys = TourKeys();
 
   String? _redirect(BuildContext context, GoRouterState state) {
     final location = state.matchedLocation;
@@ -335,6 +351,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
             environmentTitlePrefix(isProduction: Env.current.isProduction));
     _badge = NotificationBadge(_dataSource);
     _sudo = SudoService(_dataSource);
+    _onboarding = OnboardingService(_dataSource);
     _l = Localization(widget.initialLanguage);
     _openGate();
     _authSub = _client.auth.onAuthStateChange.listen((state) {

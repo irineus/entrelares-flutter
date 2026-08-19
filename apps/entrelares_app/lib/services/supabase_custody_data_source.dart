@@ -1148,6 +1148,71 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
         params: {'p_version': PolicyVersions.current});
   }
 
+  // ── Lote 4: first-run onboarding (U-23) ──────────────────────────────────
+
+  @override
+  Future<bool> hasOpenInvitation() async {
+    final rows = await _client
+        .from('family_invitations')
+        .select('id')
+        .isFilter('accepted_at', null)
+        .isFilter('revoked_at', null)
+        .gt('expires_at', DateTime.now().toUtc().toIso8601String())
+        .limit(1);
+    return rows.isNotEmpty;
+  }
+
+  @override
+  Future<OnboardingFacts> fetchOnboardingFacts({
+    required int myProfileId,
+    bool includeSwapParticipation = true,
+  }) async {
+    // Both reads are `limit(1)`: the question is existence, never a count.
+    final planned =
+        await _client.from('care_schedules').select('id').limit(1);
+    if (!includeSwapParticipation) {
+      return OnboardingFacts(hasAnyPlannedDay: planned.isNotEmpty);
+    }
+    final asRequester = await _client
+        .from('swap_requests')
+        .select('id')
+        .eq('requesting_profile_id', myProfileId)
+        .limit(1);
+    final asTarget = asRequester.isNotEmpty
+        ? const []
+        : await _client
+            .from('swap_requests')
+            .select('id')
+            .eq('target_profile_id', myProfileId)
+            .limit(1);
+    return OnboardingFacts(
+      hasAnyPlannedDay: planned.isNotEmpty,
+      hasTakenPartInASwap: asRequester.isNotEmpty || asTarget.isNotEmpty,
+    );
+  }
+
+  @override
+  Future<void> stampOnboarding(OnboardingStamp stamp) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return;
+    // Idempotent by filter: only an unstamped row is written, so the first
+    // date survives.
+    await _client
+        .from('profiles')
+        .update({stamp.column: DateTime.now().toUtc().toIso8601String()})
+        .eq('user_id', uid)
+        .isFilter(stamp.column, null);
+  }
+
+  @override
+  Future<void> clearChecklistDismissal() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return;
+    await _client
+        .from('profiles')
+        .update({OnboardingStamp.dismissed.column: null}).eq('user_id', uid);
+  }
+
   /// The `error` field an Edge Function puts in its body, when there is one.
   static String? _functionErrorText(FunctionException e) {
     final details = e.details;

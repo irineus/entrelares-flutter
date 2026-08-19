@@ -26,7 +26,8 @@ import '../widgets/sudo_sheet.dart';
 /// sudo-gated**, and each of those calls goes through [runWithSudo], which
 /// asks before acting AND retries once when the server disagrees.
 ///
-/// Deliberately NOT here yet: the onboarding reopen links (U-23) — PR 6.
+/// The U-23 reopen door lives here too: a first-run guide that cannot be
+/// reopened is a guide you can only read once, by accident.
 class ProfileScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
   final SudoService sudo;
@@ -48,6 +49,10 @@ class ProfileScreen extends StatefulWidget {
   /// Opens the Família page, where a pending family deletion is resolved.
   final VoidCallback? onOpenFamily;
 
+  /// U-23 — reopening the first-run checklist / replaying the tour. Both land
+  /// on the calendar, which owns those surfaces.
+  final Future<void> Function({required bool replayTour})? onReopenOnboarding;
+
   const ProfileScreen({
     super.key,
     required this.dataSource,
@@ -56,6 +61,7 @@ class ProfileScreen extends StatefulWidget {
     this.deliverExport,
     this.onLeaving,
     this.onOpenFamily,
+    this.onReopenOnboarding,
   });
 
   @override
@@ -445,6 +451,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _passwordSection(l, target),
             const SizedBox(height: 24),
             _lgpdSection(l),
+            if (widget.onReopenOnboarding != null) ...[
+              const SizedBox(height: 24),
+              _onboardingSection(l),
+            ],
             const SizedBox(height: 24),
             _leaveSection(l),
           ],
@@ -604,6 +614,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
           FilledButton(
             onPressed: _exporting ? null : () => _export(l),
             child: Text(l[K.profExportAction]),
+          ),
+        ],
+      );
+
+  /// U-23 — the permanent way back into the first-run guide.
+  Widget _onboardingSection(Localization l) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sectionTitle(l[K.onbChecklistReopen]),
+          const SizedBox(height: 4),
+          Text(l[K.onbChecklistReopenHint],
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () =>
+                widget.onReopenOnboarding!(replayTour: false),
+            child: Text(l[K.onbChecklistReopen]),
+          ),
+          TextButton(
+            onPressed: () => widget.onReopenOnboarding!(replayTour: true),
+            child: Text(l[K.onbChecklistReplayTour]),
           ),
         ],
       );
