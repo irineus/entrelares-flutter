@@ -1,0 +1,75 @@
+/// T-41 client mirror — the parse/fallback seam of the web's
+/// `Entrelares/Services/SettingsService.cs`. The client reads the PUBLIC
+/// `app_settings` rows (RLS exposes only those) for UX mirroring; enforcement
+/// is ALWAYS server-side (triggers/functions read the true value), so these
+/// values only shape the UI and a tampered client cannot gain anything.
+///
+/// The fetch/caching half lives in the app package; this file is the pure
+/// lookup+parse seam so the fallback behaviour is tested without a client.
+library;
+
+/// The integer at [key], or [fallback] when the map is null (settings never
+/// loaded), the key is missing, or the value is not a valid integer.
+///
+/// Mirrors `SettingsService.ParseSetting`, including .NET `int.TryParse`
+/// semantics: surrounding whitespace and a sign are accepted, anything else
+/// ("6.5", "6 meses", "0xFF") falls back. No range checking — `-1` and `0`
+/// come back verbatim; callers own domain bounds.
+int parseIntSetting(
+    Map<String, String>? settings, String key, int fallback) {
+  final raw = settings?[key];
+  if (raw == null) return fallback;
+  return int.tryParse(raw.trim(), radix: 10) ?? fallback;
+}
+
+/// Boolean twin of [parseIntSetting] — same fallback semantics.
+///
+/// Mirrors .NET `bool.TryParse` exactly: only `true`/`false`, case-insensitive,
+/// surrounding whitespace tolerated. `"1"`, `"0"`, `"yes"` are NOT booleans
+/// here, same as in the web client — do not loosen this.
+bool parseBoolSetting(
+    Map<String, String>? settings, String key, bool fallback) {
+  final raw = settings?[key];
+  if (raw == null) return fallback;
+  return switch (raw.trim().toLowerCase()) {
+    'true' => true,
+    'false' => false,
+    _ => fallback,
+  };
+}
+
+/// The typed accessors over the public settings — the same 10 keys the web
+/// client reads, with fallbacks mirroring the DB seeds so the UI is sane
+/// before the load completes or if a key is ever missing.
+///
+/// The two `string`-typed public rows (`policy.current_version`,
+/// `policy.enforce_from`) are deliberately NOT here — the web mirrors them as
+/// compile-time `PolicyVersions` constants, and so will this client (lote 4).
+class PublicSettings {
+  /// The raw key→value rows, or null when the load never happened/failed —
+  /// every accessor then yields its seeded fallback (fail to defaults).
+  final Map<String, String>? values;
+
+  const PublicSettings(this.values);
+
+  /// The pre-load / load-failed state.
+  static const PublicSettings unloaded = PublicSettings(null);
+
+  int _int(String key, int fallback) => parseIntSetting(values, key, fallback);
+
+  // F-39 horizon + F-37 seats.
+  int get calendarMonthsFree => _int('calendar_months_free', 6);
+  int get calendarMonthsPremium => _int('calendar_months_premium', 24);
+  int get freeCaregivers => _int('free_caregivers', 2);
+  int get maxCaregivers => _int('max_caregivers', 4);
+  int get overrideFreeDays => _int('override_free_days', 7);
+  int get overridePremiumMonths => _int('override_premium_months', 6);
+
+  // T-39 billing (F-48 promotional prices: 549, not 490 — Asaas refuses
+  // Pix/boleto charges under R$ 5,00). Enabled=false shows the waitlist.
+  bool get billingEnabled => parseBoolSetting(values, 'billing.enabled', false);
+  int get priceMonthlyCents => _int('billing.price_monthly_cents', 549);
+  int get priceAnnualCents => _int('billing.price_annual_cents', 5490);
+  // U-22: public so the overdue panel can show the real grace deadline.
+  int get graceDays => _int('billing.grace_days', 7);
+}

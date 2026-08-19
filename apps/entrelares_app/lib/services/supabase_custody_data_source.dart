@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/care_schedule.dart';
+import '../models/family.dart';
 import '../models/member.dart';
 import 'custody_data_source.dart';
 
@@ -57,6 +58,36 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
         .lte('schedule_date', CareSchedule.isoDate(last))
         .order('schedule_date', ascending: true);
     return rows.map(CareSchedule.fromJson).toList();
+  }
+
+  @override
+  Future<List<CareSchedule>> fetchUpcoming(DateTime from, int days) async {
+    final rows = await _client
+        .from('care_schedules')
+        .select()
+        .gte('schedule_date', CareSchedule.isoDate(from))
+        .lte('schedule_date',
+            CareSchedule.isoDate(from.add(Duration(days: days))))
+        .order('schedule_date', ascending: true);
+    return rows.map(CareSchedule.fromJson).toList();
+  }
+
+  @override
+  Future<Family?> fetchOwnFamily() async {
+    // Same shape as the web's GetMyFamilyAsync: a plain RLS-scoped select,
+    // first row or null — never the is_premium() RPC (the mirror exists so
+    // no extra round-trip is needed).
+    final rows = await _client.from('families').select().limit(1);
+    return rows.isEmpty ? null : Family.fromJson(rows.first);
+  }
+
+  @override
+  Future<Map<String, String>> fetchPublicSettings() async {
+    final rows = await _client.from('app_settings').select('key, value');
+    return {
+      for (final row in rows)
+        (row['key'] as String): (row['value'] as String? ?? ''),
+    };
   }
 
   @override

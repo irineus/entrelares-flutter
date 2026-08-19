@@ -125,5 +125,15 @@ void main() {
       expect(en[K.calWeekdayInitials].split(','), hasLength(7));
       expect(en[K.calWeekdayInitials], contains('W'));
     });
+
+    // TodayCard.razor: "dddd, dd 'de' MMMM" pt-BR / "dddd, MMMM d" en-US —
+    // the pt day is zero-padded, the English one is not.
+    test('the Today card heading follows the language', () {
+      expect(ptBr.formatTodayHeading(theDay), 'quarta-feira, 05 de agosto');
+      expect(en.formatTodayHeading(theDay), 'Wednesday, August 5');
+      expect(ptBr.formatTodayHeading(DateTime(2026, 8, 23)),
+          'domingo, 23 de agosto');
+      expect(en.formatTodayHeading(DateTime(2026, 8, 23)), 'Sunday, August 23');
+    });
   });
 }

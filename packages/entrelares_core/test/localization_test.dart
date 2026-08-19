@@ -10,8 +10,9 @@
 ///  - `EveryDeclaredKey_HasACallSite` — the catalogs are ported AHEAD of the
 ///    screens (batches 2–6 consume them progressively), so the call-site scan
 ///    would fail on ~900 keys by design. It becomes the lote-6 close-out gate.
-///  - `NoToast_CarriesALiteralString` — no toast helper exists yet; the gate
-///    lands with the first one (lote 2).
+///  - `NoToast_CarriesALiteralString` — PORTED in lote 1 PR3 as the app
+///    package's `no_literal_snack_test` (it scans app call sites, so it lives
+///    beside them).
 ///  - Consent declarations / policy summary parity — those helpers port in
 ///    lote 4 with the sign-up flow.
 library;

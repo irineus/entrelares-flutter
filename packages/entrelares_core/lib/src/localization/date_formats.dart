@@ -45,6 +45,14 @@ const _enMonthsFull = [
 const _ptWeekdaysAbbrev = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
 const _enWeekdaysAbbrev = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+const _ptWeekdaysFull = [
+  'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira',
+  'sexta-feira', 'sábado', 'domingo',
+];
+const _enWeekdaysFull = [
+  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+];
+
 String _two(int n) => n.toString().padLeft(2, '0');
 
 extension DateFormats on Localization {
@@ -124,4 +132,13 @@ extension DateFormats on Localization {
   String weekdayAbbrev(int weekday) => isEnglish
       ? _enWeekdaysAbbrev[weekday - 1]
       : _ptWeekdaysAbbrev[weekday - 1];
+
+  /// The Today card's date line, mirroring `TodayCard.razor`'s
+  /// `"dddd, dd 'de' MMMM"` pt-BR / `"dddd, MMMM d"` en-US:
+  /// `quarta-feira, 19 de agosto` · `Wednesday, August 19`.
+  String formatTodayHeading(DateTime date) => isEnglish
+      ? '${_enWeekdaysFull[date.weekday - 1]}, '
+          '${_enMonthsFull[date.month - 1]} ${date.day}'
+      : '${_ptWeekdaysFull[date.weekday - 1]}, '
+          '${_two(date.day)} de ${_ptMonthsFull[date.month - 1]}';
 }

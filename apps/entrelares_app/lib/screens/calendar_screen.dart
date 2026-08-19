@@ -1,11 +1,14 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../models/care_schedule.dart';
 import '../models/member.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
+import '../widgets/app_snack.dart';
+import '../widgets/today_card.dart';
 import 'day_sheet.dart';
 
 /// F-27 slot palette (slot 0 = gray: inactive/unknown); swapped is its own
@@ -40,6 +43,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   List<Member> _members = const [];
   Map<String, CareSchedule> _daysByIso = const {};
+  Member? _ownProfile;
+  // Today + the next-handoff window ([today, today + 91] — the web scans
+  // [tomorrow, tomorrow + 90]; one query serves the card's row and the scan).
+  List<CareSchedule> _upcoming = const [];
   bool _loading = true;
   String? _loadError;
   void Function()? _unwatch;
@@ -81,12 +88,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final members = await widget.dataSource.fetchMembers();
       final days = await widget.dataSource
           .fetchMonth(_visibleMonth.year, _visibleMonth.month);
+      final ownProfile = await widget.dataSource.fetchOwnProfile();
+      final upcoming = await widget.dataSource
+          .fetchUpcoming(_today, nextHandoffWindowDays + 1);
       if (!mounted) return;
       setState(() {
         _members = members;
         _daysByIso = {
           for (final d in days) CareSchedule.isoDate(d.scheduleDate): d
         };
+        _ownProfile = ownProfile;
+        _upcoming = upcoming;
         _loading = false;
         _loadError = null;
       });
@@ -125,7 +137,70 @@ class _CalendarScreenState extends State<CalendarScreen> {
       today: _today,
       dataSource: widget.dataSource,
     );
-    if (changed == true) _load(silent: true);
+    if (changed == true) {
+      _load(silent: true);
+      if (mounted) {
+        showAppSnack(context, AppL10n.of(context).l[K.toastSaved]);
+      }
+    }
+  }
+
+  /// Web: GoToToday — no-op when already on the current month (the card is
+  /// not tappable then anyway).
+  void _goToToday() {
+    final now = _today;
+    final delta = (now.year * 12 + now.month) -
+        (_anchorMonth.year * 12 + _anchorMonth.month);
+    _pageController.animateToPage(_basePage + delta,
+        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+  }
+
+  /// The Today card inputs, all from state the load already holds. The card
+  /// itself is dumb — the rules live in core (today_rules).
+  Widget _todayCard(BuildContext context) {
+    final todayIso = CareSchedule.isoDate(_today);
+    CareSchedule? todayRow;
+    for (final d in _upcoming) {
+      if (CareSchedule.isoDate(d.scheduleDate) == todayIso) {
+        todayRow = d;
+        break;
+      }
+    }
+    final glance = todayGlance(
+      userProfileId: _ownProfile?.id,
+      scheduledParentId: todayRow?.scheduledParentId,
+      actualParentId: todayRow?.actualParentId,
+      handoffTime: todayRow?.handoffTime,
+      members: _memberViews,
+    );
+    // Web: a no-schedule day nulls the handoff (the scan needs a "current"
+    // parent to differ from).
+    DateTime? nextHandoff;
+    if (todayRow != null) {
+      nextHandoff = nextHandoffDate(todayRow.effectiveParentId, [
+        for (final d in _upcoming)
+          if (CareSchedule.isoDate(d.scheduleDate) != todayIso)
+            (
+              date: d.scheduleDate,
+              scheduledParentId: d.scheduledParentId,
+              actualParentId: d.actualParentId,
+            ),
+      ]);
+    }
+    return TodayCard(
+      glance: glance,
+      userFullName: _ownProfile?.fullName ?? '',
+      today: _today,
+      nextHandoffDate: nextHandoff,
+      viewingCurrentMonth: isCurrentMonth(_visibleMonth, _today),
+      showInviteNudge: showInviteNudge(
+        isLoading: _loading,
+        isAdmin: _ownProfile?.isAdmin ?? false,
+        activeMemberCount: _members.where((m) => m.isActiveMember).length,
+      ),
+      onGoToToday: _goToToday,
+      onInvite: () => context.go('/family'),
+    );
   }
 
   @override
@@ -166,6 +241,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
       body: Column(
         children: [
+          if (_ownProfile != null) _todayCard(context),
           _Legend(members: _members, views: views),
           const Divider(height: 1),
           Expanded(
