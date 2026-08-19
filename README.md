@@ -27,6 +27,11 @@ cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
 cd apps/entrelares_app && fvm flutter build apk --debug --split-per-abi
 ```
 
+**CI (T-54):** todo push/PR roda `.github/workflows/verify.yml` — analyze + `dart test`
+no core e analyze + `flutter test` no app, com o Flutter lido do `.fvmrc`. O build de
+APK fica FORA do gate (cota de 2000 min/mês da conta, compartilhada com os repos do
+produto) — para gerar APK pela CI, use o `workflow_dispatch` com `build-apk`.
+
 ## Versionamento
 
 | Componente | Versão atual |

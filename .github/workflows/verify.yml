@@ -1,0 +1,83 @@
+# T-54 — the repo's gate: analyze + tests on every push/PR.
+# The APK build stays OUT of the gate on purpose: it is minutes-expensive and
+# the account's 2000 min/mo are shared with the product repos (same constraint
+# that shaped T-50). Need an APK from CI? workflow_dispatch below.
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      build-apk:
+        description: "Also build the release APK (arm64, split-per-abi)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # .fvmrc is the single source of truth for the Flutter version (locked
+      # decision: version changes only by explicit owner decision on the board).
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          channel: stable
+          cache: true
+
+      - name: Core — analyze + dart test
+        working-directory: packages/entrelares_core
+        run: |
+          dart pub get
+          dart analyze --fatal-infos
+          dart test
+
+      - name: App — analyze + flutter test
+        working-directory: apps/entrelares_app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+  apk:
+    if: github.event_name == 'workflow_dispatch' && inputs.build-apk
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          channel: stable
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build release APK (arm64)
+        working-directory: apps/entrelares_app
+        run: flutter build apk --release --split-per-abi --target-platform android-arm64
+      # 1-day retention: the 500 MB artifact quota is account-wide (T-50).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-arm64-v8a-release
+          path: apps/entrelares_app/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+          retention-days: 1
