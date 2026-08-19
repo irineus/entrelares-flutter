@@ -39,6 +39,11 @@ abstract final class KApp {
   static const String editorRetroBeyondPremium =
       'app.editor.retroBeyondPremium';
 
+  // ── Bulk edit (lote 2) — the web's "Salvando {x}/{y}..." progress label was
+  //    a pre-U-13 hardcoded literal (Home.razor:2491), frozen with the Blazor
+  //    app; the catalogued rule ports, the residue does not ──
+  static const String bulkProgressSaving = 'app.bulk.progressSaving';
+
   // ── Navigation shell (lote 1) — screens the later batches fill in ──
   static const String shellUnderConstructionTitle =
       'app.shell.underConstructionTitle';
@@ -63,6 +68,7 @@ abstract final class KApp {
     errConcurrentSaveRetry,
     editorRetroBeyondFree,
     editorRetroBeyondPremium,
+    bulkProgressSaving,
     shellUnderConstructionTitle,
     shellUnderConstructionBody,
   ];
@@ -94,6 +100,7 @@ abstract final class StringsAppPtBr {
             'para corrigir dias mais antigos (até {1} meses).',
     KApp.editorRetroBeyondPremium:
         'Correções retroativas vão até {0} meses atrás.',
+    KApp.bulkProgressSaving: 'Salvando {0}/{1}...',
     KApp.shellUnderConstructionTitle: 'Em construção',
     KApp.shellUnderConstructionBody:
         'Esta tela chega em uma próxima atualização.',
@@ -126,6 +133,7 @@ abstract final class StringsAppEn {
             'correct older days (up to {1} months).',
     KApp.editorRetroBeyondPremium:
         'Retroactive corrections reach up to {0} months back.',
+    KApp.bulkProgressSaving: 'Saving {0}/{1}...',
     KApp.shellUnderConstructionTitle: 'Under construction',
     KApp.shellUnderConstructionBody:
         'This screen arrives in an upcoming update.',

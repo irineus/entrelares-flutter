@@ -11,6 +11,7 @@ import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
 import '../widgets/today_card.dart';
+import 'bulk_sheet.dart';
 import 'day_sheet.dart';
 
 /// F-27 slot palette (slot 0 = gray: inactive/unknown); swapped is its own
@@ -82,6 +83,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool get _adminBypass => isAdminBypass(
       adminModeActive: widget.adminMode.isActive,
       isAdmin: _ownProfile?.isAdmin ?? false);
+
+  // ── Bulk selection (U-11): long-press arms it; the ☑️ button is the
+  //    accessible entry point. Mirror of Home.razor's selection state.
+  final Set<DateTime> _selectedDays = {};
+  bool _selectionArmed = false;
+
+  bool get _isSelectionMode => isSelectionMode(
+      selectedCount: _selectedDays.length, armed: _selectionArmed);
 
   @override
   void initState() {
@@ -178,14 +187,50 @@ class _CalendarScreenState extends State<CalendarScreen> {
       (month.year * 12 + month.month) -
       (_anchorMonth.year * 12 + _anchorMonth.month);
 
-  void _onPageChanged(int page) {
+  void _bounceBack() {
+    _pageController.animateToPage(_pageForMonth(_visibleMonth),
+        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+  }
+
+  /// The web's navigation guard: month navigation while days are selected
+  /// asks before discarding the selection. Returns whether to proceed.
+  Future<bool> _confirmDiscardSelection() async {
+    final l = AppL10n.of(context).l;
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.format(
+            _selectedDays.length == 1
+                ? K.navGuardSelectedOne
+                : K.navGuardSelectedMany,
+            [_selectedDays.length])),
+        content: Text(l[K.navGuardBody]),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(l[K.navGuardYes])),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(l[K.navGuardNo])),
+        ],
+      ),
+    );
+    if (proceed == true) {
+      _cancelSelection();
+      return true;
+    }
+    return false;
+  }
+
+  Future<void> _onPageChanged(int page) async {
     final month = _monthForPage(page);
     // The bounce-back below re-fires with the month already shown — no-op.
     if (month.year == _visibleMonth.year && month.month == _visibleMonth.month) {
       return;
     }
     // F-39 mirror of the web's NextMonth: paging stops at the family's
-    // planning horizon with the tier message instead of advancing.
+    // planning horizon with the tier message instead of advancing. The
+    // horizon check comes BEFORE the guard, same order as NextMonth.
     if (!canPageToMonth(month, _horizonDate)) {
       showAppSnack(
           context,
@@ -196,8 +241,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   _settings.calendarMonthsFree,
                   _settings.calendarMonthsPremium,
                 ]));
-      _pageController.animateToPage(_pageForMonth(_visibleMonth),
-          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      _bounceBack();
+      return;
+    }
+    if (_isSelectionMode && !await _confirmDiscardSelection()) {
+      _bounceBack();
       return;
     }
     setState(() => _visibleMonth = month);
@@ -206,6 +254,54 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   List<MemberView> get _memberViews =>
       _members.map((m) => m.toView()).toList(growable: false);
+
+  void _toggleDaySelection(DateTime date) {
+    final d = dateOnly(date);
+    setState(() {
+      if (!_selectedDays.remove(d)) _selectedDays.add(d);
+    });
+  }
+
+  /// Mirror of LongPressDay: entering selection always ADDS the day.
+  void _onDayLongPress(DateTime date) {
+    HapticFeedback.mediumImpact();
+    setState(() => _selectedDays.add(dateOnly(date)));
+  }
+
+  void _onDayTap(DateTime date) {
+    if (_isSelectionMode) {
+      HapticFeedback.selectionClick();
+      _toggleDaySelection(date);
+      return;
+    }
+    _openDay(date);
+  }
+
+  void _cancelSelection() {
+    setState(() {
+      _selectedDays.clear();
+      _selectionArmed = false;
+    });
+  }
+
+  Future<void> _openBulkSheet() async {
+    final summary = await showBulkSheet(
+      context: context,
+      selectedDays: Set.of(_selectedDays),
+      daysByIso: _daysByIso,
+      activeMembers: _members.where((m) => m.isActiveMember).toList(),
+      today: _today,
+      dataSource: widget.dataSource,
+      adminBypass: _adminBypass,
+    );
+    if (summary != null) {
+      // Mirror of FinishBulkSave: the selection clears (armed state stays),
+      // the month reloads and the summary is the toast.
+      setState(() => _selectedDays.clear());
+      _load(silent: true);
+      if (mounted) showAppSnack(context, summary);
+    }
+  }
 
   Future<void> _openDay(DateTime date) async {
     HapticFeedback.selectionClick();
@@ -312,6 +408,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
       appBar: AppBar(
         title: Text(title),
         actions: [
+          // U-11: the accessible entry point to bulk selection (mirrors the
+          // long-press). Once armed, tapping a day toggles its selection.
+          if (!_isSelectionMode)
+            IconButton(
+              tooltip: l[K.calSelectDays],
+              icon: const Icon(Icons.check_box_outlined),
+              onPressed: () => setState(() => _selectionArmed = true),
+            ),
           // F-14: the explicit admin-mode toggle — mirror of the web's NavMenu
           // button. Only a real admin sees it; the shell shows the persistent
           // banner while it is on.
@@ -384,12 +488,46 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           views: views,
                           today: _today,
                           loading: _loading && isVisible,
-                          onDayTap: _openDay,
+                          selectedIso: {
+                            for (final d in _selectedDays)
+                              CareSchedule.isoDate(d)
+                          },
+                          onDayTap: _onDayTap,
+                          onDayLongPress: _onDayLongPress,
                         ),
                 );
               },
             ),
           ),
+          if (_isSelectionMode)
+            Material(
+              elevation: 8,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _selectedDays.isEmpty
+                              ? null
+                              : _openBulkSheet,
+                          child: Text(l.format(
+                              K.selectionEdit, [_selectedDays.length])),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: l[K.selectionCancel],
+                        icon: const Icon(Icons.close),
+                        onPressed: _cancelSelection,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -441,7 +579,9 @@ class _MonthGrid extends StatelessWidget {
   final List<MemberView> views;
   final DateTime today;
   final bool loading;
+  final Set<String> selectedIso;
   final void Function(DateTime) onDayTap;
+  final void Function(DateTime) onDayLongPress;
 
   const _MonthGrid({
     required this.month,
@@ -449,7 +589,9 @@ class _MonthGrid extends StatelessWidget {
     required this.views,
     required this.today,
     required this.loading,
+    required this.selectedIso,
     required this.onDayTap,
+    required this.onDayLongPress,
   });
 
   @override
@@ -506,7 +648,10 @@ class _MonthGrid extends StatelessWidget {
                   isToday: CareSchedule.isoDate(
                           DateTime(month.year, month.month, day)) ==
                       todayIso,
+                  isSelected: selectedIso.contains(CareSchedule.isoDate(
+                      DateTime(month.year, month.month, day))),
                   onTap: onDayTap,
+                  onLongPress: onDayLongPress,
                 ),
             ],
           ),
@@ -520,14 +665,18 @@ class _DayCell extends StatelessWidget {
   final CareSchedule? day;
   final List<MemberView> views;
   final bool isToday;
+  final bool isSelected;
   final void Function(DateTime) onTap;
+  final void Function(DateTime) onLongPress;
 
   const _DayCell({
     required this.date,
     required this.day,
     required this.views,
     required this.isToday,
+    required this.isSelected,
     required this.onTap,
+    required this.onLongPress,
   });
 
   @override
@@ -547,38 +696,63 @@ class _DayCell extends StatelessWidget {
     final initial = parentInitial(assignment, views);
     final assigned = paint is! DayUnassigned;
 
+    final primary = Theme.of(context).colorScheme.primary;
     return InkWell(
       onTap: () => onTap(date),
+      // U-11: the mobile entry point to bulk selection (web: 500 ms press).
+      onLongPress: () => onLongPress(date),
       borderRadius: BorderRadius.circular(8),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: isToday
-              ? Border.all(
-                  color: Theme.of(context).colorScheme.primary, width: 2)
-              : Border.all(color: Theme.of(context).dividerColor),
-          color: assigned ? color.withValues(alpha: 0.15) : null,
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('${date.day}', style: Theme.of(context).textTheme.labelSmall),
-            const SizedBox(height: 2),
-            CircleAvatar(
-              radius: 10,
-              backgroundColor: assigned ? color : Colors.transparent,
-              child: Text(initial,
-                  style: TextStyle(
-                      fontSize: 9,
-                      color: assigned
-                          ? Colors.white
-                          : Theme.of(context).hintColor)),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: isSelected
+                  ? Border.all(color: primary, width: 2)
+                  : isToday
+                      ? Border.all(color: primary, width: 2)
+                      : Border.all(color: Theme.of(context).dividerColor),
+              color: isSelected
+                  ? primary.withValues(alpha: 0.12)
+                  : assigned
+                      ? color.withValues(alpha: 0.15)
+                      : null,
             ),
-            if (day?.handoffTime != null)
-              Icon(Icons.swap_horiz,
-                  size: 10, color: Theme.of(context).hintColor),
-          ],
-        ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('${date.day}',
+                    style: Theme.of(context).textTheme.labelSmall),
+                const SizedBox(height: 2),
+                CircleAvatar(
+                  radius: 10,
+                  backgroundColor: assigned ? color : Colors.transparent,
+                  child: Text(initial,
+                      style: TextStyle(
+                          fontSize: 9,
+                          color: assigned
+                              ? Colors.white
+                              : Theme.of(context).hintColor)),
+                ),
+                if (day?.handoffTime != null)
+                  Icon(Icons.swap_horiz,
+                      size: 10, color: Theme.of(context).hintColor),
+              ],
+            ),
+          ),
+          // The web's corner mark on selected cells.
+          if (isSelected)
+            Positioned(
+              top: 2,
+              right: 2,
+              child: Text('✓',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: primary)),
+            ),
+        ],
       ),
     );
   }
