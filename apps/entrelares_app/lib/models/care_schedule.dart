@@ -73,14 +73,29 @@ class CareSchedule {
         'submitted_token': revisionToken.isEmpty ? null : revisionToken,
       };
 
-  CareSchedule copyWith({int? scheduledParentId, int? actualParentId}) =>
+  static const Object _keep = Object();
+
+  /// [actualParentId], [handoffTime] and [notes] use a keep-sentinel so an
+  /// explicit `null` CLEARS the field — the swap approval sets the proposed
+  /// handoff even when it is "no time", and the revert restore replays a
+  /// snapshot whose fields may be null on purpose.
+  CareSchedule copyWith({
+    int? scheduledParentId,
+    Object? actualParentId = _keep,
+    Object? handoffTime = _keep,
+    Object? notes = _keep,
+  }) =>
       CareSchedule(
         id: id,
         scheduleDate: scheduleDate,
-        handoffTime: handoffTime,
+        handoffTime: identical(handoffTime, _keep)
+            ? this.handoffTime
+            : handoffTime as String?,
         scheduledParentId: scheduledParentId ?? this.scheduledParentId,
-        actualParentId: actualParentId ?? this.actualParentId,
-        notes: notes,
+        actualParentId: identical(actualParentId, _keep)
+            ? this.actualParentId
+            : actualParentId as int?,
+        notes: identical(notes, _keep) ? this.notes : notes as String?,
         createdAt: createdAt,
         updatedAt: updatedAt,
         revision: revision,
