@@ -8,11 +8,11 @@ import '../widgets/app_l10n.dart';
 
 /// The bulk-edit sheet (F-11/S-09/T-27) — the biggest screen of lote 2,
 /// mirroring `Home.razor`'s bulk sheet with the pure rules in
-/// `entrelares_core/bulk_rules.dart`. Lote-2 slice: DIRECT writes only —
-/// planned parent (S-09 kept on assigned days; admin overwrite confirmed),
-/// note and handoff with their "Limpar" checkboxes, and the admin-only
-/// clear-days path. The actual-parent field, its Limpar and the F-44 message
-/// belong to the swap workflow and arrive with lote 3.
+/// `entrelares_core/bulk_rules.dart`. Since lote 3 the save routes each day
+/// to the correct path (F-11): an actual-parent change that needs approval
+/// opens a SWAP REQUEST (with the per-day F-28 gate skipping, never failing),
+/// undoing an approved swap opens a REVERT (F-47 by decision: a batch never
+/// restores day observations), and only no-workflow days write directly.
 ///
 /// Pops with the summary string (`BulkSummary` + suffixes) — the caller shows
 /// it and reloads, mirroring `FinishBulkSave`.
@@ -25,6 +25,8 @@ Future<String?> showBulkSheet({
   required CustodyDataSource dataSource,
   required bool adminBypass,
   Iterable<DateTime> frozenDates = const [],
+  Member? myProfile,
+  List<Member> allProfiles = const [],
 }) {
   return showModalBottomSheet<String>(
     context: context,
@@ -38,6 +40,8 @@ Future<String?> showBulkSheet({
       dataSource: dataSource,
       adminBypass: adminBypass,
       frozenDates: frozenDates,
+      myProfile: myProfile,
+      allProfiles: allProfiles,
     ),
   );
 }
@@ -54,6 +58,11 @@ class _BulkSheet extends StatefulWidget {
   /// join the bulk write set (wired since lote 3).
   final Iterable<DateTime> frozenDates;
 
+  /// The signed-in member (workflow requester) and the FULL profile roster
+  /// (U-13 notification composition).
+  final Member? myProfile;
+  final List<Member> allProfiles;
+
   const _BulkSheet({
     required this.selectedDays,
     required this.daysByIso,
@@ -62,6 +71,8 @@ class _BulkSheet extends StatefulWidget {
     required this.dataSource,
     required this.adminBypass,
     required this.frozenDates,
+    required this.myProfile,
+    required this.allProfiles,
   });
 
   @override
@@ -92,11 +103,14 @@ BulkDayFields _fields(CareSchedule s) {
 
 class _BulkSheetState extends State<_BulkSheet> {
   int _scheduledParentId = 0;
+  int _actualParentId = 0; // 0 = same as planned (web sentinel)
   late final TextEditingController _notes;
+  late final TextEditingController _swapMessage; // F-44
   int _handoffHour = -1;
   int _handoffMinute = 0;
   bool _clearNotes = false;
   bool _clearHandoff = false;
+  bool _clearActual = false;
 
   bool _saving = false;
   bool _showDeleteAllConfirm = false;
@@ -130,7 +144,9 @@ class _BulkSheetState extends State<_BulkSheet> {
         if (_existingFor(d) != null) _existingFor(d)!,
     ]);
     _scheduledParentId = prefill.scheduledParentId;
+    _actualParentId = prefill.actualParentId;
     _notes = TextEditingController(text: prefill.notes ?? '');
+    _swapMessage = TextEditingController();
     _handoffHour = prefill.handoffHour;
     _handoffMinute = prefill.handoffMinute;
   }
@@ -138,7 +154,15 @@ class _BulkSheetState extends State<_BulkSheet> {
   @override
   void dispose() {
     _notes.dispose();
+    _swapMessage.dispose();
     super.dispose();
+  }
+
+  /// Web parity: `GetCurrentProfileAsync` throws when the profile is missing.
+  Member _requireMyProfile() {
+    final my = widget.myProfile;
+    if (my == null) throw StateError('Perfil do utilizador não encontrado.');
+    return my;
   }
 
   void _step(int done, int total, String label) {
@@ -152,8 +176,12 @@ class _BulkSheetState extends State<_BulkSheet> {
   /// lands — used for transitions when the previous day is in the selection.
   int _effectiveAfterBulk(DateTime d) {
     final existing = _existingFor(d);
-    // Lote-2 slice: no actual-parent inputs — the existing actual survives.
-    return existing?.actualParentId ??
+    final actual = bulkProposedActual(
+      bulkActualParentId: _actualParentId,
+      clearActual: _clearActual,
+      existingActualParentId: existing?.actualParentId,
+    );
+    return actual ??
         bulkDayScheduled(
           overwriteScheduled: widget.adminBypass,
           existing: existing,
@@ -273,12 +301,19 @@ class _BulkSheetState extends State<_BulkSheet> {
 
       final inSelection = finalDays.toSet();
       var directCount = 0;
+      var swapCount = 0;
+      var revertCount = 0;
       var unchangedCount = 0;
       var conflictCount = 0;
       var handoffApplied = 0;
       var handoffCleared = 0;
       var scheduledKept = 0;
       var processed = 0;
+      var skipped = skippedCount;
+
+      bool isWorkflowConflict(String raw) =>
+          isDayConflict(raw) ||
+          raw.contains('swap_requests_one_pending_per_date');
 
       for (final date in finalDays) {
         processed++;
@@ -295,6 +330,13 @@ class _BulkSheetState extends State<_BulkSheet> {
         );
         if (dayScheduled != _scheduledParentId) scheduledKept++;
 
+        // The actual parent this bulk edit would end up applying to the day.
+        final proposedActual = bulkProposedActual(
+          bulkActualParentId: _actualParentId,
+          clearActual: _clearActual,
+          existingActualParentId: existing?.actualParentId,
+        );
+
         // T-27: like the wizard, a bulk-set handoff lands only on TRANSITION
         // days; the others get null (and the summary says where it landed).
         HandoffTime? proposedHandoff = bulkProposedHandoff(
@@ -304,7 +346,7 @@ class _BulkSheetState extends State<_BulkSheet> {
           existing: existing?.handoffTime,
         );
         if (_handoffHour >= 0) {
-          final effectiveBeingSaved = existing?.actualParentId ?? dayScheduled;
+          final effectiveBeingSaved = proposedActual ?? dayScheduled;
           final prevEffective = await _prevEffective(date, inSelection);
           if (!isTransitionDay(prevEffective, effectiveBeingSaved)) {
             proposedHandoff = null;
@@ -315,11 +357,113 @@ class _BulkSheetState extends State<_BulkSheet> {
         }
 
         final notesText = _notes.text.trim();
+        final handoffWire = proposedHandoff == null
+            ? null
+            : '${proposedHandoff.hour.toString().padLeft(2, '0')}:'
+                '${proposedHandoff.minute.toString().padLeft(2, '0')}:00';
+
+        // ── Case 1 — an actual-parent change that needs approval: write the
+        //    base schedule (scheduled + notes) and defer the actual change to
+        //    a pending swap request, mirroring the single-day editor ──
+        if (_actualParentId != 0 &&
+            shouldTriggerWorkflow(
+              scheduleDate: date,
+              currentActualParentId: existing?.actualParentId,
+              scheduledParentId: dayScheduled,
+              proposedActualParentId: _actualParentId,
+              today: widget.today,
+            )) {
+          // F-28: scenario-C gate per day — a bulk proposing someone ELSE
+          // only reaches days where the user is the planned responsible;
+          // other days are skipped (not failed).
+          final my = widget.myProfile;
+          if (my != null &&
+              !requesterParticipates(
+                requesterId: my.id,
+                scheduledParentId: dayScheduled,
+                proposedActualParentId: _actualParentId,
+              )) {
+            skipped++;
+            continue;
+          }
+
+          final base = CareSchedule(
+            id: existingRow?.id ?? 0,
+            scheduleDate: date,
+            handoffTime: existingRow?.handoffTime,
+            scheduledParentId: dayScheduled,
+            actualParentId: existingRow?.actualParentId,
+            notes: notesText.isNotEmpty
+                ? notesText
+                : _clearNotes
+                    ? null
+                    : existingRow?.notes,
+            revision: existingRow?.revision ?? 0,
+            revisionToken: existingRow?.revisionToken ?? '',
+          );
+          // T-33: a conflicted day (someone else saved/requested first) is
+          // counted and skipped — the rest of the batch proceeds.
+          try {
+            if (existingRow == null) {
+              await widget.dataSource.insertDay(base);
+            } else {
+              await widget.dataSource.updateDay(base);
+            }
+            final refreshed = await widget.dataSource.fetchDay(date);
+            await widget.dataSource.createSwapRequest(
+              schedule: refreshed ?? base,
+              proposedActualParentId: _actualParentId,
+              proposedHandoffTime: handoffWire,
+              requestMessage: _swapMessage.text,
+              myProfile: _requireMyProfile(),
+              allProfiles: widget.allProfiles,
+            );
+            swapCount++;
+          } catch (e) {
+            if (isWorkflowConflict(e.toString())) {
+              conflictCount++;
+            } else {
+              rethrow;
+            }
+          }
+          continue;
+        }
+
+        // ── Case 2 — undoing an already-approved swap needs the revert
+        //    workflow (F-47: a batch keeps every day's current observation) ──
+        if (shouldRequestRevert(
+          scheduleDate: date,
+          currentActualParentId: existing?.actualParentId,
+          newActualParentId: proposedActual,
+          scheduledParentId: dayScheduled,
+          today: widget.today,
+        )) {
+          try {
+            await widget.dataSource.requestRevert(
+              scheduleDate: date,
+              currentActualProfileId: existing!.actualParentId!,
+              scheduledParentId: dayScheduled,
+              requestMessage: _swapMessage.text,
+              myProfile: _requireMyProfile(),
+              allProfiles: widget.allProfiles,
+            );
+            revertCount++;
+          } catch (e) {
+            if (isWorkflowConflict(e.toString())) {
+              conflictCount++;
+            } else {
+              rethrow;
+            }
+          }
+          continue;
+        }
+
+        // ── Case 3 — a plain, non-workflow update: apply every field ──
         final proposed = bulkComposeDay(
           existing: existing,
           dayScheduled: dayScheduled,
-          bulkActualParentId: 0,
-          clearActual: false,
+          bulkActualParentId: _actualParentId,
+          clearActual: _clearActual,
           bulkNotes: notesText.isEmpty ? null : notesText,
           clearNotes: _clearNotes,
           bulkHour: _handoffHour,
@@ -332,14 +476,14 @@ class _BulkSheetState extends State<_BulkSheet> {
           continue;
         }
 
-        final handoffWire = proposed.handoffTime == null
+        final rowHandoffWire = proposed.handoffTime == null
             ? null
             : '${proposed.handoffTime!.hour.toString().padLeft(2, '0')}:'
                 '${proposed.handoffTime!.minute.toString().padLeft(2, '0')}:00';
         final row = CareSchedule(
           id: existingRow?.id ?? 0,
           scheduleDate: date,
-          handoffTime: handoffWire,
+          handoffTime: rowHandoffWire,
           scheduledParentId: proposed.scheduledParentId,
           actualParentId: proposed.actualParentId,
           notes: proposed.notes,
@@ -356,9 +500,7 @@ class _BulkSheetState extends State<_BulkSheet> {
         } catch (e) {
           // T-33: a conflicted day is counted and skipped — the rest of the
           // batch proceeds; the reload shows the winners' versions.
-          final raw = e.toString();
-          if (isDayConflict(raw) ||
-              raw.contains('swap_requests_one_pending_per_date')) {
+          if (isWorkflowConflict(e.toString())) {
             conflictCount++;
           } else {
             rethrow;
@@ -370,8 +512,10 @@ class _BulkSheetState extends State<_BulkSheet> {
           directCount: directCount,
           directSingularKey: K.sumUpdatedOne,
           directPluralKey: K.sumUpdatedMany,
+          swapCount: swapCount,
+          revertCount: revertCount,
           unchangedCount: unchangedCount,
-          skippedCount: skippedCount);
+          skippedCount: skipped);
       if (conflictCount > 0) {
         summary += l.format(
             conflictCount == 1
@@ -483,6 +627,41 @@ class _BulkSheetState extends State<_BulkSheet> {
                   ),
                 const SizedBox(height: 16),
 
+                // ── Actual parent + Limpar (lote 3: workflow routing) ──
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(l[K.editorActualParent],
+                          style: Theme.of(context).textTheme.labelLarge),
+                    ),
+                    _clearCheckbox(
+                      l,
+                      value: _clearActual,
+                      unavailable: _actualParentId != 0,
+                      enabled: fieldsEnabled,
+                      onChanged: (v) => setState(() => _clearActual = v),
+                    ),
+                  ],
+                ),
+                DropdownButton<int>(
+                  key: const Key('bulkActual'),
+                  isExpanded: true,
+                  value: _actualParentId,
+                  items: [
+                    DropdownMenuItem(
+                        value: 0, child: Text(l[K.editorSameAsPlanned])),
+                    for (final m in widget.activeMembers)
+                      DropdownMenuItem(value: m.id, child: Text(m.fullName)),
+                  ],
+                  onChanged: !fieldsEnabled
+                      ? null
+                      : (v) => setState(() {
+                            _actualParentId = v ?? 0;
+                            if (_actualParentId != 0) _clearActual = false;
+                          }),
+                ),
+                const SizedBox(height: 16),
+
                 // ── Handoff time + Limpar ──
                 Row(
                   children: [
@@ -571,6 +750,24 @@ class _BulkSheetState extends State<_BulkSheet> {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // ── F-44: shown only when the batch can open swap/revert
+                //    requests; one message rides every request it creates ──
+                if (_actualParentId != 0 || _clearActual) ...[
+                  TextField(
+                    controller: _swapMessage,
+                    maxLength: 200,
+                    enabled: fieldsEnabled,
+                    decoration: InputDecoration(
+                      labelText:
+                          '${l[K.editorMessageLabel]} ${l[K.bulkMessageHint]}',
+                      hintText: l[K.bulkMessagePlaceholder],
+                      border: const OutlineInputBorder(),
+                      counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 if (_saving) ...[
                   LinearProgressIndicator(value: _progress),

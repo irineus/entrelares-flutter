@@ -7,9 +7,10 @@ import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 import 'calendar_screen.dart' show slotColors;
 
-/// What the sheet did — the caller picks the toast (`toast.toastSaved` ·
-/// `toast.toastDayCleared`), mirroring the web's two success paths.
-enum DaySheetOutcome { saved, cleared }
+/// What the sheet did — the caller picks the toast, mirroring the web's four
+/// success paths (`toastSaved` · `toastDayCleared` · `toastSwapRequested` ·
+/// `toastRevertRequested`).
+enum DaySheetOutcome { saved, cleared, swapRequested, revertRequested }
 
 /// The day sheet — a native modal bottom sheet (owner directive: use the
 /// platform where it improves on the web's inline panel). Since lote 2 this is
@@ -18,10 +19,11 @@ enum DaySheetOutcome { saved, cleared }
 /// (admin-only) and the F-12/F-13/F-14 guard mirrors, including the F-40
 /// tier-aware retroactive reach shown proactively (decision 19/08/2026).
 ///
-/// Out of this lote by design: the actual-parent change that opens a swap
-/// request and the frozen-day panel — the workflow arrives with lote 3. The
-/// actual parent IS editable in the one window the DB allows a direct write:
-/// the admin-bypass correction of a past day.
+/// Since lote 3 the save mirrors `SaveChanges`' full routing: an actual-parent
+/// change on today/future opens a SWAP REQUEST (F-28 gate via the field's own
+/// filter), undoing an approved swap opens a REVERT (with the F-47 observation
+/// question when the answer changes something) — the direct write only happens
+/// when no workflow applies. The database enforces all of it regardless.
 Future<DaySheetOutcome?> showDaySheet({
   required BuildContext context,
   required DateTime date,
@@ -33,6 +35,8 @@ Future<DaySheetOutcome?> showDaySheet({
   required CustodyDataSource dataSource,
   bool adminBypass = false,
   int? ownProfileId,
+  Member? myProfile,
+  List<Member> allProfiles = const [],
   bool? isPremium,
   PublicSettings settings = PublicSettings.unloaded,
   Iterable<DateTime> frozenDates = const [],
@@ -51,6 +55,8 @@ Future<DaySheetOutcome?> showDaySheet({
       dataSource: dataSource,
       adminBypass: adminBypass,
       ownProfileId: ownProfileId,
+      myProfile: myProfile,
+      allProfiles: allProfiles,
       isPremium: isPremium,
       settings: settings,
       frozenDates: frozenDates,
@@ -69,6 +75,12 @@ class _DaySheet extends StatefulWidget {
   final bool adminBypass;
   final int? ownProfileId;
 
+  /// The signed-in member and the FULL profile roster (inactive included) —
+  /// the workflow mutations need them for requester identity and the U-13
+  /// notification composition.
+  final Member? myProfile;
+  final List<Member> allProfiles;
+
   /// null = entitlement unknown (read failed): the proactive F-40 gate is
   /// skipped and the trigger's own refusal propagates — never a wrongful
   /// client-side block.
@@ -86,6 +98,8 @@ class _DaySheet extends StatefulWidget {
     required this.dataSource,
     required this.adminBypass,
     required this.ownProfileId,
+    required this.myProfile,
+    required this.allProfiles,
     required this.isPremium,
     required this.settings,
     required this.frozenDates,
@@ -99,6 +113,7 @@ class _DaySheetState extends State<_DaySheet> {
   int? _scheduledParentId;
   int _actualParentId = 0; // 0 = same as planned (web sentinel)
   late final TextEditingController _notes;
+  late final TextEditingController _swapMessage; // F-44
   int _handoffHour = -1;
   int _handoffMinute = 0;
   bool _saving = false;
@@ -106,6 +121,13 @@ class _DaySheetState extends State<_DaySheet> {
   String? _error;
   bool _showAdminConfirm = false;
   bool _adminConfirmed = false;
+
+  // F-47: the observation question. The answer belongs to ONE save attempt;
+  // dismissing is not an answer — the next attempt asks again.
+  bool _showRevertConfirm = false;
+  bool? _revertNotesChoice;
+  String? _revertSnapshotText;
+  String? _revertCurrentText;
 
   /// T-27: the previous day's effective responsible. Resolved from the loaded
   /// month; on the 1st the previous month's last day is fetched (mirror of
@@ -146,12 +168,32 @@ class _DaySheetState extends State<_DaySheet> {
       widget.day != null && widget.day!.scheduledParentId != 0 &&
       !widget.adminBypass;
 
-  /// Lote-2 slice of the actual-parent field: the admin past-day correction is
-  /// the only direct-write window the DB allows (historical fixes — the
-  /// workflow cannot exist for past dates). The general field opens with the
-  /// swap workflow in lote 3.
-  bool get _actualEditable =>
-      widget.adminBypass && _isPast && widget.day != null;
+  /// F-44: mirrors the save's workflow detection so the message field only
+  /// appears when saving will open a swap or revert request (mirror of
+  /// `EditorWillOpenWorkflow`).
+  bool get _willOpenWorkflow {
+    final scheduled = _scheduledParentId;
+    if (scheduled == null || scheduled == 0 || _saveBlocked) return false;
+    final currentActual = widget.day?.actualParentId;
+    final proposed = _actualParentId == 0 ? null : _actualParentId;
+    if (shouldRequestRevert(
+      scheduleDate: widget.date,
+      currentActualParentId: currentActual,
+      newActualParentId: proposed,
+      scheduledParentId: scheduled,
+      today: widget.today,
+    )) {
+      return true;
+    }
+    return proposed != null &&
+        shouldTriggerWorkflow(
+          scheduleDate: widget.date,
+          currentActualParentId: currentActual,
+          scheduledParentId: scheduled,
+          proposedActualParentId: proposed,
+          today: widget.today,
+        );
+  }
 
   @override
   void initState() {
@@ -161,6 +203,7 @@ class _DaySheetState extends State<_DaySheet> {
         (day != null && day.scheduledParentId != 0) ? day.scheduledParentId : null;
     _actualParentId = day?.actualParentId ?? 0;
     _notes = TextEditingController(text: day?.notes ?? '');
+    _swapMessage = TextEditingController();
     final handoff = day?.handoffTime;
     if (handoff != null) {
       final parts = handoff.split(':');
@@ -186,6 +229,7 @@ class _DaySheetState extends State<_DaySheet> {
   @override
   void dispose() {
     _notes.dispose();
+    _swapMessage.dispose();
     super.dispose();
   }
 
@@ -236,12 +280,93 @@ class _DaySheetState extends State<_DaySheet> {
 
       final notesText = _notes.text.trim();
       final existing = widget.day;
+      final currentActual = existing?.actualParentId;
+      final proposed = _actualParentId == 0 ? null : _actualParentId;
+
+      // ── Revert branch: undoing an approved swap goes through approval ──
+      if (shouldRequestRevert(
+        scheduleDate: widget.date,
+        currentActualParentId: currentActual,
+        newActualParentId: proposed,
+        scheduledParentId: scheduled,
+        today: widget.today,
+      )) {
+        // F-47: the restore replays the pre-swap snapshot, observation
+        // included. Ask before sending — but only when the answer would
+        // change something, and only once per save attempt.
+        if (_revertNotesChoice == null && await _shouldAskRevertNotes()) {
+          if (mounted) {
+            setState(() {
+              _saving = false;
+              _showRevertConfirm = true;
+            });
+          }
+          return;
+        }
+        await widget.dataSource.requestRevert(
+          scheduleDate: widget.date,
+          currentActualProfileId: currentActual!,
+          scheduledParentId: scheduled,
+          requestMessage: _swapMessage.text,
+          restoreNotes: _revertNotesChoice ?? false,
+          myProfile: _requireMyProfile(),
+          allProfiles: widget.allProfiles,
+        );
+        if (mounted) {
+          Navigator.of(context).pop(DaySheetOutcome.revertRequested);
+        }
+        return;
+      }
+
+      // ── Swap branch: an actual-parent change that needs approval ──
+      if (proposed != null &&
+          shouldTriggerWorkflow(
+            scheduleDate: widget.date,
+            currentActualParentId: currentActual,
+            scheduledParentId: scheduled,
+            proposedActualParentId: proposed,
+            today: widget.today,
+          )) {
+        // Ensure the base row exists BEFORE the request — scheduled parent +
+        // note only; the actual change waits for the approval (web parity).
+        final base = CareSchedule(
+          id: existing?.id ?? 0,
+          scheduleDate: widget.date,
+          handoffTime: existing?.handoffTime,
+          scheduledParentId: scheduled,
+          actualParentId: existing?.actualParentId,
+          notes: notesText.isEmpty ? null : notesText,
+          revision: existing?.revision ?? 0,
+          revisionToken: existing?.revisionToken ?? '',
+        );
+        if (existing == null) {
+          await widget.dataSource.insertDay(base);
+        } else {
+          await widget.dataSource.updateDay(base);
+        }
+        // Reload to get the id (and fresh tokens) if it was just inserted.
+        final refreshed = await widget.dataSource.fetchDay(widget.date);
+        await widget.dataSource.createSwapRequest(
+          schedule: refreshed ?? base,
+          proposedActualParentId: proposed,
+          proposedHandoffTime: handoffWire,
+          requestMessage: _swapMessage.text,
+          myProfile: _requireMyProfile(),
+          allProfiles: widget.allProfiles,
+        );
+        if (mounted) {
+          Navigator.of(context).pop(DaySheetOutcome.swapRequested);
+        }
+        return;
+      }
+
+      // ── Standard save ──
       final row = CareSchedule(
         id: existing?.id ?? 0,
         scheduleDate: widget.date,
         handoffTime: handoffWire,
         scheduledParentId: scheduled,
-        actualParentId: _actualParentId == 0 ? null : _actualParentId,
+        actualParentId: proposed,
         notes: notesText.isEmpty ? null : notesText,
         revision: existing?.revision ?? 0,
         revisionToken: existing?.revisionToken ?? '',
@@ -256,6 +381,28 @@ class _DaySheetState extends State<_DaySheet> {
     } catch (e) {
       _fail(e.toString(), l[KApp.errDaySave]);
     }
+  }
+
+  /// Web parity: `GetCurrentProfileAsync` throws when the profile is missing —
+  /// the message propagates to the error banner like any server text.
+  Member _requireMyProfile() {
+    final my = widget.myProfile;
+    if (my == null) throw StateError('Perfil do utilizador não encontrado.');
+    return my;
+  }
+
+  /// F-47: true only when there IS a snapshot to restore from and its
+  /// observation differs from the one on the day today (the STORED text, not
+  /// the editor's — a revert does not save the editor's fields).
+  Future<bool> _shouldAskRevertNotes() async {
+    final snapshot =
+        await widget.dataSource.fetchPreEditNotes(widget.date);
+    if (snapshot == null) return false;
+    final current = widget.day?.notes;
+    if (!notesDifferForRevert(current, snapshot.notes)) return false;
+    _revertSnapshotText = snapshot.notes;
+    _revertCurrentText = current;
+    return true;
   }
 
   Future<void> _clearDay() async {
@@ -476,38 +623,38 @@ class _DaySheetState extends State<_DaySheet> {
         ),
       const SizedBox(height: 16),
 
-      // ── Actual parent — lote-2 slice: admin past-day correction only ──
-      if (_actualEditable) ...[
-        Text(l[K.editorActualParent],
-            style: Theme.of(context).textTheme.labelLarge),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          children: [
-            ChoiceChip(
-              label: Text(l[K.editorSameAsPlanned]),
-              selected: _actualParentId == 0,
-              onSelected: (_) => setState(() => _actualParentId = 0),
-            ),
-            if (actualGhost != null)
-              _memberChip(actualGhost.id,
-                  '${actualGhost.fullName.split(' ').first} ${l[K.calMemberLeft]}',
-                  selected: true, onSelected: null),
-            for (final m in widget.members)
-              // F-28 scenario gate — same filter as the web's select.
-              if (canOfferAsActual(
-                candidateId: m.id,
-                userProfileId: widget.ownProfileId,
-                editingScheduledParentId: _scheduledParentId ?? 0,
-                existingActualParentId: widget.day?.actualParentId,
-              ))
-                _memberChip(m.id, m.fullName.split(' ').first,
-                    selected: _actualParentId == m.id,
-                    onSelected: (id) => setState(() => _actualParentId = id)),
-          ],
-        ),
-        const SizedBox(height: 16),
-      ],
+      // ── Actual parent — general since lote 3: changing it on today/future
+      //    opens a swap request; the direct write survives only where the DB
+      //    allows it (admin past-day correction, no-workflow saves) ──
+      Text(l[K.editorActualParent],
+          style: Theme.of(context).textTheme.labelLarge),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        children: [
+          ChoiceChip(
+            label: Text(l[K.editorSameAsPlanned]),
+            selected: _actualParentId == 0,
+            onSelected: (_) => setState(() => _actualParentId = 0),
+          ),
+          if (actualGhost != null)
+            _memberChip(actualGhost.id,
+                '${actualGhost.fullName.split(' ').first} ${l[K.calMemberLeft]}',
+                selected: true, onSelected: null),
+          for (final m in widget.members)
+            // F-28 scenario gate — same filter as the web's select.
+            if (canOfferAsActual(
+              candidateId: m.id,
+              userProfileId: widget.ownProfileId,
+              editingScheduledParentId: _scheduledParentId ?? 0,
+              existingActualParentId: widget.day?.actualParentId,
+            ))
+              _memberChip(m.id, m.fullName.split(' ').first,
+                  selected: _actualParentId == m.id,
+                  onSelected: (id) => setState(() => _actualParentId = id)),
+        ],
+      ),
+      const SizedBox(height: 16),
 
       // ── Day note ──
       TextField(
@@ -575,6 +722,27 @@ class _DaySheetState extends State<_DaySheet> {
         ),
       const SizedBox(height: 16),
 
+      // ── F-44: only shown when saving will actually open a swap/revert
+      //    request — keeps it apart from the day-scoped "Observação do dia" ──
+      if (_willOpenWorkflow) ...[
+        TextField(
+          controller: _swapMessage,
+          maxLength: 200,
+          decoration: InputDecoration(
+            labelText: '${l[K.editorMessageLabel]} ${l[K.editorOptional]}',
+            hintText: l[K.editorMessagePlaceholder],
+            border: const OutlineInputBorder(),
+            counterText: '',
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(l[K.editorWorkflowHint],
+              style: Theme.of(context).textTheme.bodySmall),
+        ),
+        const SizedBox(height: 16),
+      ],
+
       // ── Actions ──
       if (_showAdminConfirm)
         Container(
@@ -614,6 +782,90 @@ class _DaySheetState extends State<_DaySheet> {
                     child: Text(l[K.editorNoGoBack]),
                   ),
                 ],
+              ),
+            ],
+          ),
+        )
+      else if (_showRevertConfirm)
+        // F-47: reverting undoes the swap and replays the day's pre-swap
+        // state — but the observation may have been rewritten since. Only
+        // asked when the two texts differ.
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF3C7),
+            border: Border.all(color: const Color(0xFFFDE68A)),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l[K.editorRevertNotesQuestion],
+                  style: const TextStyle(
+                      fontSize: 13, color: Color(0xFF92400E))),
+              const SizedBox(height: 8),
+              for (final (labelKey, value) in [
+                (K.editorRevertNotesCurrent, _revertCurrentText),
+                (K.editorRevertNotesBefore, _revertSnapshotText),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text.rich(TextSpan(children: [
+                    TextSpan(
+                        text: '${l[labelKey]} ',
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                    TextSpan(
+                        text: (value == null || value.trim().isEmpty)
+                            ? l[K.editorNoNote]
+                            : value,
+                        style: const TextStyle(fontSize: 12)),
+                  ])),
+                ),
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  FilledButton(
+                    onPressed: _saving
+                        ? null
+                        : () {
+                            setState(() {
+                              _showRevertConfirm = false;
+                              _revertNotesChoice = false;
+                            });
+                            _save();
+                          },
+                    child: Text(l[K.editorKeepCurrent]),
+                  ),
+                  OutlinedButton(
+                    onPressed: _saving
+                        ? null
+                        : () {
+                            setState(() {
+                              _showRevertConfirm = false;
+                              _revertNotesChoice = true;
+                            });
+                            _save();
+                          },
+                    child: Text(l[K.editorRestorePrevious]),
+                  ),
+                ],
+              ),
+              // Dismissing is not an answer: nothing is sent and the next
+              // attempt asks again from the fail-safe default.
+              TextButton(
+                onPressed: _saving
+                    ? null
+                    : () => setState(() {
+                          _showRevertConfirm = false;
+                          _revertNotesChoice = null;
+                          _revertSnapshotText = null;
+                          _revertCurrentText = null;
+                        }),
+                child: Text(l[K.commonCancel]),
               ),
             ],
           ),

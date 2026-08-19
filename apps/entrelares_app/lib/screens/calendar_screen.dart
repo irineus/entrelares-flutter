@@ -15,6 +15,7 @@ import '../widgets/today_card.dart';
 import 'bulk_sheet.dart';
 import 'day_sheet.dart';
 import 'frozen_day_sheet.dart';
+import 'resolve_sheet.dart';
 import 'wizard_sheet.dart';
 
 /// F-27 slot palette (slot 0 = gray: inactive/unknown); swapped is its own
@@ -339,10 +340,65 @@ class _CalendarScreenState extends State<CalendarScreen> {
       dataSource: widget.dataSource,
       adminBypass: _adminBypass,
       frozenDates: [for (final r in _frozenByIso.values) r.scheduleDate],
+      myProfile: _ownProfile,
+      allProfiles: _members,
     );
     if (summary != null) {
       // Mirror of FinishBulkSave: the selection clears (armed state stays),
       // the month reloads and the summary is the toast.
+      setState(() => _selectedDays.clear());
+      _load(silent: true);
+      if (mounted) showAppSnack(context, summary);
+    }
+  }
+
+  /// Mirror of `WorkflowActionableCount`: how many selected days carry an
+  /// action for the resolve sheet (awaiting me + sent by me + revertable).
+  int get _workflowActionableCount {
+    final views = [for (final r in _frozenByIso.values) r.toView()];
+    final frozenDates = [for (final r in _frozenByIso.values) r.scheduleDate];
+    var revertable = 0;
+    for (final d in _selectedDays) {
+      final row = _daysByIso[CareSchedule.isoDate(d)];
+      if (row != null &&
+          isRevertCandidate(
+            scheduleDate: row.scheduleDate,
+            scheduledParentId: row.scheduledParentId,
+            actualParentId: row.actualParentId,
+            today: _today,
+            frozenDates: frozenDates,
+          )) {
+        revertable++;
+      }
+    }
+    return selectedPendingForMe(
+                openRequests: views,
+                selectedDates: _selectedDays,
+                myProfileId: _ownProfile?.id)
+            .length +
+        selectedSentByMe(
+                openRequests: views,
+                selectedDates: _selectedDays,
+                myProfileId: _ownProfile?.id)
+            .length +
+        revertable;
+  }
+
+  Future<void> _openResolveSheet() async {
+    final summary = await showResolveSheet(
+      context: context,
+      selectedDays: Set.of(_selectedDays),
+      openRequests: _frozenByIso.values.toList(),
+      daysByIso: _daysByIso,
+      today: _today,
+      ownProfileId: _ownProfile?.id,
+      myProfile: _ownProfile,
+      allProfiles: _members,
+      dataSource: widget.dataSource,
+    );
+    if (summary != null) {
+      // Mirror of RunBulkWorkflowAsync's close: selection clears, month
+      // reloads, the summary is the toast.
       setState(() => _selectedDays.clear());
       _load(silent: true);
       if (mounted) showAppSnack(context, summary);
@@ -386,15 +442,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
           : Family.isPremiumFamily(_family, DateTime.now().toUtc()),
       settings: _settings,
       frozenDates: [for (final r in _frozenByIso.values) r.scheduleDate],
+      myProfile: _ownProfile,
+      allProfiles: _members,
     );
     if (outcome != null) {
       _load(silent: true);
       if (mounted) {
         showAppSnack(
             context,
-            AppL10n.of(context).l[outcome == DaySheetOutcome.cleared
-                ? K.toastDayCleared
-                : K.toastSaved]);
+            AppL10n.of(context).l[switch (outcome) {
+              DaySheetOutcome.saved => K.toastSaved,
+              DaySheetOutcome.cleared => K.toastDayCleared,
+              DaySheetOutcome.swapRequested => K.toastSwapRequested,
+              DaySheetOutcome.revertRequested => K.toastRevertRequested,
+            }]);
       }
     }
   }
@@ -585,6 +646,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               K.selectionEdit, [_selectedDays.length])),
                         ),
                       ),
+                      // 🔔 Resolver — only when the selection carries open
+                      // requests / revertable days (WorkflowActionableCount).
+                      if (_workflowActionableCount > 0) ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: _openResolveSheet,
+                            child: Text(l.format(K.selectionResolve,
+                                [_workflowActionableCount])),
+                          ),
+                        ),
+                      ],
                       IconButton(
                         tooltip: l[K.selectionCancel],
                         icon: const Icon(Icons.close),
