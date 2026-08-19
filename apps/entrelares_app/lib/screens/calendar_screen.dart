@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../models/care_schedule.dart';
+import '../models/family.dart';
 import '../models/member.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
@@ -51,7 +52,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
   String? _loadError;
   void Function()? _unwatch;
 
+  // F-39 horizon inputs (T-41 settings + F-32 entitlement), loaded once like
+  // the web's OnInitialized. The web call site is deliberately fail-OPEN: a
+  // failed entitlement read defaults to premium so paging is never wrongly
+  // blocked — the DB enforces the real limit regardless.
+  Family? _family;
+  bool _entitlementFailed = false;
+  PublicSettings _settings = PublicSettings.unloaded;
+
   DateTime get _today => DateTime.now();
+
+  bool get _isPremiumForPaging => _entitlementFailed ||
+      Family.isPremiumFamily(_family, DateTime.now().toUtc());
+
+  DateTime get _horizonDate => addMonthsClamped(
+      _today,
+      planningHorizonMonths(
+        isPremium: _isPremiumForPaging,
+        freeMonths: _settings.calendarMonthsFree,
+        premiumMonths: _settings.calendarMonthsPremium,
+      ));
 
   @override
   void initState() {
@@ -61,7 +81,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _visibleMonth = _anchorMonth;
     _pageController = PageController(initialPage: _basePage);
     _load();
+    _loadHorizonInputs();
     _watch();
+  }
+
+  /// Defensive like the web: neither read may break the calendar — entitlement
+  /// falls to premium, settings to the seeded fallbacks (no wrongful block).
+  Future<void> _loadHorizonInputs() async {
+    Family? family;
+    var failed = false;
+    try {
+      family = await widget.dataSource.fetchOwnFamily();
+    } catch (_) {
+      failed = true;
+    }
+    var settings = PublicSettings.unloaded;
+    try {
+      settings = PublicSettings(await widget.dataSource.fetchPublicSettings());
+    } catch (_) {/* seeded fallbacks */}
+    if (!mounted) return;
+    setState(() {
+      _family = family;
+      _entitlementFailed = failed;
+      _settings = settings;
+    });
   }
 
   Future<void> _watch() async {
@@ -114,8 +157,34 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  int _pageForMonth(DateTime month) =>
+      _basePage +
+      (month.year * 12 + month.month) -
+      (_anchorMonth.year * 12 + _anchorMonth.month);
+
   void _onPageChanged(int page) {
-    setState(() => _visibleMonth = _monthForPage(page));
+    final month = _monthForPage(page);
+    // The bounce-back below re-fires with the month already shown — no-op.
+    if (month.year == _visibleMonth.year && month.month == _visibleMonth.month) {
+      return;
+    }
+    // F-39 mirror of the web's NextMonth: paging stops at the family's
+    // planning horizon with the tier message instead of advancing.
+    if (!canPageToMonth(month, _horizonDate)) {
+      showAppSnack(
+          context,
+          _isPremiumForPaging
+              ? AppL10n.of(context).l.format(
+                  K.horizonPremium, [_settings.calendarMonthsPremium])
+              : AppL10n.of(context).l.format(K.horizonFree, [
+                  _settings.calendarMonthsFree,
+                  _settings.calendarMonthsPremium,
+                ]));
+      _pageController.animateToPage(_pageForMonth(_visibleMonth),
+          duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+      return;
+    }
+    setState(() => _visibleMonth = month);
     _load();
   }
 

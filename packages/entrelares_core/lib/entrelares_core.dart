@@ -6,8 +6,12 @@
 library;
 
 export 'src/auth_rules.dart';
+export 'src/bulk_rules.dart';
 export 'src/calendar_rules.dart';
+export 'src/date_math.dart';
+export 'src/day_protection_rules.dart';
 export 'src/entitlement_rules.dart';
+export 'src/freemium_rules.dart';
 export 'src/environment_rules.dart';
 export 'src/feedback_rules.dart';
 export 'src/localization/app_language.dart';
@@ -22,3 +26,4 @@ export 'src/localization/strings_pt_br.dart';
 export 'src/save_errors.dart';
 export 'src/settings_rules.dart';
 export 'src/today_rules.dart';
+export 'src/wizard_rules.dart';
