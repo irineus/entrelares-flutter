@@ -1,0 +1,685 @@
+import 'package:entrelares_core/entrelares_core.dart';
+import 'package:flutter/material.dart';
+
+import '../models/care_schedule.dart';
+import '../models/member.dart';
+import '../services/custody_data_source.dart';
+import '../widgets/app_l10n.dart';
+
+/// The bulk-edit sheet (F-11/S-09/T-27) — the biggest screen of lote 2,
+/// mirroring `Home.razor`'s bulk sheet with the pure rules in
+/// `entrelares_core/bulk_rules.dart`. Lote-2 slice: DIRECT writes only —
+/// planned parent (S-09 kept on assigned days; admin overwrite confirmed),
+/// note and handoff with their "Limpar" checkboxes, and the admin-only
+/// clear-days path. The actual-parent field, its Limpar and the F-44 message
+/// belong to the swap workflow and arrive with lote 3.
+///
+/// Pops with the summary string (`BulkSummary` + suffixes) — the caller shows
+/// it and reloads, mirroring `FinishBulkSave`.
+Future<String?> showBulkSheet({
+  required BuildContext context,
+  required Set<DateTime> selectedDays,
+  required Map<String, CareSchedule> daysByIso,
+  required List<Member> activeMembers,
+  required DateTime today,
+  required CustodyDataSource dataSource,
+  required bool adminBypass,
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => _BulkSheet(
+      selectedDays: selectedDays,
+      daysByIso: daysByIso,
+      activeMembers: activeMembers,
+      today: today,
+      dataSource: dataSource,
+      adminBypass: adminBypass,
+    ),
+  );
+}
+
+class _BulkSheet extends StatefulWidget {
+  final Set<DateTime> selectedDays;
+  final Map<String, CareSchedule> daysByIso;
+  final List<Member> activeMembers;
+  final DateTime today;
+  final CustodyDataSource dataSource;
+  final bool adminBypass;
+
+  const _BulkSheet({
+    required this.selectedDays,
+    required this.daysByIso,
+    required this.activeMembers,
+    required this.today,
+    required this.dataSource,
+    required this.adminBypass,
+  });
+
+  @override
+  State<_BulkSheet> createState() => _BulkSheetState();
+}
+
+/// The bulk rules' view of a `care_schedules` row.
+BulkDayFields _fields(CareSchedule s) {
+  HandoffTime? handoff;
+  final wire = s.handoffTime;
+  if (wire != null) {
+    final parts = wire.split(':');
+    final hour = int.tryParse(parts[0]);
+    if (hour != null) {
+      handoff = (
+        hour: hour,
+        minute: parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0,
+      );
+    }
+  }
+  return BulkDayFields(
+    scheduledParentId: s.scheduledParentId,
+    actualParentId: s.actualParentId,
+    notes: s.notes,
+    handoffTime: handoff,
+  );
+}
+
+class _BulkSheetState extends State<_BulkSheet> {
+  int _scheduledParentId = 0;
+  late final TextEditingController _notes;
+  int _handoffHour = -1;
+  int _handoffMinute = 0;
+  bool _clearNotes = false;
+  bool _clearHandoff = false;
+
+  bool _saving = false;
+  bool _showDeleteAllConfirm = false;
+  bool _showOverwriteConfirm = false;
+  bool _overwriteConfirmed = false;
+  int _overwriteCount = 0;
+  String? _error;
+  double _progress = 0;
+  String _progressLabel = '';
+
+  CareSchedule? _existingRow(DateTime date) =>
+      widget.daysByIso[CareSchedule.isoDate(date)];
+
+  BulkDayFields? _existingFor(DateTime date) {
+    final row = _existingRow(date);
+    return row == null ? null : _fields(row);
+  }
+
+  /// S-09: assigned days in the selection — the bulk choice will not touch
+  /// their planned parent for non-admins (🔒 hint).
+  int get _assignedCount => widget.selectedDays
+      .where((d) => (_existingFor(d)?.scheduledParentId ?? 0) != 0)
+      .length;
+
+  @override
+  void initState() {
+    super.initState();
+    // Mirror of OpenBulkSheet: pre-fill with the common values.
+    final prefill = bulkPrefill([
+      for (final d in widget.selectedDays)
+        if (_existingFor(d) != null) _existingFor(d)!,
+    ]);
+    _scheduledParentId = prefill.scheduledParentId;
+    _notes = TextEditingController(text: prefill.notes ?? '');
+    _handoffHour = prefill.handoffHour;
+    _handoffMinute = prefill.handoffMinute;
+  }
+
+  @override
+  void dispose() {
+    _notes.dispose();
+    super.dispose();
+  }
+
+  void _step(int done, int total, String label) {
+    setState(() {
+      _progress = total == 0 ? 0 : (done - 1) / total;
+      _progressLabel = label;
+    });
+  }
+
+  /// T-27: what a day's effective responsible will be AFTER this bulk edit
+  /// lands — used for transitions when the previous day is in the selection.
+  int _effectiveAfterBulk(DateTime d) {
+    final existing = _existingFor(d);
+    // Lote-2 slice: no actual-parent inputs — the existing actual survives.
+    return existing?.actualParentId ??
+        bulkDayScheduled(
+          overwriteScheduled: widget.adminBypass,
+          existing: existing,
+          bulkScheduledParentId: _scheduledParentId,
+        );
+  }
+
+  Future<int?> _prevEffective(DateTime date, Set<DateTime> inSelection) async {
+    final prev = DateTime(date.year, date.month, date.day - 1);
+    if (inSelection.contains(prev)) return _effectiveAfterBulk(prev);
+    final loaded = _existingRow(prev);
+    if (loaded != null) return loaded.effectiveParentId;
+    // Outside the loaded month (the 1st): ask the server, best-effort.
+    if (date.day == 1) {
+      try {
+        return (await widget.dataSource.fetchDay(prev))?.effectiveParentId;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _saveDeletePath(Localization l) async {
+    final eligibility = bulkEligibleDays(
+      selectedDates: widget.selectedDays,
+      today: widget.today,
+      adminBypass: widget.adminBypass,
+      frozenDates: const [],
+      existingFor: _existingFor,
+      clearScheduledParent: true,
+    );
+    if (eligibility.eligible.isEmpty) {
+      setState(() {
+        _saving = false;
+        _error = l[K.bulkErrNoEligibleDays];
+      });
+      return;
+    }
+    final toDelete = [
+      for (final d in eligibility.eligible)
+        if (_existingRow(d) case final CareSchedule row) row,
+    ];
+    var deleted = 0;
+    for (final row in toDelete) {
+      deleted++;
+      _step(deleted, toDelete.length,
+          l.format(K.bulkProgressDeleting, [deleted, toDelete.length]));
+      await widget.dataSource.deleteDay(row.id);
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop(bulkSummary(l,
+        directCount: toDelete.length,
+        directSingularKey: K.sumDeletedOne,
+        directPluralKey: K.sumDeletedMany,
+        skippedCount: eligibility.skipped));
+  }
+
+  Future<void> _save({bool clearScheduled = false}) async {
+    if (_saving) return;
+    final l = AppL10n.of(context).l;
+    setState(() {
+      _saving = true;
+      _error = null;
+      _progress = 0;
+      _progressLabel = '';
+    });
+
+    try {
+      if (clearScheduled) {
+        await _saveDeletePath(l);
+        return;
+      }
+
+      final eligibility = bulkEligibleDays(
+        selectedDates: widget.selectedDays,
+        today: widget.today,
+        adminBypass: widget.adminBypass,
+        // F-12: the frozen set joins with the swap workflow (lote 3).
+        frozenDates: const [],
+        existingFor: _existingFor,
+        clearScheduledParent: false,
+      );
+      final finalDays = eligibility.eligible;
+      final skippedCount = eligibility.skipped;
+      if (finalDays.isEmpty) {
+        setState(() {
+          _saving = false;
+          _error = l[K.bulkErrNoEligibleDays];
+        });
+        return;
+      }
+
+      if (_scheduledParentId == 0) {
+        setState(() {
+          _saving = false;
+          _error = l[K.bulkErrPickScheduled];
+        });
+        return;
+      }
+
+      // S-09: only admin mode may rewrite the planned parent of assigned
+      // days, and only after an explicit confirmation.
+      final overwriteCount = bulkOverwriteCount(
+        days: finalDays,
+        existingFor: _existingFor,
+        bulkScheduledParentId: _scheduledParentId,
+      );
+      if (widget.adminBypass && overwriteCount > 0 && !_overwriteConfirmed) {
+        setState(() {
+          _saving = false;
+          _overwriteCount = overwriteCount;
+          _showOverwriteConfirm = true;
+        });
+        return;
+      }
+      _overwriteConfirmed = false;
+
+      final inSelection = finalDays.toSet();
+      var directCount = 0;
+      var unchangedCount = 0;
+      var conflictCount = 0;
+      var handoffApplied = 0;
+      var handoffCleared = 0;
+      var scheduledKept = 0;
+      var processed = 0;
+
+      for (final date in finalDays) {
+        processed++;
+        _step(processed, finalDays.length,
+            l.format(KApp.bulkProgressSaving, [processed, finalDays.length]));
+
+        final existingRow = _existingRow(date);
+        final existing = existingRow == null ? null : _fields(existingRow);
+
+        final dayScheduled = bulkDayScheduled(
+          overwriteScheduled: widget.adminBypass,
+          existing: existing,
+          bulkScheduledParentId: _scheduledParentId,
+        );
+        if (dayScheduled != _scheduledParentId) scheduledKept++;
+
+        // T-27: like the wizard, a bulk-set handoff lands only on TRANSITION
+        // days; the others get null (and the summary says where it landed).
+        HandoffTime? proposedHandoff = bulkProposedHandoff(
+          bulkHour: _handoffHour,
+          bulkMinute: _handoffMinute,
+          clearHandoff: _clearHandoff,
+          existing: existing?.handoffTime,
+        );
+        if (_handoffHour >= 0) {
+          final effectiveBeingSaved = existing?.actualParentId ?? dayScheduled;
+          final prevEffective = await _prevEffective(date, inSelection);
+          if (!isTransitionDay(prevEffective, effectiveBeingSaved)) {
+            proposedHandoff = null;
+            handoffCleared++;
+          } else {
+            handoffApplied++;
+          }
+        }
+
+        final notesText = _notes.text.trim();
+        final proposed = bulkComposeDay(
+          existing: existing,
+          dayScheduled: dayScheduled,
+          bulkActualParentId: 0,
+          clearActual: false,
+          bulkNotes: notesText.isEmpty ? null : notesText,
+          clearNotes: _clearNotes,
+          bulkHour: _handoffHour,
+          clearHandoff: _clearHandoff,
+          proposedHandoff: proposedHandoff,
+        );
+
+        if (existing != null && bulkDayIsNoOp(existing, proposed)) {
+          unchangedCount++;
+          continue;
+        }
+
+        final handoffWire = proposed.handoffTime == null
+            ? null
+            : '${proposed.handoffTime!.hour.toString().padLeft(2, '0')}:'
+                '${proposed.handoffTime!.minute.toString().padLeft(2, '0')}:00';
+        final row = CareSchedule(
+          id: existingRow?.id ?? 0,
+          scheduleDate: date,
+          handoffTime: handoffWire,
+          scheduledParentId: proposed.scheduledParentId,
+          actualParentId: proposed.actualParentId,
+          notes: proposed.notes,
+          revision: existingRow?.revision ?? 0,
+          revisionToken: existingRow?.revisionToken ?? '',
+        );
+        try {
+          if (existingRow == null) {
+            await widget.dataSource.insertDay(row);
+          } else {
+            await widget.dataSource.updateDay(row);
+          }
+          directCount++;
+        } catch (e) {
+          // T-33: a conflicted day is counted and skipped — the rest of the
+          // batch proceeds; the reload shows the winners' versions.
+          final raw = e.toString();
+          if (isDayConflict(raw) ||
+              raw.contains('swap_requests_one_pending_per_date')) {
+            conflictCount++;
+          } else {
+            rethrow;
+          }
+        }
+      }
+
+      var summary = bulkSummary(l,
+          directCount: directCount,
+          directSingularKey: K.sumUpdatedOne,
+          directPluralKey: K.sumUpdatedMany,
+          unchangedCount: unchangedCount,
+          skippedCount: skippedCount);
+      if (conflictCount > 0) {
+        summary += l.format(
+            conflictCount == 1
+                ? K.bulkConflictSuffixOne
+                : K.bulkConflictSuffixMany,
+            [conflictCount]);
+      }
+      if (_handoffHour >= 0 && handoffCleared > 0) {
+        summary += l.format(
+            K.bulkHandoffSuffix, [handoffApplied, handoffApplied + handoffCleared]);
+      }
+      if (scheduledKept > 0) {
+        summary += l.format(
+            scheduledKept == 1 ? K.bulkKeptSuffixOne : K.bulkKeptSuffixMany,
+            [scheduledKept]);
+      }
+      if (mounted) Navigator.of(context).pop(summary);
+    } catch (e) {
+      if (!mounted) return;
+      final raw = e.toString();
+      setState(() {
+        _saving = false;
+        _error = isSessionExpired(raw)
+            ? sessionExpiredMessage(l)
+            : translateSaveError(raw, l[K.errSaveFailed], l);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppL10n.of(context).l;
+    final count = widget.selectedDays.length;
+    final fieldsEnabled = _scheduledParentId != 0 && !_saving;
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 8,
+          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l.format(count == 1 ? K.bulkTitleOne : K.bulkTitleMany, [count]),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              if (_showDeleteAllConfirm)
+                _confirmBox(
+                  l[K.bulkDeleteAllWarning],
+                  yesLabel: l[K.bulkYesDelete],
+                  onYes: () {
+                    setState(() => _showDeleteAllConfirm = false);
+                    _save(clearScheduled: true);
+                  },
+                  onNo: () => setState(() => _showDeleteAllConfirm = false),
+                )
+              else ...[
+                // ── Planned parent ──
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(l[K.editorScheduledParent],
+                          style: Theme.of(context).textTheme.labelLarge),
+                    ),
+                    // QA: clearing assigned days is admin-only (S-09 fix).
+                    if (widget.adminBypass)
+                      TextButton(
+                        onPressed: _saving
+                            ? null
+                            : () =>
+                                setState(() => _showDeleteAllConfirm = true),
+                        style: TextButton.styleFrom(
+                            foregroundColor:
+                                Theme.of(context).colorScheme.error,
+                            visualDensity: VisualDensity.compact),
+                        child: Text(l[K.bulkClearDaysAction]),
+                      ),
+                  ],
+                ),
+                DropdownButton<int>(
+                  key: const Key('bulkScheduled'),
+                  isExpanded: true,
+                  value: _scheduledParentId,
+                  items: [
+                    DropdownMenuItem(
+                        value: 0, child: Text(l[K.editorSelectPlaceholder])),
+                    for (final m in widget.activeMembers)
+                      DropdownMenuItem(
+                          value: m.id, child: Text(m.fullName)),
+                  ],
+                  onChanged: _saving
+                      ? null
+                      : (v) => setState(() => _scheduledParentId = v ?? 0),
+                ),
+                if (!widget.adminBypass && _assignedCount > 0)
+                  Text(
+                    l.format(
+                        _assignedCount == 1
+                            ? K.bulkKeptScheduledOne
+                            : K.bulkKeptScheduledMany,
+                        [_assignedCount]),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                const SizedBox(height: 16),
+
+                // ── Handoff time + Limpar ──
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(l[K.editorHandoffTime],
+                          style: Theme.of(context).textTheme.labelLarge),
+                    ),
+                    _clearCheckbox(
+                      l,
+                      value: _clearHandoff,
+                      unavailable: _handoffHour >= 0,
+                      enabled: fieldsEnabled,
+                      onChanged: (v) => setState(() => _clearHandoff = v),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    DropdownButton<int>(
+                      key: const Key('bulkHandoffHour'),
+                      value: _handoffHour,
+                      items: [
+                        const DropdownMenuItem(value: -1, child: Text('--')),
+                        for (var h = 0; h < 24; h++)
+                          DropdownMenuItem(
+                              value: h,
+                              child: Text(h.toString().padLeft(2, '0'))),
+                      ],
+                      onChanged: !fieldsEnabled
+                          ? null
+                          : (v) => setState(() {
+                                _handoffHour = v ?? -1;
+                                if (_handoffHour >= 0) _clearHandoff = false;
+                              }),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(':'),
+                    ),
+                    DropdownButton<int>(
+                      key: const Key('bulkHandoffMinute'),
+                      value: _handoffMinute,
+                      items: [
+                        for (var m = 0; m < 60; m++)
+                          DropdownMenuItem(
+                              value: m,
+                              child: Text(m.toString().padLeft(2, '0'))),
+                      ],
+                      onChanged: !fieldsEnabled || _handoffHour < 0
+                          ? null
+                          : (v) => setState(() => _handoffMinute = v ?? 0),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // ── Day note + Limpar ──
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(l[K.editorDayNote],
+                          style: Theme.of(context).textTheme.labelLarge),
+                    ),
+                    _clearCheckbox(
+                      l,
+                      value: _clearNotes,
+                      unavailable: _notes.text.isNotEmpty,
+                      enabled: fieldsEnabled,
+                      onChanged: (v) => setState(() => _clearNotes = v),
+                    ),
+                  ],
+                ),
+                TextField(
+                  controller: _notes,
+                  maxLength: 100,
+                  enabled: fieldsEnabled,
+                  onChanged: (v) {
+                    if (v.isNotEmpty && _clearNotes) {
+                      setState(() => _clearNotes = false);
+                    }
+                  },
+                  decoration: InputDecoration(
+                    hintText: l[K.bulkNotePlaceholder],
+                    border: const OutlineInputBorder(),
+                    counterText: '',
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                if (_saving) ...[
+                  LinearProgressIndicator(value: _progress),
+                  const SizedBox(height: 4),
+                  Text(_progressLabel,
+                      style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: 8),
+                ],
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text('⚠️ $_error',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
+                  ),
+                if (_showOverwriteConfirm)
+                  _confirmBox(
+                    l.format(
+                        _overwriteCount == 1
+                            ? K.bulkOverwriteWarningOne
+                            : K.bulkOverwriteWarningMany,
+                        [_overwriteCount]),
+                    yesLabel: l[K.editorYesChange],
+                    onYes: () {
+                      setState(() {
+                        _showOverwriteConfirm = false;
+                        _overwriteConfirmed = true;
+                      });
+                      _save();
+                    },
+                    onNo: () =>
+                        setState(() => _showOverwriteConfirm = false),
+                  )
+                else
+                  Row(
+                    children: [
+                      FilledButton(
+                        onPressed:
+                            _saving || _scheduledParentId == 0 ? null : _save,
+                        child: _saving
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2))
+                            : Text(l[K.commonSave]),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton(
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        child: Text(l[K.commonCancel]),
+                      ),
+                    ],
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _clearCheckbox(Localization l,
+      {required bool value,
+      required bool unavailable,
+      required bool enabled,
+      required ValueChanged<bool> onChanged}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Checkbox(
+          value: value,
+          onChanged: unavailable || !enabled
+              ? null
+              : (v) => onChanged(v ?? false),
+          visualDensity: VisualDensity.compact,
+        ),
+        Text(l[K.bulkClear], style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+
+  Widget _confirmBox(String warning,
+      {required String yesLabel,
+      required VoidCallback onYes,
+      required VoidCallback onNo}) {
+    final l = AppL10n.of(context).l;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEE2E2),
+        border: Border.all(color: const Color(0xFFFECACA)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(warning,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF991B1B))),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              FilledButton(
+                  onPressed: _saving ? null : onYes, child: Text(yesLabel)),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                  onPressed: _saving ? null : onNo,
+                  child: Text(l[K.editorNoGoBack])),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
