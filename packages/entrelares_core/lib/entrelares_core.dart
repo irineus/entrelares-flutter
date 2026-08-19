@@ -6,6 +6,7 @@
 library;
 
 export 'src/account_rules.dart';
+export 'src/audit_rules.dart';
 export 'src/auth_rules.dart';
 export 'src/bulk_rules.dart';
 export 'src/calendar_rules.dart';
@@ -30,6 +31,7 @@ export 'src/localization/notification_renderer.dart';
 export 'src/localization/strings_en.dart';
 export 'src/localization/strings_pt_br.dart';
 export 'src/policy_versions.dart';
+export 'src/report_rules.dart';
 export 'src/role_catalog.dart';
 export 'src/route_rules.dart';
 export 'src/save_errors.dart';

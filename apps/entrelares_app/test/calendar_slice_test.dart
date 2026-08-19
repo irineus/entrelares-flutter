@@ -6,6 +6,8 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:entrelares_app/models/account_log.dart';
+import 'package:entrelares_app/models/activity_log.dart';
 import 'package:entrelares_app/models/app_notification.dart';
 import 'package:entrelares_app/models/care_schedule.dart';
 import 'package:entrelares_app/models/family.dart';
@@ -607,6 +609,49 @@ class FakeCustodyDataSource implements CustodyDataSource {
 
   @override
   Future<void> clearChecklistDismissal() async => dismissalsCleared++;
+
+  // ── Lote 6: reports (audit trail reads) ──
+  List<ActivityLog> activityLogs = const [];
+  List<AccountLog> accountLogs = const [];
+  Map<int, SwapOrigin> resolutionOrigins = const {};
+  Object? throwOnOrigins;
+
+  /// Every (offset) the timeline asked for — "Carregar mais" is paging, and a
+  /// test that cannot see the offsets cannot prove it.
+  final List<int> activityOffsets = [];
+  final List<int> accountOffsets = [];
+  final List<List<int>> originLookups = [];
+
+  @override
+  Future<List<ActivityLog>> fetchRecentActivityLogs({int offset = 0}) async {
+    activityOffsets.add(offset);
+    return activityLogs.skip(offset).take(auditPageSize).toList();
+  }
+
+  @override
+  Future<List<ActivityLog>> fetchActivityLogsForPeriod(
+      DateTime start, DateTime end) async {
+    return activityLogs
+        .where((l) =>
+            !l.affectedDate.isBefore(start) && !l.affectedDate.isAfter(end))
+        .toList();
+  }
+
+  @override
+  Future<List<AccountLog>> fetchAccountLogs({int offset = 0}) async {
+    accountOffsets.add(offset);
+    return accountLogs.skip(offset).take(auditPageSize).toList();
+  }
+
+  @override
+  Future<Map<int, SwapOrigin>> fetchResolutionOrigins(List<int> logIds) async {
+    originLookups.add(logIds);
+    if (throwOnOrigins != null) throw throwOnOrigins!;
+    return {
+      for (final id in logIds)
+        if (resolutionOrigins.containsKey(id)) id: resolutionOrigins[id]!,
+    };
+  }
 }
 
 const ana = Member(id: 1, fullName: 'Ana Souza', colorSlot: 1, userId: 'u1');
