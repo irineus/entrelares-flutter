@@ -6,9 +6,11 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:entrelares_app/models/app_notification.dart';
 import 'package:entrelares_app/models/care_schedule.dart';
 import 'package:entrelares_app/models/family.dart';
 import 'package:entrelares_app/models/member.dart';
+import 'package:entrelares_app/models/swap_request.dart';
 import 'package:entrelares_app/screens/calendar_screen.dart';
 import 'package:entrelares_app/services/admin_mode.dart';
 import 'package:entrelares_app/services/custody_data_source.dart';
@@ -123,6 +125,156 @@ class FakeCustodyDataSource implements CustodyDataSource {
   Future<void Function()> watchChanges(void Function() onChange) async {
     realtimeCallback = onChange;
     return () => realtimeCallback = null;
+  }
+
+  // ── Lote 3: swap workflow ──────────────────────────────────────────────────
+
+  List<SwapRequest> frozenRequests = [];
+  List<SwapRequest> pendingForMe = [];
+  List<SwapRequest> sentRequests = [];
+  List<AppNotification> notifications = [];
+  PreEditNotes? preEditNotes;
+  final List<Map<String, Object?>> createdSwapRequests = [];
+  final List<Map<String, Object?>> revertRequests = [];
+  final List<({int id, String? note})> approvedSwaps = [];
+  final List<({int id, String? reason})> rejectedSwaps = [];
+  final List<int> cancelledSwaps = [];
+  final List<({int id, String? note})> approvedReverts = [];
+  final List<({int id, String? reason})> rejectedReverts = [];
+  final List<int> cancelledReverts = [];
+  int markAllReadCalls = 0;
+  void Function()? workflowCallback;
+
+  @override
+  Future<List<SwapRequest>> fetchFrozenRequestsForMonth(
+          int year, int month) async =>
+      frozenRequests
+          .where((r) =>
+              r.scheduleDate.year == year && r.scheduleDate.month == month)
+          .toList();
+
+  @override
+  Future<List<SwapRequest>> fetchPendingForMe(int myProfileId) async =>
+      pendingForMe;
+
+  @override
+  Future<List<SwapRequest>> fetchSentRequests(int myProfileId) async =>
+      sentRequests;
+
+  @override
+  Future<void> createSwapRequest({
+    required CareSchedule schedule,
+    required int proposedActualParentId,
+    String? proposedHandoffTime,
+    String? requestMessage,
+    required Member myProfile,
+    required List<Member> allProfiles,
+  }) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    createdSwapRequests.add({
+      'date': CareSchedule.isoDate(schedule.scheduleDate),
+      'proposed': proposedActualParentId,
+      'handoff': proposedHandoffTime,
+      'message': requestMessage,
+      'requester': myProfile.id,
+    });
+  }
+
+  @override
+  Future<void> approveSwap(int swapRequestId,
+      {String? approvalNote, required List<Member> allProfiles}) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    approvedSwaps.add((id: swapRequestId, note: approvalNote));
+  }
+
+  @override
+  Future<void> rejectSwap(int swapRequestId,
+      {String? reason, required List<Member> allProfiles}) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    rejectedSwaps.add((id: swapRequestId, reason: reason));
+  }
+
+  @override
+  Future<void> cancelSwap(int swapRequestId,
+      {required List<Member> allProfiles}) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    cancelledSwaps.add(swapRequestId);
+  }
+
+  @override
+  Future<void> requestRevert({
+    required DateTime scheduleDate,
+    required int currentActualProfileId,
+    required int scheduledParentId,
+    String? requestMessage,
+    bool restoreNotes = false,
+    required Member myProfile,
+    required List<Member> allProfiles,
+  }) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    revertRequests.add({
+      'date': CareSchedule.isoDate(scheduleDate),
+      'currentActual': currentActualProfileId,
+      'scheduled': scheduledParentId,
+      'message': requestMessage,
+      'restoreNotes': restoreNotes,
+      'requester': myProfile.id,
+    });
+  }
+
+  @override
+  Future<void> approveRevert(int swapRequestId,
+      {String? approvalNote, required List<Member> allProfiles}) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    approvedReverts.add((id: swapRequestId, note: approvalNote));
+  }
+
+  @override
+  Future<void> rejectRevert(int swapRequestId,
+      {String? reason, required List<Member> allProfiles}) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    rejectedReverts.add((id: swapRequestId, reason: reason));
+  }
+
+  @override
+  Future<void> cancelRevert(int swapRequestId,
+      {required List<Member> allProfiles}) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    cancelledReverts.add(swapRequestId);
+  }
+
+  @override
+  Future<PreEditNotes?> fetchPreEditNotes(DateTime scheduleDate) async =>
+      preEditNotes;
+
+  @override
+  Future<List<AppNotification>> fetchNotifications(int myProfileId) async =>
+      notifications;
+
+  @override
+  Future<void> markAllNotificationsRead(int myProfileId) async {
+    markAllReadCalls++;
+    notifications = [
+      for (final n in notifications)
+        AppNotification(
+          id: n.id,
+          recipientProfileId: n.recipientProfileId,
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          params: n.params,
+          swapRequestId: n.swapRequestId,
+          isRead: true,
+          createdAt: n.createdAt,
+        ),
+    ];
+  }
+
+  @override
+  Future<void Function()> watchWorkflowChanges(
+      void Function() onChange) async {
+    workflowCallback = onChange;
+    return () => workflowCallback = null;
   }
 }
 

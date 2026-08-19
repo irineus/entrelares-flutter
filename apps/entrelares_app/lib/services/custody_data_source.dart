@@ -1,6 +1,10 @@
+import 'package:entrelares_core/entrelares_core.dart' show PreEditNotes;
+
+import '../models/app_notification.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import '../models/swap_request.dart';
 
 /// What the calendar slice needs from the backend — an interface so widget
 /// tests run against a fake while the real implementation talks to Supabase.
@@ -62,4 +66,87 @@ abstract class CustodyDataSource {
   /// Starts listening for care_schedules changes; [onChange] fires on any
   /// insert/update/delete visible to this session. Returns a dispose callback.
   Future<void Function()> watchChanges(void Function() onChange);
+
+  // ── Lote 3: swap-approval workflow (mirror of SwapRequestService.cs) ──────
+  // No RPCs: the whole workflow is PostgREST CRUD plus one best-effort Edge
+  // Function invoke. The mutations also write the workflow's in-app
+  // notifications (composed in core, byte-identical to the web's stored
+  // PT-BR sentences) — the DB stays the enforcement throughout.
+
+  /// The month's OPEN requests (`pending`/`revert_pending`) — the F-12 frozen
+  /// source. Months entirely in the past return empty without a round-trip.
+  Future<List<SwapRequest>> fetchFrozenRequestsForMonth(int year, int month);
+
+  /// Open requests awaiting MY response — the nav badge count and the
+  /// "Para você" tab (⚠️ the bell badge counts THESE, not unread rows).
+  Future<List<SwapRequest>> fetchPendingForMe(int myProfileId);
+
+  /// Requests I sent, any status, newest 100 — the "Enviadas" tab is a
+  /// recent-activity view, not an unbounded archive.
+  Future<List<SwapRequest>> fetchSentRequests(int myProfileId);
+
+  /// Opens a swap request for [schedule] (already upserted by the caller with
+  /// scheduled parent + notes only). Enforces the F-28 scenario-C gate,
+  /// snapshots the pre-edit log reference (F-26), inserts the request and the
+  /// two notifications, then fires the best-effort e-mail.
+  Future<void> createSwapRequest({
+    required CareSchedule schedule,
+    required int proposedActualParentId,
+    String? proposedHandoffTime,
+    String? requestMessage,
+    required Member myProfile,
+    required List<Member> allProfiles,
+  });
+
+  /// Applies the proposed change to the day (full-row T-33/T-35 echo), marks
+  /// the request approved and notifies requester + self + uninvolved (F-28).
+  Future<void> approveSwap(int swapRequestId,
+      {String? approvalNote, required List<Member> allProfiles});
+
+  Future<void> rejectSwap(int swapRequestId,
+      {String? reason, required List<Member> allProfiles});
+
+  Future<void> cancelSwap(int swapRequestId,
+      {required List<Member> allProfiles});
+
+  /// Opens a revert request for an approved swap. [restoreNotes] is the F-47
+  /// answer — it travels WITH the request because the restore runs later and
+  /// on the other side (approver's client or the 48h auto-approval).
+  Future<void> requestRevert({
+    required DateTime scheduleDate,
+    required int currentActualProfileId,
+    required int scheduledParentId,
+    String? requestMessage,
+    bool restoreNotes = false,
+    required Member myProfile,
+    required List<Member> allProfiles,
+  });
+
+  /// Restores the day to its pre-edit snapshot (F-26 plan computed in core),
+  /// marks the request revert_approved and notifies.
+  Future<void> approveRevert(int swapRequestId,
+      {String? approvalNote, required List<Member> allProfiles});
+
+  Future<void> rejectRevert(int swapRequestId,
+      {String? reason, required List<Member> allProfiles});
+
+  Future<void> cancelRevert(int swapRequestId,
+      {required List<Member> allProfiles});
+
+  /// F-47: the day's observation as the pre-edit snapshot holds it, or null
+  /// when there is nothing to restore FROM (no approved swap on the date, no
+  /// snapshot reference, or an old_data-less snapshot).
+  Future<PreEditNotes?> fetchPreEditNotes(DateTime scheduleDate);
+
+  /// My notifications, newest 100 — the "Histórico" tab.
+  Future<List<AppNotification>> fetchNotifications(int myProfileId);
+
+  /// Opening the Notifications page marks EVERYTHING read (web parity) — one
+  /// bulk PATCH on my unread rows.
+  Future<void> markAllNotificationsRead(int myProfileId);
+
+  /// Listens for swap_requests + notifications changes — the lote-3 twin of
+  /// [watchChanges] (frozen paint, badge, page refresh). Returns a dispose
+  /// callback.
+  Future<void Function()> watchWorkflowChanges(void Function() onChange);
 }

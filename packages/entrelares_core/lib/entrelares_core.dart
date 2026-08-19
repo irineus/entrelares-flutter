@@ -26,5 +26,8 @@ export 'src/localization/strings_en.dart';
 export 'src/localization/strings_pt_br.dart';
 export 'src/save_errors.dart';
 export 'src/settings_rules.dart';
+export 'src/swap_notifications.dart';
+export 'src/swap_rules.dart';
+export 'src/swap_snapshot.dart';
 export 'src/today_rules.dart';
 export 'src/wizard_rules.dart';

@@ -189,7 +189,9 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _gate = SessionGate(_client.auth);
-    _dataSource = SupabaseCustodyDataSource(_client);
+    _dataSource = SupabaseCustodyDataSource(_client,
+        environmentPrefix:
+            environmentTitlePrefix(isProduction: Env.current.isProduction));
     _l = Localization(widget.initialLanguage);
     _openGate();
     _authSub = _client.auth.onAuthStateChange.listen((state) {
