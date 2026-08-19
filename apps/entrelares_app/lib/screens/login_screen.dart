@@ -1,25 +1,45 @@
+import 'dart:async';
+
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../deep_link_urls.dart';
 import '../widgets/app_l10n.dart';
+
+/// Why the visitor was sent back here, so the banner reads the right message
+/// (the web's `session_expired` sessionStorage flag).
+enum SessionExpiredReason { none, restored, inactivity }
 
 class LoginScreen extends StatefulWidget {
   /// Throws on failure; the screen translates the error for display.
   final Future<void> Function(String email, String password) onSignIn;
 
-  /// True when the gate cleared a restored-but-dead session (lesson 1.1).
-  final bool showSessionExpiredNotice;
+  final SessionExpiredReason expiredReason;
+
+  final VoidCallback onForgotPassword;
+
+  /// S-01 throttle state store — the web keeps it in sessionStorage; local
+  /// prefs here so a process restart does not reset the clock.
+  final SharedPreferences prefs;
 
   const LoginScreen(
       {super.key,
       required this.onSignIn,
-      this.showSessionExpiredNotice = false});
+      required this.onForgotPassword,
+      required this.prefs,
+      this.expiredReason = SessionExpiredReason.none});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  /// Same store names as the web's sessionStorage keys.
+  static const _failsKey = 'login_fails';
+  static const _lockoutUntilKey = 'login_lockout_until';
+
   final _email = TextEditingController();
   final _password = TextEditingController();
 
@@ -27,7 +47,34 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorKey;
   bool _busy = false;
 
+  // S-01 — progressive throttling (mirror in LoginThrottle).
+  int _failedAttempts = 0;
+  int _lockoutSecondsLeft = 0;
+  Timer? _lockoutTicker;
+
+  bool get _lockedOut => _lockoutSecondsLeft > 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _failedAttempts = widget.prefs.getInt(_failsKey) ?? 0;
+    final untilSeconds = widget.prefs.getInt(_lockoutUntilKey);
+    if (untilSeconds != null) {
+      final remaining = LoginThrottle.remainingSeconds(
+          DateTime.fromMillisecondsSinceEpoch(untilSeconds * 1000, isUtc: true),
+          DateTime.now().toUtc());
+      if (remaining > 0) _startLockout(remaining, persist: false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _lockoutTicker?.cancel();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
+    if (_busy || _lockedOut) return;
     setState(() {
       _busy = true;
       _errorKey = null;
@@ -35,21 +82,57 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await widget.onSignIn(_email.text.trim(), _password.text);
       // Success routes away from this screen (auth listener in main).
+      await widget.prefs.remove(_failsKey);
+      await widget.prefs.remove(_lockoutUntilKey);
     } catch (e) {
       final raw = e.toString();
-      setState(() {
-        _errorKey = raw.contains('Invalid login credentials')
-            ? K.authErrInvalidCredentials
-            : K.authErrConnection;
-      });
+      _failedAttempts++;
+      await widget.prefs.setInt(_failsKey, _failedAttempts);
+      final lockout = LoginThrottle.lockoutSecondsFor(_failedAttempts);
+      if (lockout > 0) _startLockout(lockout);
+      if (mounted) {
+        setState(() {
+          _errorKey = raw.contains('Invalid login credentials')
+              ? K.authErrInvalidCredentials
+              : K.authErrConnection;
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
+  void _startLockout(int seconds, {bool persist = true}) {
+    if (persist) {
+      final until = DateTime.now().toUtc().add(Duration(seconds: seconds));
+      widget.prefs
+          .setInt(_lockoutUntilKey, until.millisecondsSinceEpoch ~/ 1000);
+    }
+    _lockoutTicker?.cancel();
+    setState(() => _lockoutSecondsLeft = seconds);
+    _lockoutTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() => _lockoutSecondsLeft--);
+      if (_lockoutSecondsLeft <= 0) timer.cancel();
+    });
+  }
+
+  Future<void> _openWebPage(String url) async {
+    // Legal pages live on the web until lote 4 ports them.
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context).l;
+    final expiredText = switch (widget.expiredReason) {
+      SessionExpiredReason.none => null,
+      SessionExpiredReason.restored => l[KApp.sessionRestoredExpired],
+      SessionExpiredReason.inactivity => l[K.loginExpiredInactivity],
+    };
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -68,8 +151,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 24),
-                if (widget.showSessionExpiredNotice) ...[
-                  Text(l[KApp.sessionRestoredExpired],
+                if (expiredText != null) ...[
+                  Text(expiredText,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.error)),
@@ -87,17 +170,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true,
                   autofillHints: const [AutofillHints.password],
                   decoration: InputDecoration(labelText: l[K.commonPassword]),
-                  onSubmitted: (_) => _busy ? null : _submit(),
+                  onSubmitted: (_) => _busy || _lockedOut ? null : _submit(),
                 ),
                 const SizedBox(height: 20),
                 FilledButton(
-                  onPressed: _busy ? null : _submit,
+                  onPressed: _busy || _lockedOut ? null : _submit,
                   child: _busy
                       ? const SizedBox(
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : Text(l[K.loginSubmit]),
+                      : Text(_lockedOut
+                          ? l.format(K.loginLockout, [_lockoutSecondsLeft])
+                          : l[K.loginSubmit]),
                 ),
                 if (_errorKey != null) ...[
                   const SizedBox(height: 12),
@@ -106,7 +191,32 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.error)),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: widget.onForgotPassword,
+                  child: Text(l[K.loginForgot]),
+                ),
+                // Sign-up CTA arrives with /register (lote 4) — no dead link
+                // until then.
+                const SizedBox(height: 8),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    TextButton(
+                      onPressed: () => _openWebPage(DeepLinkUrls.privacy),
+                      child: Text(l[K.commonPrivacyPolicy],
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                    Text('·', style: Theme.of(context).textTheme.bodySmall),
+                    TextButton(
+                      onPressed: () => _openWebPage(DeepLinkUrls.terms),
+                      child: Text(l[K.commonTermsOfUse],
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 // U-13: the picker must exist BEFORE a session does — the
                 // recruited tester meets this screen first.
                 const LanguagePickerRow(),

@@ -5,6 +5,7 @@
 /// suites in `entrelares-app` (CalendarHelpersTests, EntitlementService).
 library;
 
+export 'src/auth_rules.dart';
 export 'src/calendar_rules.dart';
 export 'src/environment_rules.dart';
 export 'src/localization/app_language.dart';
