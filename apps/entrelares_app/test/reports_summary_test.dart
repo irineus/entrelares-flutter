@@ -204,7 +204,7 @@ void main() {
   });
 
   group('the hub', () {
-    testWidgets('three tabs, the two later ones still under construction',
+    testWidgets('three tabs — only the F-33 PDF is still under construction',
         (tester) async {
       await tester.binding.setSurfaceSize(const Size(800, 2000));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -222,6 +222,10 @@ void main() {
       expect(find.text(l[K.sumSubtitle]), findsOne);
 
       await tester.tap(find.text('⏱️ ${l[K.repTabHistory]}'));
+      await tester.pumpAndSettle();
+      expect(find.text(l[K.auditSubtitle]), findsOne);
+
+      await tester.tap(find.text('📄 ${l[K.repTabPdf]}'));
       await tester.pumpAndSettle();
       expect(find.text(l[KApp.shellUnderConstructionTitle]), findsOne);
     });

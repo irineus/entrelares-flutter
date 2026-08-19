@@ -201,42 +201,45 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
               children: [
                 if (_byMonth) ...[
                   Expanded(
-                    child: DropdownButtonFormField<int>(
-                      initialValue: _month,
-                      decoration:
-                          InputDecoration(labelText: l[K.repByMonth]),
-                      items: [
-                        for (var m = 1; m <= 12; m++)
-                          DropdownMenuItem(
-                              value: m, child: Text(l.monthName(m))),
-                      ],
-                      onChanged: _loading
-                          ? null
-                          : (m) {
-                              if (m == null) return;
-                              setState(() => _month = m);
-                              _load();
-                            },
+                    child: Semantics(
+                      label: l[K.repByMonth],
+                      child: DropdownButtonFormField<int>(
+                        initialValue: _month,
+                        items: [
+                          for (var m = 1; m <= 12; m++)
+                            DropdownMenuItem(
+                                value: m, child: Text(l.monthName(m))),
+                        ],
+                        onChanged: _loading
+                            ? null
+                            : (m) {
+                                if (m == null) return;
+                                setState(() => _month = m);
+                                _load();
+                              },
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                 ],
                 Expanded(
-                  child: DropdownButtonFormField<int>(
-                    initialValue: _year,
-                    decoration: InputDecoration(labelText: l[K.repByYear]),
-                    items: [
-                      // Web parity: last year through two years ahead.
-                      for (var y = thisYear - 1; y <= thisYear + 2; y++)
-                        DropdownMenuItem(value: y, child: Text('$y')),
-                    ],
-                    onChanged: _loading
-                        ? null
-                        : (y) {
-                            if (y == null) return;
-                            setState(() => _year = y);
-                            _load();
-                          },
+                  child: Semantics(
+                    label: l[K.repByYear],
+                    child: DropdownButtonFormField<int>(
+                      initialValue: _year,
+                      items: [
+                        // Web parity: last year through two years ahead.
+                        for (var y = thisYear - 1; y <= thisYear + 2; y++)
+                          DropdownMenuItem(value: y, child: Text('$y')),
+                      ],
+                      onChanged: _loading
+                          ? null
+                          : (y) {
+                              if (y == null) return;
+                              setState(() => _year = y);
+                              _load();
+                            },
+                    ),
                   ),
                 ),
               ],

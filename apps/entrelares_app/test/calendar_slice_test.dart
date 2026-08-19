@@ -649,9 +649,13 @@ class FakeCustodyDataSource implements CustodyDataSource {
     return activityLogs.skip(offset).take(auditPageSize).toList();
   }
 
+  /// Every (start, end) the Histórico asked the trail for.
+  final List<(DateTime, DateTime)> periodLogReads = [];
+
   @override
   Future<List<ActivityLog>> fetchActivityLogsForPeriod(
       DateTime start, DateTime end) async {
+    periodLogReads.add((start, end));
     return activityLogs
         .where((l) =>
             !l.affectedDate.isBefore(start) && !l.affectedDate.isAfter(end))
