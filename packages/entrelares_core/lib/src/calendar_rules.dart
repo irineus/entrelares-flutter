@@ -4,9 +4,14 @@
 /// version reads `DateTime.Today` internally, these take `today` as a
 /// parameter: pure functions, deterministic tests.
 ///
-/// PT-BR only for the stage-1 spike — the bilingual-per-reader catalogue
-/// (U-13) is explicitly NOT validated by the spike and ports later.
+/// Since the U-13/U-24 port (T-53 lote 1) the display helpers take the
+/// session's [Localization] — the words come from the catalog and the date
+/// layout follows the reader's language.
 library;
+
+import 'localization/date_formats.dart';
+import 'localization/k.dart';
+import 'localization/localization.dart';
 
 /// The minimal slice of a `care_schedules` row these rules need. The app
 /// package maps its Supabase row type onto this.
@@ -143,31 +148,30 @@ String _twoLetters(MemberView p) {
       : _oneLetter(p);
 }
 
-/// Human-readable relative day, PT-BR. Mirror of GetDaysUntil — with `today`
-/// passed in (T-07: date-only semantics, deterministic tests).
+/// Human-readable relative day in the reader's language. Mirror of
+/// GetDaysUntil — with `today` passed in (T-07: date-only semantics,
+/// deterministic tests).
 /// T-08 finding preserved: past dates must never render "em -3 dias".
-String daysUntilLabel(DateTime date, DateTime today) {
+String daysUntilLabel(DateTime date, DateTime today, Localization l) {
   final d = DateTime(date.year, date.month, date.day);
   final t = DateTime(today.year, today.month, today.day);
   final days = d.difference(t).inDays;
-  if (days < -1) return 'há ${-days} dias';
-  if (days == -1) return 'ontem';
-  if (days == 0) return 'hoje';
-  if (days == 1) return 'amanhã';
-  return 'em $days dias';
+  if (days < -1) return l.format(K.relDaysAgo, [-days]);
+  if (days == -1) return l[K.relYesterday];
+  if (days == 0) return l[K.relToday];
+  if (days == 1) return l[K.relTomorrow];
+  return l.format(K.relInDays, [days]);
 }
 
-const _weekdaysAbbrevPtBr = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
-
-/// Mirror of FormatHandoffDate: abbreviated weekday + dd/MM ("sex, 04/07").
-/// U-13/U-24 note: only the WEEKDAY NAME follows the language; the numeric
-/// part stays dd/MM in every language until U-24 ports.
-String formatHandoffDate(DateTime date) {
-  final weekday = _weekdaysAbbrevPtBr[date.weekday - 1];
-  final dd = date.day.toString().padLeft(2, '0');
-  final mm = date.month.toString().padLeft(2, '0');
-  return '$weekday, $dd/$mm';
-}
+/// Mirror of FormatHandoffDate: abbreviated weekday + short date
+/// ("sex, 04/07" · "Fri, 04 Jul").
+///
+/// U-24 note: the web helper still renders `dd/MM` in English — a residue the
+/// 37-call-site migration missed (`CalendarHelpers.cs:45`, frozen with the
+/// Blazor app). The U-24 rule ("an English reader must never see 05/08") is
+/// what ports, not the residue, so the numeric half follows the language here.
+String formatHandoffDate(DateTime date, Localization l) =>
+    '${l.weekdayAbbrev(date.weekday)}, ${l.formatDateShort(date)}';
 
 /// Mirror of GetHandoffUrgencyClass, as data instead of a CSS class name.
 enum HandoffUrgency { urgent, soon, near, none }

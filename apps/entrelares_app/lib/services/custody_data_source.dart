@@ -6,6 +6,20 @@ import '../models/member.dart';
 abstract class CustodyDataSource {
   Future<List<Member>> fetchMembers();
 
+  /// The signed-in user's OWN profile row, or null when none exists. Read at
+  /// gate time for the U-13 language adoption/detection sync — before the
+  /// calendar loads, not inside it.
+  Future<Member?> fetchOwnProfile();
+
+  /// U-13: persists the user's explicit language CHOICE. Best-effort at the
+  /// call site — the client's language does not depend on the server write.
+  Future<void> updateOwnLanguage(int profileId, String languageCode);
+
+  /// U-13: records what this session renders in (`language_detected`), so a
+  /// sender with no browser can match the screen. Best-effort, every boot
+  /// where it disagrees.
+  Future<void> updateDetectedLanguage(int profileId, String languageCode);
+
   /// All rows of [year]/[month]. RLS scopes the family server-side.
   Future<List<CareSchedule>> fetchMonth(int year, int month);
 

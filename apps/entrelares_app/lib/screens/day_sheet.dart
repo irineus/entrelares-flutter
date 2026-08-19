@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/care_schedule.dart';
 import '../models/member.dart';
 import '../services/custody_data_source.dart';
+import '../widgets/app_l10n.dart';
 import 'calendar_screen.dart' show slotColors;
 
 /// The day sheet — a native modal bottom sheet (owner directive: use the
@@ -106,14 +107,14 @@ class _DaySheetState extends State<_DaySheet> {
     } catch (e) {
       final raw = e.toString();
       if (!mounted) return;
+      final l = AppL10n.of(context).l;
       setState(() {
         _saving = false;
         _error = isSessionExpired(raw)
-            ? sessionExpiredMessage
+            ? sessionExpiredMessage(l)
             : isDayConflict(raw)
-                ? 'Outro responsável salvou este dia primeiro — atualize o '
-                    'calendário e tente novamente.'
-                : translateSaveError(raw, 'Não foi possível salvar o dia.');
+                ? l[KApp.errConcurrentSaveRetry]
+                : translateSaveError(raw, l[KApp.errDaySave], l);
       });
     }
   }
@@ -136,6 +137,7 @@ class _DaySheetState extends State<_DaySheet> {
           assignment!.effectiveParentId,
         );
 
+    final l = AppL10n.of(context).l;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(
@@ -149,40 +151,45 @@ class _DaySheetState extends State<_DaySheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${formatHandoffDate(widget.date)} · '
-              '${daysUntilLabel(widget.date, widget.today)}',
+              '${formatHandoffDate(widget.date, l)} · '
+              '${daysUntilLabel(widget.date, widget.today, l)}',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 4),
             if (day == null)
-              const Text('Dia sem responsável definido.')
+              Text(l[KApp.sheetNoResponsible])
             else ...[
-              Text(
-                  'Responsável: ${displayInitials(assignment!.effectiveParentId, widget.memberViews)}'
-                  '${isSwapped(assignment) ? ' (trocado)' : ''}'),
+              Text(l.format(KApp.sheetResponsible, [
+                    displayInitials(
+                        assignment!.effectiveParentId, widget.memberViews)
+                  ]) +
+                  (isSwapped(assignment) ? l[KApp.sheetSwappedSuffix] : '')),
               if (isTransition)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     day.handoffTime != null
-                        ? 'Dia de transição — troca às ${day.handoffTime!.substring(0, 5)}'
-                        : 'Dia de transição',
+                        // U-24: the wire's HH:mm:ss renders per language
+                        // (14:30 · 2:30 PM) — never a raw substring.
+                        ? l.format(KApp.sheetTransitionAt,
+                            [l.formatTimeString(day.handoffTime!)])
+                        : l[KApp.sheetTransition],
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
               if ((day.notes ?? '').isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text('Observação: ${day.notes}',
+                  child: Text(l.format(KApp.sheetNote, [day.notes]),
                       style: Theme.of(context).textTheme.bodySmall),
                 ),
             ],
             const SizedBox(height: 16),
             if (_isPast)
-              Text('Dias passados são imutáveis.',
+              Text(l[KApp.sheetPastImmutable],
                   style: Theme.of(context).textTheme.bodySmall)
             else ...[
-              Text('Quem fica com a criança neste dia?',
+              Text(l[KApp.sheetWhoQuestion],
                   style: Theme.of(context).textTheme.labelLarge),
               const SizedBox(height: 8),
               Wrap(
@@ -219,7 +226,7 @@ class _DaySheetState extends State<_DaySheet> {
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Salvar'),
+                    : Text(l[KApp.sheetSave]),
               ),
               if (_error != null)
                 Padding(

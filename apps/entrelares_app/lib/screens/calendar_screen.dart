@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../models/care_schedule.dart';
 import '../models/member.dart';
 import '../services/custody_data_source.dart';
+import '../widgets/app_l10n.dart';
 import 'day_sheet.dart';
 
 /// F-27 slot palette (slot 0 = gray: inactive/unknown); swapped is its own
@@ -17,23 +18,6 @@ const slotColors = <int, Color>{
   4: Color(0xFFDB2777),
 };
 const swappedColor = Color(0xFFE11D48);
-
-/// Sunday-first, same as the web grid ((int)DayOfWeek: Sunday = 0).
-const _weekdayInitials = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-const _monthNamesPtBr = [
-  'janeiro',
-  'fevereiro',
-  'março',
-  'abril',
-  'maio',
-  'junho',
-  'julho',
-  'agosto',
-  'setembro',
-  'outubro',
-  'novembro',
-  'dezembro',
-];
 
 class CalendarScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
@@ -108,11 +92,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      final l = AppL10n.of(context).l;
       setState(() {
         _loading = false;
         _loadError = isSessionExpired(e.toString())
-            ? sessionExpiredMessage
-            : 'Não foi possível carregar o calendário.';
+            ? sessionExpiredMessage(l)
+            : l[KApp.errCalendarLoad];
       });
     }
   }
@@ -145,15 +130,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final app = AppL10n.of(context);
+    final l = app.l;
     final views = _memberViews;
     final title =
-        '${_monthNamesPtBr[_visibleMonth.month - 1]} de ${_visibleMonth.year}';
+        l.formatMonthYear(_visibleMonth.year, _visibleMonth.month);
     return Scaffold(
       appBar: AppBar(
         title: Text(title),
         actions: [
+          // U-13: the signed-in picker — a switch persists to the profile so
+          // the server-side senders follow (best-effort, in _setLanguage).
+          PopupMenuButton<AppLanguage>(
+            tooltip: l[K.languageAriaLabel],
+            icon: const Icon(Icons.language),
+            onSelected: app.setLanguage,
+            itemBuilder: (context) => [
+              for (final (language, label) in [
+                (AppLanguage.ptBr, l[K.languagePtBr]),
+                (AppLanguage.en, l[K.languageEn]),
+              ])
+                PopupMenuItem(
+                  value: language,
+                  enabled: l.current != language,
+                  child: Text(label),
+                ),
+            ],
+          ),
           IconButton(
-            tooltip: 'Sair',
+            tooltip: l[K.navLogout],
             icon: const Icon(Icons.logout),
             onPressed: widget.onSignOut,
           ),
@@ -227,10 +232,10 @@ class _Legend extends StatelessWidget {
               ),
               label: Text(m.fullName.split(' ').first),
             ),
-          const Chip(
+          Chip(
             visualDensity: VisualDensity.compact,
-            avatar: CircleAvatar(backgroundColor: swappedColor),
-            label: Text('Trocado'),
+            avatar: const CircleAvatar(backgroundColor: swappedColor),
+            label: Text(AppL10n.of(context).l[K.calSwapped]),
           ),
         ],
       ),
@@ -262,6 +267,10 @@ class _MonthGrid extends StatelessWidget {
     // — same blank count as the web's (int)firstDayOfMonth.DayOfWeek.
     final blanksBefore = DateTime(month.year, month.month, 1).weekday % 7;
     final todayIso = CareSchedule.isoDate(today);
+    // Sunday-first initials per language — the catalog carries the row
+    // (K.calWeekdayInitials: "D,S,T,Q,Q,S,S" · "S,M,T,W,T,F,S").
+    final weekdayInitials =
+        AppL10n.of(context).l[K.calWeekdayInitials].split(',');
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -269,7 +278,7 @@ class _MonthGrid extends StatelessWidget {
       children: [
         Row(
           children: [
-            for (final w in _weekdayInitials)
+            for (final w in weekdayInitials)
               Expanded(
                 child: Center(
                   child: Text(w,

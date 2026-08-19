@@ -12,6 +12,9 @@ library;
 
 import 'dart:convert';
 
+import 'localization/k_app.dart';
+import 'localization/localization.dart';
+
 /// True when the error is the UNIQUE(family, date) collision — another member
 /// saved this day first (stale calendar race).
 bool isUniqueDayConflict(String raw) =>
@@ -41,13 +44,17 @@ bool isStaleClientBuild(String raw) => raw.contains('Recarregue o aplicativo');
 bool isSessionExpired(String raw) =>
     raw.contains('42501') || raw.contains('permission denied');
 
-const sessionExpiredMessage =
-    'Sessão expirada — saia e entre novamente.';
+/// U-13 port: the session-expired sentence now follows the reader's language.
+String sessionExpiredMessage(Localization l) => l[KApp.sessionExpired];
 
 const _accented = 'áâãàéêíóôõúçÁÂÃÉÊÍÓÔÕÚÇ';
 
-/// Mirror of CalendarHelpers.TranslateSaveError.
-String translateSaveError(String raw, String fallback) {
+/// Mirror of CalendarHelpers.TranslateSaveError. The two known-signature
+/// messages come from the catalog since the U-13 port (the web helper never
+/// extracted its literals — a residue frozen with the Blazor app); the
+/// trigger-raised pass-through stays PT-BR-only because the SERVER writes
+/// those sentences in PT-BR regardless of the reader.
+String translateSaveError(String raw, String fallback, Localization l) {
   try {
     final start = raw.indexOf('{');
     final end = raw.lastIndexOf('}');
@@ -60,11 +67,9 @@ String translateSaveError(String raw, String fallback) {
         if (code == '23505') {
           if (message is String &&
               message.contains('swap_requests_one_pending_per_date')) {
-            return 'Já existe uma solicitação pendente para este dia — o '
-                'calendário foi atualizado.';
+            return l[KApp.errSwapPendingExists];
           }
-          return 'Outro responsável salvou este dia primeiro — atualize o '
-              'calendário e tente novamente.';
+          return l[KApp.errConcurrentSaveRetry];
         }
 
         // Trigger-raised messages arrive in PT-BR (accented) — show them.

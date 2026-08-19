@@ -40,11 +40,36 @@ no core e analyze + `flutter test` no app, com o Flutter lido do `.fvmrc`. O bui
 APK fica FORA do gate (cota de 2000 min/mês da conta, compartilhada com os repos do
 produto) — para gerar APK pela CI, use o `workflow_dispatch` com `build-apk`.
 
+## i18n (U-13/U-24 — lote 1)
+
+Bilíngue por leitor (PT-BR / EN), portado do app web:
+
+- **Catálogos gerados, nunca editados à mão:** `packages/entrelares_core/lib/src/localization/`
+  (`k.dart` + `strings_pt_br.dart` + `strings_en.dart`, 961 chaves) são espelhos mecânicos
+  dos `K.cs`/`StringsPtBr.cs`/`StringsEn.cs` do repo `entrelares-app`, regenerados por
+  `python tool/port_catalogs.py <caminho-do-entrelares-app>`. Strings que só existem
+  neste cliente vivem em `k_app.dart` (prefixo `app.`), à mão.
+- **Resolução** (`LanguageResolver`): escolha local > `profiles.language` > locale do
+  aparelho > PT-BR. Idioma fixo no boot; a troca (picker no login e no calendário)
+  reconstrói a árvore da raiz — o análogo do `forceLoad` do web. Adoção cross-device e
+  gravação de `language_detected` seguem as mesmas regras puras do web
+  (`Localization.shouldAdopt` / `shouldRecordDetected`).
+- **Display por idioma, wire congelado** (U-24): EN = `05 Aug 2026` + relógio 12h; PT =
+  `dd/MM/yyyy` + 24h. Transporte continua ISO `yyyy-MM-dd` (`CareSchedule.isoDate`) e
+  nunca passa pelos formatadores de display. Tabelas de nomes hardcoded (sem `intl`/ICU),
+  espelhando a decisão anti-drift do `_shared/i18n.ts`.
+- **Renderer de notificações** (`NotificationRenderer`): `type` + `params` viram a frase
+  no idioma do leitor; linhas legadas/payloads desconhecidos caem para o texto armazenado.
+  PT-BR é byte-idêntico ao que os triggers gravam (tabela de ~35 casos em
+  `notification_renderer_test.dart`).
+- **Gate adiado de propósito:** o teste "toda chave declarada tem call site" (lição U-23)
+  só faz sentido com as telas todas portadas — entra no fechamento do lote 6.
+
 ## Versionamento
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.2.0+2` (estágio 3 aberto — flavors dev/prod + tag `[Dev]`) |
+| `apps/entrelares_app` | `0.2.2+4` (T-53 lote 1 — i18n U-13/U-24: catálogos, resolver, formatos e renderer) |
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 
