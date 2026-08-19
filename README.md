@@ -31,20 +31,55 @@ cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per
 ambientes são variantes de build (o singleton do Supabase inicializa uma vez por
 processo), nunca um switcher de runtime. `dev` = `com.entrelares.flutter` contra o
 projeto dev ("Entrelares Dev" no launcher, título com `[Dev]`); `prod` =
-`com.entrelares.app` (o pacote da Play) contra produção. Distribuir o flavor prod
-está travado no keystore próprio (T-55). `fvm flutter test` não tem flavor e cai em
-dev por construção.
+`com.entrelares.app` (o pacote da Play) contra produção. Builds release assinam por
+flavor via `key.properties` (T-55 — ver "Assinatura (release)" abaixo). `fvm flutter
+test` não tem flavor e cai em dev por construção.
 
 **CI (T-54):** todo push/PR roda `.github/workflows/verify.yml` — analyze + `dart test`
 no core e analyze + `flutter test` no app, com o Flutter lido do `.fvmrc`. O build de
 APK fica FORA do gate (cota de 2000 min/mês da conta, compartilhada com os repos do
-produto) — para gerar APK pela CI, use o `workflow_dispatch` com `build-apk`.
+produto) — para gerar APK pela CI, use o `workflow_dispatch` com `build-apk`. O APK
+da CI é **debug** (o runner não tem — e nunca terá — os keystores do T-55; release é
+build local por construção).
+
+## Assinatura (release) — T-55
+
+Builds **release** exigem `apps/entrelares_app/android/key.properties` (git-ignorado);
+sem ele o build **falha com erro claro** — nunca sai APK release assinado com as chaves
+de debug desta máquina (lição 2.2 do piloto: keystore de debug é por máquina, e um
+aparelho que instalou um build debug-signed precisa DESINSTALAR — perdendo dados locais —
+para aceitar build de outra origem). Builds debug não são afetados.
+
+Os keystores vivem **FORA do repositório** e as senhas nunca entram no repo nem numa
+sessão cloud (regra permanente 1). O `key.properties` tem entradas **por flavor**:
+
+```properties
+# dev — keystore dedicado de sideload (T-55); gere uma única vez, fora do repo:
+#   keytool -genkey -v -keystore %USERPROFILE%\keystores\entrelares-flutter.jks ^
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias entrelares
+dev.storeFile=C:/Users/irineu/keystores/entrelares-flutter.jks
+dev.storePassword=...
+dev.keyAlias=entrelares
+dev.keyPassword=...
+
+# prod — o keystore de UPLOAD do produto (entrelares-app/store/android.keystore, F-54).
+# O pacote da Play (com.entrelares.app) só aceita essa assinatura de upload (achado do
+# estágio 0) — nunca aponte prod.* para outro keystore.
+prod.storeFile=C:/Users/irineu/source/repos/entrelares-app/store/android.keystore
+prod.storePassword=...
+prod.keyAlias=android
+prod.keyPassword=...
+```
+
+As entradas são separadas por construção para o upload da Play nunca sair assinado com a
+chave de sideload por engano. O keystore deste card (`dev.*`) é só para distribuição
+direta/sideload; ele NÃO cria uma segunda identidade na Play.
 
 ## Versionamento
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.2.0+2` (estágio 3 aberto — flavors dev/prod + tag `[Dev]`) |
+| `apps/entrelares_app` | `0.2.1+3` (T-55 — assinatura release por flavor via `key.properties`) |
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 

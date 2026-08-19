@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       build-apk:
-        description: "Also build the release APK (arm64, split-per-abi)"
+        description: "Also build the debug APK (arm64, split-per-abi)"
         type: boolean
         default: false
 
@@ -72,16 +72,18 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      # Stage 3: flavors are mandatory. CI builds the DEV flavor only — the
-      # prod flavor is gated on the T-55 upload keystore and is built locally
-      # by the owner until then.
-      - name: Build release APK (dev flavor, arm64)
+      # Stage 3: flavors are mandatory. CI builds the DEV flavor only, and
+      # DEBUG only: release signing reads the T-55 keystores from a local
+      # key.properties (never in the repo nor in CI), so release builds are
+      # local-by-construction — a release task here would fail fast on the
+      # missing file.
+      - name: Build debug APK (dev flavor, arm64)
         working-directory: apps/entrelares_app
-        run: flutter build apk --release --flavor dev --split-per-abi --target-platform android-arm64
+        run: flutter build apk --debug --flavor dev --split-per-abi --target-platform android-arm64
       # 1-day retention: the 500 MB artifact quota is account-wide (T-50).
       # Glob: the flavor changes the APK filename (only one file matches).
       - uses: actions/upload-artifact@v4
         with:
-          name: app-dev-arm64-v8a-release
-          path: apps/entrelares_app/build/app/outputs/flutter-apk/app-*-release.apk
+          name: app-dev-arm64-v8a-debug
+          path: apps/entrelares_app/build/app/outputs/flutter-apk/app-*-debug.apk
           retention-days: 1
