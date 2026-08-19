@@ -18,10 +18,10 @@ import 'screens/home_shell.dart';
 import 'screens/leaving_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/notifications_screen.dart';
-import 'screens/placeholder_screen.dart';
 import 'screens/policy_update_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/register_screen.dart';
+import 'screens/reports_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/update_password_screen.dart';
 import 'services/admin_mode.dart';
@@ -264,8 +264,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/reports',
-              builder: (_, _) =>
-                  const PlaceholderScreen(titleKey: K.navReports),
+              builder: (_, _) => ReportsScreen(dataSource: _dataSource),
             ),
           ]),
         ],

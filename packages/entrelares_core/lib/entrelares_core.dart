@@ -28,6 +28,7 @@ export 'src/localization/k_app.dart';
 export 'src/localization/language_resolver.dart';
 export 'src/localization/localization.dart';
 export 'src/localization/notification_renderer.dart';
+export 'src/localization/rich_text.dart';
 export 'src/localization/strings_en.dart';
 export 'src/localization/strings_pt_br.dart';
 export 'src/policy_versions.dart';

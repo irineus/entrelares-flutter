@@ -12,6 +12,7 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 
 import 'app_l10n.dart';
+import 'rich_label.dart';
 
 
 /// Where the tour's targets live. One instance is created by the shell and
@@ -221,7 +222,9 @@ Future<void> showHowSwapsWork(BuildContext context) =>
                 ]) ...[
                   Text(l[title], style: theme.textTheme.titleSmall),
                   const SizedBox(height: 4),
-                  Text(l[body], style: theme.textTheme.bodySmall),
+                  // These four bodies emphasize a word inline (U-13 catalog
+                  // markup) — rendered as spans, never as visible tags.
+                  RichLabel.of(l, body, style: theme.textTheme.bodySmall),
                   const SizedBox(height: 16),
                 ],
                 FilledButton(

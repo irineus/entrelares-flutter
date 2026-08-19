@@ -36,8 +36,15 @@ class FakeCustodyDataSource implements CustodyDataSource {
 
   FakeCustodyDataSource({required this.members, required this.days});
 
+  /// Lote 6: a roster read that fails — the reports screen maps it through the
+  /// same central rules every other screen uses.
+  Object? throwOnMembers;
+
   @override
-  Future<List<Member>> fetchMembers() async => members;
+  Future<List<Member>> fetchMembers() async {
+    if (throwOnMembers != null) throw throwOnMembers!;
+    return members;
+  }
 
   @override
   Future<Member?> fetchOwnProfile() async => members.firstOrNull;
@@ -621,6 +628,20 @@ class FakeCustodyDataSource implements CustodyDataSource {
   final List<int> activityOffsets = [];
   final List<int> accountOffsets = [];
   final List<List<int>> originLookups = [];
+
+  /// Every (start, end) a report asked for — a screen that reloads on filter
+  /// change can only be proven by the periods it queried.
+  final List<(DateTime, DateTime)> periodReads = [];
+
+  @override
+  Future<List<CareSchedule>> fetchSchedulesForPeriod(
+      DateTime start, DateTime end) async {
+    periodReads.add((start, end));
+    return days
+        .where((d) =>
+            !d.scheduleDate.isBefore(start) && !d.scheduleDate.isAfter(end))
+        .toList();
+  }
 
   @override
   Future<List<ActivityLog>> fetchRecentActivityLogs({int offset = 0}) async {

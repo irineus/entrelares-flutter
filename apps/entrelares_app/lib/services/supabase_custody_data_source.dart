@@ -1218,6 +1218,18 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   // ── Lote 6: reports (audit trail reads) ───────────────────────────────────
 
   @override
+  Future<List<CareSchedule>> fetchSchedulesForPeriod(
+      DateTime start, DateTime end) async {
+    final rows = await _client
+        .from('care_schedules')
+        .select()
+        .gte('schedule_date', CareSchedule.isoDate(start))
+        .lte('schedule_date', CareSchedule.isoDate(end))
+        .order('schedule_date');
+    return rows.map(CareSchedule.fromJson).toList();
+  }
+
+  @override
   Future<List<ActivityLog>> fetchRecentActivityLogs({int offset = 0}) async {
     final rows = await _client
         .from('activity_logs')
