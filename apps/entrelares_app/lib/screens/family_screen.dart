@@ -31,11 +31,16 @@ class FamilyScreen extends StatefulWidget {
   /// Opens the F-41 page. Null hides the link (nothing to navigate to).
   final VoidCallback? onOpenCustomRoles;
 
+  /// Opens a member's profile — own card or, for an admin, anyone's (F-16).
+  /// Null leaves the cards inert.
+  final void Function(Member member, bool isOwn)? onOpenProfile;
+
   const FamilyScreen({
     super.key,
     required this.dataSource,
     required this.adminMode,
     this.onOpenCustomRoles,
+    this.onOpenProfile,
   });
 
   @override
@@ -372,9 +377,16 @@ class _FamilyScreenState extends State<FamilyScreen> {
   Widget _memberCard(Member member, Localization l) {
     final theme = Theme.of(context);
     final role = _roleLabel(member.roleId, l.current);
+    final isOwn = member.id == _me?.id;
+    // Web parity: my own card always opens; anyone else's only for an admin.
+    final canOpen =
+        widget.onOpenProfile != null && (isOwn || _isAdmin);
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
+        onTap: canOpen ? () => widget.onOpenProfile!(member, isOwn) : null,
+        // The label the web puts on the clickable card, for screen readers.
+        subtitleTextStyle: theme.textTheme.bodyMedium,
         leading: CircleAvatar(child: Text(member.initial)),
         title: Row(
           children: [

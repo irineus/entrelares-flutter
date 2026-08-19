@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionName / versionCode. Bump on every functional change handed to the
 # owner, same rule as the product repos.
-version: 0.2.16+18
+version: 0.2.17+19
 
 environment:
   sdk: ^3.12.2
@@ -56,6 +56,10 @@ dependencies:
   # share sheet replaces the web's "copy the link and send it on WhatsApp" hint
   # (invitations) and the browser download (LGPD export, PR 4).
   share_plus: ^10.1.4
+  # F-17 export: the share sheet hands over a FILE, so the JSON is written to
+  # the app's own cache directory first (never external storage — no extra
+  # permission, and the OS reclaims it).
+  path_provider: ^2.1.5
   # Pure client mirrors of the server rules, tested with `dart test`.
   entrelares_core:
     path: ../../packages/entrelares_core

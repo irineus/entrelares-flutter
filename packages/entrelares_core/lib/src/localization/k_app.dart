@@ -76,6 +76,11 @@ abstract final class KApp {
   static const String rolesToastUpdated = 'app.roles.toastUpdated';
   static const String rolesNoEmoji = 'app.roles.noEmoji';
 
+  // ── Profile page (lote 4) — two refusals the web left as pre-U-13 literals
+  //    (ProfilePage.razor:493/652); client-only, no server twin ──
+  static const String profErrNameTooShort = 'app.prof.errNameTooShort';
+  static const String profErrPasswordShort = 'app.prof.errPasswordShort';
+
   // ── Invite form (lote 4) — the web kept the "pick a role" refusal as a
   //    pre-U-13 hardcoded PT literal (FamilyPage.razor:1311); same treatment
   //    as the wizard's, and safe to catalogue because this sentence has no
@@ -116,6 +121,8 @@ abstract final class KApp {
     sudoErrWrongPassword,
     sudoErrGeneric,
     sudoErrConnection,
+    profErrNameTooShort,
+    profErrPasswordShort,
     rolesCreateTitle,
     rolesEditTitle,
     rolesToastUpdated,
@@ -164,6 +171,8 @@ abstract final class StringsAppPtBr {
     KApp.sudoErrConnection:
         'Falha na conexão com o servidor. Verifique sua internet e tente '
             'novamente.',
+    KApp.profErrNameTooShort: 'Informe um nome com pelo menos 2 caracteres.',
+    KApp.profErrPasswordShort: 'A senha precisa ter pelo menos 8 caracteres.',
     KApp.rolesCreateTitle: 'Criar papel',
     KApp.rolesEditTitle: 'Editar papel',
     KApp.rolesToastUpdated: 'Papel atualizado!',
@@ -212,6 +221,8 @@ abstract final class StringsAppEn {
     KApp.sudoErrGeneric: 'Could not confirm. Try again.',
     KApp.sudoErrConnection:
         'Connection to the server failed. Check your internet and try again.',
+    KApp.profErrNameTooShort: 'Enter a name with at least 2 characters.',
+    KApp.profErrPasswordShort: 'The password needs at least 8 characters.',
     KApp.rolesCreateTitle: 'Create role',
     KApp.rolesEditTitle: 'Edit role',
     KApp.rolesToastUpdated: 'Role updated!',

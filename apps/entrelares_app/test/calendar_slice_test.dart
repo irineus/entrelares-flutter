@@ -438,6 +438,76 @@ class FakeCustodyDataSource implements CustodyDataSource {
     if (throwOnFamilyWrite != null) throw throwOnFamilyWrite!;
     deletedRoles.add(roleId);
   }
+
+  // ── Lote 4: profile, account and the LGPD export ──
+  ExportBundle exportBundle = const ExportBundle();
+
+  /// Thrown by whichever profile/account write is exercised next.
+  Object? throwOnProfileWrite;
+
+  final List<Map<String, Object?>> nameUpdates = [];
+  final List<Map<String, Object?>> roleUpdates = [];
+  final List<Map<String, Object?>> adminUpdates = [];
+  final List<String> passwordResets = [];
+  final List<String> emailUpdates = [];
+  final List<String> passwordUpdates = [];
+  final List<String> accountActions = [];
+  int exportFetches = 0;
+
+  @override
+  Future<void> updateOwnName(int profileId, String fullName) async {
+    if (throwOnProfileWrite != null) throw throwOnProfileWrite!;
+    nameUpdates.add({'id': profileId, 'name': fullName, 'own': true});
+  }
+
+  @override
+  Future<void> updateMemberName(int profileId, String fullName) async {
+    if (throwOnProfileWrite != null) throw throwOnProfileWrite!;
+    nameUpdates.add({'id': profileId, 'name': fullName, 'own': false});
+  }
+
+  @override
+  Future<void> setMemberRole(
+      {required int profileId, required int roleId}) async {
+    if (throwOnProfileWrite != null) throw throwOnProfileWrite!;
+    roleUpdates.add({'id': profileId, 'roleId': roleId});
+  }
+
+  @override
+  Future<void> setMemberAdmin(
+      {required int profileId, required bool isAdmin}) async {
+    if (throwOnProfileWrite != null) throw throwOnProfileWrite!;
+    adminUpdates.add({'id': profileId, 'isAdmin': isAdmin});
+  }
+
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    if (throwOnProfileWrite != null) throw throwOnProfileWrite!;
+    passwordResets.add(email);
+  }
+
+  @override
+  Future<void> updateOwnEmail(String email) async {
+    if (throwOnProfileWrite != null) throw throwOnProfileWrite!;
+    emailUpdates.add(email);
+  }
+
+  @override
+  Future<void> updateOwnPassword(String password) async {
+    if (throwOnProfileWrite != null) throw throwOnProfileWrite!;
+    passwordUpdates.add(password);
+  }
+
+  @override
+  Future<void> logAccountAction(String action) async {
+    accountActions.add(action);
+  }
+
+  @override
+  Future<ExportBundle> fetchExportData(int myProfileId) async {
+    exportFetches++;
+    return exportBundle;
+  }
 }
 
 const ana = Member(id: 1, fullName: 'Ana Souza', colorSlot: 1, userId: 'u1');
