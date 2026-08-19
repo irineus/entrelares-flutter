@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
+import 'reports_audit_tab.dart';
 import 'reports_summary_tab.dart';
 
 /// The Relatórios hub — port of the `ReportsTabs` switcher shared by
@@ -37,9 +38,8 @@ class ReportsScreen extends StatelessWidget {
         body: TabBarView(
           children: [
             ReportsSummaryTab(dataSource: dataSource),
-            // Lote 6, PRs 3 and 4 — the Histórico timeline (with the F-45
-            // origin) and the F-33 native PDF.
-            const ReportTabUnderConstruction(),
+            ReportsAuditTab(dataSource: dataSource),
+            // Lote 6, PR 4 — the F-33 native PDF.
             const ReportTabUnderConstruction(),
           ],
         ),
