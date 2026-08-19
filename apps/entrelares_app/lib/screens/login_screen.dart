@@ -1,13 +1,19 @@
+import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+
+import '../widgets/app_l10n.dart';
 
 class LoginScreen extends StatefulWidget {
   /// Throws on failure; the screen translates the error for display.
   final Future<void> Function(String email, String password) onSignIn;
 
-  /// Shown when the gate cleared a restored-but-dead session (lesson 1.1).
-  final String? notice;
+  /// True when the gate cleared a restored-but-dead session (lesson 1.1).
+  final bool showSessionExpiredNotice;
 
-  const LoginScreen({super.key, required this.onSignIn, this.notice});
+  const LoginScreen(
+      {super.key,
+      required this.onSignIn,
+      this.showSessionExpiredNotice = false});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -16,13 +22,15 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
-  String? _error;
+
+  /// The catalog KEY of the current error, so a language switch re-renders it.
+  String? _errorKey;
   bool _busy = false;
 
   Future<void> _submit() async {
     setState(() {
       _busy = true;
-      _error = null;
+      _errorKey = null;
     });
     try {
       await widget.onSignIn(_email.text.trim(), _password.text);
@@ -30,9 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       final raw = e.toString();
       setState(() {
-        _error = raw.contains('Invalid login credentials')
-            ? 'E-mail ou senha incorretos.'
-            : 'Não foi possível entrar. Verifique sua conexão e tente novamente.';
+        _errorKey = raw.contains('Invalid login credentials')
+            ? K.authErrInvalidCredentials
+            : K.authErrConnection;
       });
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -41,6 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l = AppL10n.of(context).l;
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -51,16 +60,16 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Entrelares',
+                Text(l[K.loginHeading],
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 4),
-                Text('Duas casas, uma mesma infância.',
+                Text(l[K.loginSubtitle],
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodySmall),
                 const SizedBox(height: 24),
-                if (widget.notice != null) ...[
-                  Text(widget.notice!,
+                if (widget.showSessionExpiredNotice) ...[
+                  Text(l[KApp.sessionRestoredExpired],
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.error)),
@@ -70,14 +79,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(labelText: 'E-mail'),
+                  decoration: InputDecoration(labelText: l[K.commonEmail]),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _password,
                   obscureText: true,
                   autofillHints: const [AutofillHints.password],
-                  decoration: const InputDecoration(labelText: 'Senha'),
+                  decoration: InputDecoration(labelText: l[K.commonPassword]),
                   onSubmitted: (_) => _busy ? null : _submit(),
                 ),
                 const SizedBox(height: 20),
@@ -88,15 +97,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: 18,
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Entrar'),
+                      : Text(l[K.loginSubmit]),
                 ),
-                if (_error != null) ...[
+                if (_errorKey != null) ...[
                   const SizedBox(height: 12),
-                  Text(_error!,
+                  Text(l[_errorKey!],
                       textAlign: TextAlign.center,
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.error)),
                 ],
+                const SizedBox(height: 16),
+                // U-13: the picker must exist BEFORE a session does — the
+                // recruited tester meets this screen first.
+                const LanguagePickerRow(),
               ],
             ),
           ),

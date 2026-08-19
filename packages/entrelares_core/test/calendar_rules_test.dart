@@ -1,7 +1,7 @@
 /// Mirror of `entrelares-app` `Entrelares.Tests/CalendarHelpersTests.cs` —
-/// same cases, same expected verdicts (PT-BR half only; the English half
-/// arrives with the U-13 port). The two suites must keep saying the same
-/// thing: a divergence here is a bug in the port, not a test to adjust.
+/// same cases, same expected verdicts, both languages since the U-13/U-24
+/// port (T-53 lote 1). The two suites must keep saying the same thing: a
+/// divergence here is a bug in the port, not a test to adjust.
 library;
 
 import 'package:entrelares_core/entrelares_core.dart';
@@ -9,6 +9,9 @@ import 'package:test/test.dart';
 
 final _today = DateTime(2026, 8, 19);
 DateTime _fromToday(int days) => _today.add(Duration(days: days));
+
+final _pt = Localization(AppLanguage.ptBr);
+final _en = Localization(AppLanguage.en);
 
 void main() {
   group('daysUntilLabel', () {
@@ -22,7 +25,21 @@ void main() {
     };
     cases.forEach((days, expected) {
       test('$days dia(s) → "$expected"', () {
-        expect(daysUntilLabel(_fromToday(days), _today), expected);
+        expect(daysUntilLabel(_fromToday(days), _today, _pt), expected);
+      });
+    });
+
+    // The English half: the words come from the catalog, the rule is shared.
+    const enCases = {
+      0: 'today',
+      1: 'tomorrow',
+      2: 'in 2 days',
+      -1: 'yesterday',
+      -3: '3 days ago',
+    };
+    enCases.forEach((days, expected) {
+      test('$days day(s) → "$expected" (EN)', () {
+        expect(daysUntilLabel(_fromToday(days), _today, _en), expected);
       });
     });
   });
@@ -42,10 +59,17 @@ void main() {
   group('formatHandoffDate', () {
     test('abbreviated PT-BR weekday without trailing dot', () {
       // 04/07/2025 is a Friday — the C# suite's own example ("sex, 04/07").
-      expect(formatHandoffDate(DateTime(2025, 7, 4)), 'sex, 04/07');
+      expect(formatHandoffDate(DateTime(2025, 7, 4), _pt), 'sex, 04/07');
     });
-    test('numeric part stays dd/MM', () {
-      expect(formatHandoffDate(DateTime(2026, 8, 19)), 'qua, 19/08');
+    test('PT-BR numeric part stays dd/MM', () {
+      expect(formatHandoffDate(DateTime(2026, 8, 19), _pt), 'qua, 19/08');
+    });
+    // U-24 applied to the numeric half too: an English reader must never see
+    // `04/07` (the web helper's dd/MM-in-English is a frozen residue, not the
+    // rule — see the function's doc comment).
+    test('EN gets the weekday and the spelled month', () {
+      expect(formatHandoffDate(DateTime(2025, 7, 4), _en), 'Fri, 04 Jul');
+      expect(formatHandoffDate(DateTime(2026, 8, 19), _en), 'Wed, 19 Aug');
     });
   });
 

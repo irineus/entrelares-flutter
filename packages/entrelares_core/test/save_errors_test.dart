@@ -7,6 +7,8 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:test/test.dart';
 
 const _fallback = 'Erro ao salvar.';
+final _pt = Localization(AppLanguage.ptBr);
+final _en = Localization(AppLanguage.en);
 
 void main() {
   group('isUniqueDayConflict', () {
@@ -70,7 +72,7 @@ void main() {
       const raw = 'Exception: {"code":"23505","message":"duplicate key value '
           'violates unique constraint \\"care_schedules_family_schedule_date_key\\""}';
       expect(
-          translateSaveError(raw, _fallback),
+          translateSaveError(raw, _fallback, _pt),
           'Outro responsável salvou este dia primeiro — atualize o calendário '
           'e tente novamente.');
     });
@@ -78,23 +80,45 @@ void main() {
       const raw = '{"code":"23505","message":"duplicate key value violates '
           'unique constraint \\"swap_requests_one_pending_per_date\\""}';
       expect(
-          translateSaveError(raw, _fallback),
+          translateSaveError(raw, _fallback, _pt),
           'Já existe uma solicitação pendente para este dia — o calendário '
           'foi atualizado.');
     });
+    // U-13 port: the known signatures follow the reader's language.
+    test('known signatures render in English for an English reader', () {
+      const raw = 'Exception: {"code":"23505","message":"duplicate key value '
+          'violates unique constraint \\"care_schedules_family_schedule_date_key\\""}';
+      expect(translateSaveError(raw, _fallback, _en),
+          'The other caregiver saved this day first — refresh the calendar '
+          'and try again.');
+    });
     test('trigger-raised PT-BR (accented) message passes through', () {
       const raw = '{"code":"P0001","message":"Dias passados são imutáveis."}';
-      expect(translateSaveError(raw, _fallback), 'Dias passados são imutáveis.');
+      expect(translateSaveError(raw, _fallback, _pt),
+          'Dias passados são imutáveis.');
+      // The server writes PT-BR regardless of the reader — the pass-through
+      // is deliberately language-blind (the sentence is the server's own).
+      expect(translateSaveError(raw, _fallback, _en),
+          'Dias passados são imutáveis.');
     });
     test('unaccented unknown message keeps the fallback', () {
       const raw = '{"code":"P0001","message":"some internal detail"}';
-      expect(translateSaveError(raw, _fallback), _fallback);
+      expect(translateSaveError(raw, _fallback, _pt), _fallback);
     });
     test('non-JSON body keeps the fallback', () {
-      expect(translateSaveError('total garbage', _fallback), _fallback);
+      expect(translateSaveError('total garbage', _fallback, _pt), _fallback);
     });
     test('malformed JSON between braces keeps the fallback', () {
-      expect(translateSaveError('{not json}', _fallback), _fallback);
+      expect(translateSaveError('{not json}', _fallback, _pt), _fallback);
+    });
+  });
+
+  group('sessionExpiredMessage', () {
+    test('follows the reader language', () {
+      expect(sessionExpiredMessage(_pt),
+          'Sessão expirada — saia e entre novamente.');
+      expect(sessionExpiredMessage(_en),
+          'Session expired — sign out and sign in again.');
     });
   });
 }

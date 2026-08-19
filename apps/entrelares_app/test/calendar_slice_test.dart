@@ -1,6 +1,8 @@
 // The slice against a fake data source: grid painting, the day sheet's write
-// path (insert and full-row update), conflict translation, and the Realtime
-// callback triggering a reload.
+// path (insert and full-row update), conflict translation, the Realtime
+// callback triggering a reload — and, since the U-13 port, that an English
+// session renders the same slice in English.
+import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,6 +10,7 @@ import 'package:entrelares_app/models/care_schedule.dart';
 import 'package:entrelares_app/models/member.dart';
 import 'package:entrelares_app/screens/calendar_screen.dart';
 import 'package:entrelares_app/services/custody_data_source.dart';
+import 'package:entrelares_app/widgets/app_l10n.dart';
 
 class FakeCustodyDataSource implements CustodyDataSource {
   final List<Member> members;
@@ -22,6 +25,16 @@ class FakeCustodyDataSource implements CustodyDataSource {
 
   @override
   Future<List<Member>> fetchMembers() async => members;
+
+  @override
+  Future<Member?> fetchOwnProfile() async => members.firstOrNull;
+
+  @override
+  Future<void> updateOwnLanguage(int profileId, String languageCode) async {}
+
+  @override
+  Future<void> updateDetectedLanguage(
+      int profileId, String languageCode) async {}
 
   @override
   Future<List<CareSchedule>> fetchMonth(int year, int month) async {
@@ -68,8 +81,14 @@ CareSchedule row(int id, DateTime date, int scheduled,
       'revision_token': 'tok-$id',
     });
 
-Widget app(FakeCustodyDataSource ds) => MaterialApp(
-      home: CalendarScreen(dataSource: ds, onSignOut: () async {}),
+Widget app(FakeCustodyDataSource ds,
+        {AppLanguage language = AppLanguage.ptBr}) =>
+    AppL10n(
+      l: Localization(language),
+      setLanguage: (_) async {},
+      child: MaterialApp(
+        home: CalendarScreen(dataSource: ds, onSignOut: () async {}),
+      ),
     );
 
 /// Tomorrow, unless the month ends today (then the write tests short-circuit
@@ -206,5 +225,29 @@ void main() {
     ds.realtimeCallback!();
     await tester.pumpAndSettle();
     expect(ds.monthFetches, greaterThan(before));
+  });
+
+  // U-13/U-24 — the proof the pilot never gave: the SAME slice, English
+  // session. Words come from the catalog, the day sheet question included;
+  // names stay user data; the swapped legend translates.
+  testWidgets('an English session renders the slice in English',
+      (tester) async {
+    final day = futureDay;
+    if (day == null) return;
+    final ds = FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(1, dayOfMonth(day), 1, actual: 2)],
+    );
+    await tester.pumpWidget(app(ds, language: AppLanguage.en));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Swapped'), findsOneWidget);
+    expect(find.text('Trocado'), findsNothing);
+    expect(find.text('Ana'), findsOneWidget, reason: 'names never translate');
+
+    await openDay(tester, day);
+    expect(find.text('Who has the child on this day?'), findsOneWidget);
+    expect(find.text('Save'), findsOneWidget);
+    expect(find.textContaining('(swapped)'), findsOneWidget);
   });
 }

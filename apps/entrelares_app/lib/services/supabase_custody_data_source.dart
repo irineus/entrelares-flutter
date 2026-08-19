@@ -20,6 +20,33 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   }
 
   @override
+  Future<Member?> fetchOwnProfile() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+    final row = await _client
+        .from('profiles')
+        .select()
+        .eq('user_id', uid)
+        .maybeSingle();
+    return row == null ? null : Member.fromJson(row);
+  }
+
+  @override
+  Future<void> updateOwnLanguage(int profileId, String languageCode) async {
+    await _client
+        .from('profiles')
+        .update({'language': languageCode}).eq('id', profileId);
+  }
+
+  @override
+  Future<void> updateDetectedLanguage(
+      int profileId, String languageCode) async {
+    await _client
+        .from('profiles')
+        .update({'language_detected': languageCode}).eq('id', profileId);
+  }
+
+  @override
   Future<List<CareSchedule>> fetchMonth(int year, int month) async {
     final first = DateTime(year, month, 1);
     final last = DateTime(year, month + 1, 0);
