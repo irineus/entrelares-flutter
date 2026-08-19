@@ -121,9 +121,13 @@ class FakeCustodyDataSource implements CustodyDataSource {
     updated.add(day);
   }
 
+  void Function(bool connected)? statusCallback;
+
   @override
-  Future<void Function()> watchChanges(void Function() onChange) async {
+  Future<void Function()> watchChanges(void Function() onChange,
+      {void Function(bool connected)? onStatus}) async {
     realtimeCallback = onChange;
+    statusCallback = onStatus;
     return () => realtimeCallback = null;
   }
 
@@ -143,7 +147,6 @@ class FakeCustodyDataSource implements CustodyDataSource {
   final List<({int id, String? reason})> rejectedReverts = [];
   final List<int> cancelledReverts = [];
   int markAllReadCalls = 0;
-  void Function()? workflowCallback;
 
   @override
   Future<List<SwapRequest>> fetchFrozenRequestsForMonth(
@@ -270,11 +273,23 @@ class FakeCustodyDataSource implements CustodyDataSource {
     ];
   }
 
+  /// More than one subscriber (calendar + badge) — all get poked.
+  final List<void Function()> workflowCallbacks = [];
+
+  void Function()? get workflowCallback =>
+      workflowCallbacks.isEmpty ? null : _fireAllWorkflow;
+
+  void _fireAllWorkflow() {
+    for (final cb in List.of(workflowCallbacks)) {
+      cb();
+    }
+  }
+
   @override
-  Future<void Function()> watchWorkflowChanges(
-      void Function() onChange) async {
-    workflowCallback = onChange;
-    return () => workflowCallback = null;
+  Future<void Function()> watchWorkflowChanges(void Function() onChange,
+      {void Function(bool connected)? onStatus}) async {
+    workflowCallbacks.add(onChange);
+    return () => workflowCallbacks.remove(onChange);
   }
 }
 

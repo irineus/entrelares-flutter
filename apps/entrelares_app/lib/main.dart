@@ -14,11 +14,13 @@ import 'models/member.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/home_shell.dart';
 import 'screens/login_screen.dart';
+import 'screens/notifications_screen.dart';
 import 'screens/placeholder_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/update_password_screen.dart';
 import 'services/admin_mode.dart';
 import 'services/custody_data_source.dart';
+import 'services/notification_badge.dart';
 import 'services/session_gate.dart';
 import 'services/supabase_custody_data_source.dart';
 import 'widgets/app_l10n.dart';
@@ -68,6 +70,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     with WidgetsBindingObserver {
   late final SessionGate _gate;
   late final CustodyDataSource _dataSource;
+  late final NotificationBadge _badge;
   // F-14: session-scoped, like the web's scoped AdminModeService — never
   // persisted; leaving the authenticated phase always deactivates it.
   final _adminMode = AdminMode();
@@ -129,7 +132,8 @@ class _EntrelaresAppState extends State<EntrelaresApp>
         ),
       ),
       StatefulShellRoute.indexedStack(
-        builder: (_, _, shell) => HomeShell(shell: shell, adminMode: _adminMode),
+        builder: (_, _, shell) =>
+            HomeShell(shell: shell, adminMode: _adminMode, badge: _badge),
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(
@@ -150,8 +154,8 @@ class _EntrelaresAppState extends State<EntrelaresApp>
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/notifications',
-              builder: (_, _) =>
-                  const PlaceholderScreen(titleKey: K.navNotifications),
+              builder: (_, _) => NotificationsScreen(
+                  dataSource: _dataSource, badge: _badge),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -192,6 +196,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     _dataSource = SupabaseCustodyDataSource(_client,
         environmentPrefix:
             environmentTitlePrefix(isProduction: Env.current.isProduction));
+    _badge = NotificationBadge(_dataSource);
     _l = Localization(widget.initialLanguage);
     _openGate();
     _authSub = _client.auth.onAuthStateChange.listen((state) {
@@ -229,6 +234,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     _authSub?.cancel();
     _inactivityTimer?.cancel();
     _adminMode.dispose();
+    _badge.dispose();
     _refresh.dispose();
     super.dispose();
   }
@@ -248,7 +254,11 @@ class _EntrelaresAppState extends State<EntrelaresApp>
       _lastInteraction = DateTime.now();
       _inactivityTimer ??= Timer.periodic(
           InactivityPolicy.pollInterval, (_) => _checkInactivity());
+      // The bell badge lives with the authenticated phase (count + its
+      // workflow Realtime trigger).
+      _badge.start();
     } else {
+      _badge.stop();
       _inactivityTimer?.cancel();
       _inactivityTimer = null;
     }

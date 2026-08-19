@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -44,7 +46,8 @@ class CalendarScreen extends StatefulWidget {
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarScreenState extends State<CalendarScreen> {
+class _CalendarScreenState extends State<CalendarScreen>
+    with WidgetsBindingObserver {
   // Improvement over the web (owner directive): months are swipeable pages.
   // _basePage maps to the month shown at startup; ±offset navigates.
   static const _basePage = 1200;
@@ -65,6 +68,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
   String? _loadError;
   void Function()? _unwatch;
   void Function()? _unwatchWorkflow;
+
+  // F-23: the safety poll survives the native Realtime until the socket
+  // proves itself under real load (owner decision 19/08/2026). Adaptive
+  // cadence (25 s down / 120 s healthy), paused while backgrounded and
+  // refreshed on resume — mirror of Home.razor's poll + visibility handling.
+  Timer? _pollTimer;
+  bool _socketConnected = false;
 
   // F-39 horizon inputs (T-41 settings + F-32 entitlement), loaded once like
   // the web's OnInitialized. The web call site is deliberately fail-OPEN: a
@@ -107,10 +117,36 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _anchorMonth = DateTime(now.year, now.month, 1);
     _visibleMonth = _anchorMonth;
     _pageController = PageController(initialPage: _basePage);
+    WidgetsBinding.instance.addObserver(this);
     widget.adminMode.addListener(_onAdminModeChanged);
     _load();
     _loadHorizonInputs();
     _watch();
+    _schedulePoll();
+  }
+
+  void _schedulePoll() {
+    _pollTimer?.cancel();
+    _pollTimer = Timer(
+        Duration(milliseconds: pollIntervalMs(socketConnected: _socketConnected)),
+        () {
+      if (mounted) _load(silent: true);
+      _schedulePoll();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Mirror of OnVisibilityChanged: no polling on a hidden app; a fresh
+    // load + a new timer on return.
+    if (state == AppLifecycleState.resumed) {
+      _load(silent: true);
+      _schedulePoll();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+    }
   }
 
   void _onAdminModeChanged() {
@@ -141,10 +177,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> _watch() async {
     // Native Realtime — the whole reason F-29's JS bridge retires. Any change
-    // another member saves shows up here without polling.
-    _unwatch = await widget.dataSource.watchChanges(() {
-      if (mounted) _load(silent: true);
-    });
+    // another member saves shows up here without polling. The socket's health
+    // drives the F-23 poll cadence.
+    _unwatch = await widget.dataSource.watchChanges(
+      () {
+        if (mounted) _load(silent: true);
+      },
+      onStatus: (connected) {
+        if (!mounted) return;
+        if (connected != _socketConnected) {
+          _socketConnected = connected;
+          if (_pollTimer != null) _schedulePoll();
+        }
+      },
+    );
     // Lote 3: the workflow channel — a request opened/resolved by the other
     // member repaints the frozen days without a manual refresh.
     _unwatchWorkflow = await widget.dataSource.watchWorkflowChanges(() {
@@ -154,9 +200,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.adminMode.removeListener(_onAdminModeChanged);
     _unwatch?.call();
     _unwatchWorkflow?.call();
+    _pollTimer?.cancel();
     _pageController.dispose();
     super.dispose();
   }

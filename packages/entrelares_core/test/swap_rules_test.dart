@@ -502,6 +502,43 @@ void main() {
     });
   });
 
+  group('pollIntervalMs (F-23)', () {
+    test('25 s with the socket down, 120 s healthy — web constants', () {
+      expect(pollIntervalMs(socketConnected: false), 25000);
+      expect(pollIntervalMs(socketConnected: true), 120000);
+    });
+  });
+
+  group('bellBadgeText', () {
+    test('caps at 99+ (mirror of GetUnreadBadgeText)', () {
+      expect(bellBadgeText(0), '0');
+      expect(bellBadgeText(3), '3');
+      expect(bellBadgeText(99), '99');
+      expect(bellBadgeText(100), '99+');
+    });
+  });
+
+  group('swapStatusLabelKey', () {
+    test('maps every DB status to its catalog key', () {
+      expect(swapStatusLabelKey('pending'), K.notifStatusPending);
+      expect(swapStatusLabelKey('approved'), K.notifStatusApproved);
+      expect(swapStatusLabelKey('rejected'), K.notifStatusRejected);
+      expect(swapStatusLabelKey('cancelled'), K.notifStatusCancelled);
+      expect(swapStatusLabelKey('reverted'), K.notifStatusReverted);
+      expect(
+          swapStatusLabelKey('revert_pending'), K.notifStatusRevertPending);
+      expect(
+          swapStatusLabelKey('revert_approved'), K.notifStatusRevertApproved);
+      expect(
+          swapStatusLabelKey('revert_rejected'), K.notifStatusRevertRejected);
+      expect(swapStatusLabelKey('revert_cancelled'),
+          K.notifStatusRevertCancelled);
+    });
+    test('unknown status returns null (raw fallback at the call site)', () {
+      expect(swapStatusLabelKey('weird'), isNull);
+    });
+  });
+
   group('parseTimeOfDay', () {
     test('accepts HH:mm and HH:mm:ss', () {
       expect(parseTimeOfDay('08:30'), (hour: 8, minute: 30));

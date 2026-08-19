@@ -64,8 +64,12 @@ abstract class CustodyDataSource {
       {void Function(int percent)? onProgress});
 
   /// Starts listening for care_schedules changes; [onChange] fires on any
-  /// insert/update/delete visible to this session. Returns a dispose callback.
-  Future<void Function()> watchChanges(void Function() onChange);
+  /// insert/update/delete visible to this session. [onStatus] reports socket
+  /// health (true = subscribed) — the F-23 safety poll adapts its cadence to
+  /// it (owner decision 19/08/2026: the poll survives until the socket proves
+  /// itself under real load). Returns a dispose callback.
+  Future<void Function()> watchChanges(void Function() onChange,
+      {void Function(bool connected)? onStatus});
 
   // ── Lote 3: swap-approval workflow (mirror of SwapRequestService.cs) ──────
   // No RPCs: the whole workflow is PostgREST CRUD plus one best-effort Edge
@@ -146,7 +150,8 @@ abstract class CustodyDataSource {
   Future<void> markAllNotificationsRead(int myProfileId);
 
   /// Listens for swap_requests + notifications changes — the lote-3 twin of
-  /// [watchChanges] (frozen paint, badge, page refresh). Returns a dispose
-  /// callback.
-  Future<void Function()> watchWorkflowChanges(void Function() onChange);
+  /// [watchChanges] (frozen paint, badge, page refresh). Safe to call from
+  /// more than one subscriber. Returns a dispose callback.
+  Future<void Function()> watchWorkflowChanges(void Function() onChange,
+      {void Function(bool connected)? onStatus});
 }

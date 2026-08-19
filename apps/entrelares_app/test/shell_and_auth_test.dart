@@ -10,6 +10,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:entrelares_app/screens/home_shell.dart';
 import 'package:entrelares_app/screens/login_screen.dart';
 import 'package:entrelares_app/services/admin_mode.dart';
+import 'calendar_slice_test.dart' show FakeCustodyDataSource;
+import 'package:entrelares_app/services/notification_badge.dart';
 import 'package:entrelares_app/screens/placeholder_screen.dart';
 import 'package:entrelares_app/screens/reset_password_screen.dart';
 import 'package:entrelares_app/screens/update_password_screen.dart';
@@ -32,7 +34,11 @@ void main() {
         routes: [
           StatefulShellRoute.indexedStack(
             builder: (_, _, shell) =>
-                HomeShell(shell: shell, adminMode: adminMode ?? AdminMode()),
+                HomeShell(
+                    shell: shell,
+                    adminMode: adminMode ?? AdminMode(),
+                    badge: NotificationBadge(
+                        FakeCustodyDataSource(members: const [], days: []))),
             branches: [
               StatefulShellBranch(routes: [
                 GoRoute(
