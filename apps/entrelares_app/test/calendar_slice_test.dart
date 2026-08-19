@@ -19,6 +19,7 @@ class FakeCustodyDataSource implements CustodyDataSource {
   final List<CareSchedule> inserted = [];
   final List<CareSchedule> updated = [];
   Family? family;
+  Object? throwOnFamily;
   Map<String, String> publicSettings = const {};
   Object? throwOnWrite;
   void Function()? realtimeCallback;
@@ -44,7 +45,10 @@ class FakeCustodyDataSource implements CustodyDataSource {
   }
 
   @override
-  Future<Family?> fetchOwnFamily() async => family;
+  Future<Family?> fetchOwnFamily() async {
+    if (throwOnFamily != null) throw throwOnFamily!;
+    return family;
+  }
 
   @override
   Future<Map<String, String>> fetchPublicSettings() async => publicSettings;

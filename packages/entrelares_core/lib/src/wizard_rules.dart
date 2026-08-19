@@ -1,0 +1,159 @@
+/// Client mirrors of the Rotation Wizard rules — ported from `entrelares-app`
+/// `Entrelares/Pages/Components/ScheduleWizard.razor` (presets, block
+/// validation, cycle preview and the plan expansion). The generation is pure:
+/// the DB's `enforce_day_protection` still guards every row the bulk upsert
+/// writes, and existing days are preserved server-side (the upsert skips
+/// them — `WizDoneKept`).
+library;
+
+import 'date_math.dart';
+import 'freemium_rules.dart';
+
+/// One block of the rotation cycle: [profileId] keeps the child for [days]
+/// consecutive days. `profileId == 0` mirrors the web's "not picked yet".
+class CycleBlock {
+  final int profileId;
+  final int days;
+
+  const CycleBlock(this.profileId, this.days);
+}
+
+/// The preset ids, in menu order. The VALUES are pattern ids and never change
+/// with the language — only the labels do (U-13).
+const wizardPresetIds = ['7-7', '14-14', '1-1', '5-2-2-5', '2-2-3'];
+
+/// Mirror of `ApplyPresetBlocks`: expands a preset id over the first two
+/// profiles ([profileIds] in roster order; missing slots become 0 and fail
+/// validation later). Unknown ids fall back to 7/7 like the web.
+List<CycleBlock> wizardPresetBlocks(String preset, List<int> profileIds) {
+  final p1 = profileIds.isNotEmpty ? profileIds[0] : 0;
+  final p2 = profileIds.length > 1 ? profileIds[1] : 0;
+  return switch (preset) {
+    '7-7' => [CycleBlock(p1, 7), CycleBlock(p2, 7)],
+    '14-14' => [CycleBlock(p1, 14), CycleBlock(p2, 14)],
+    '1-1' => [CycleBlock(p1, 1), CycleBlock(p2, 1)],
+    '5-2-2-5' => [
+        CycleBlock(p1, 5),
+        CycleBlock(p2, 2),
+        CycleBlock(p1, 2),
+        CycleBlock(p2, 5),
+      ],
+    '2-2-3' => [
+        CycleBlock(p1, 2),
+        CycleBlock(p2, 2),
+        CycleBlock(p1, 3),
+        CycleBlock(p2, 2),
+        CycleBlock(p1, 2),
+        CycleBlock(p2, 3),
+      ],
+    _ => [CycleBlock(p1, 7), CycleBlock(p2, 7)],
+  };
+}
+
+/// Mirror of `SetBlockDays`' `Math.Clamp(days, 1, 60)`.
+int clampBlockDays(int days) => days < 1 ? 1 : (days > 60 ? 60 : days);
+
+/// The validation failures of `GenerateSchedule`, in check order. The UI maps
+/// each to its catalogue key (the web still carries two pre-U-13 hardcoded
+/// PT-BR strings for the first and third — the RULE is what ports, the copy
+/// lives in the catalogue here).
+enum WizardValidationError {
+  /// F-28: with N caregivers the rotation is any non-empty block list.
+  tooFewBlocks,
+  blockWithoutParent,
+  blockWithoutDays,
+  startInPast,
+
+  /// F-39: the start itself must be within the family's planning horizon.
+  startBeyondHorizon,
+}
+
+/// Mirror of the validation prologue of `GenerateSchedule` — first failure
+/// wins, null = valid.
+WizardValidationError? validateWizard({
+  required List<CycleBlock> blocks,
+  required DateTime start,
+  required DateTime today,
+  DateTime? maxScheduleDate,
+}) {
+  if (blocks.isEmpty) return WizardValidationError.tooFewBlocks;
+  if (blocks.any((b) => b.profileId == 0)) {
+    return WizardValidationError.blockWithoutParent;
+  }
+  if (blocks.any((b) => b.days < 1)) return WizardValidationError.blockWithoutDays;
+  if (dateOnly(start).isBefore(dateOnly(today))) {
+    return WizardValidationError.startInPast;
+  }
+  if (isStartBeyondHorizon(start, maxScheduleDate)) {
+    return WizardValidationError.startBeyondHorizon;
+  }
+  return null;
+}
+
+/// Mirror of `GetCycleSummary`'s arithmetic — the preview's numbers
+/// (`WizCycleSummary` formats them). Month addition clamps like .NET.
+({int cycleDays, int repetitions, int totalDays}) wizardCycleSummary({
+  required List<CycleBlock> blocks,
+  required DateTime start,
+  required int durationMonths,
+}) {
+  final cycleDays = blocks.fold(0, (sum, b) => sum + b.days);
+  final totalDays = addMonthsClamped(dateOnly(start), durationMonths)
+      .difference(dateOnly(start))
+      .inDays;
+  return (
+    cycleDays: cycleDays,
+    repetitions: cycleDays > 0 ? totalDays ~/ cycleDays : 0,
+    totalDays: totalDays,
+  );
+}
+
+/// One generated day of the plan.
+class GeneratedDay {
+  final DateTime date;
+  final int scheduledParentId;
+
+  /// Set only on TRANSITION days when the wizard carries a handoff time.
+  final ({int hour, int minute})? handoffTime;
+
+  const GeneratedDay(this.date, this.scheduledParentId, this.handoffTime);
+}
+
+/// Mirror of the expansion loop in `GenerateSchedule`: walks [start, end)
+/// cycling through [blocks]. T-27: a handoff time lands only on TRANSITION
+/// days — and the wizard's local rule deliberately differs from the
+/// calendar's [isTransitionDay]: the FIRST generated day has no previous
+/// parent and gets NO handoff (custody isn't changing hands mid-plan there).
+/// [end] arrives already clamped by [clampScheduleEnd] (F-39).
+List<GeneratedDay> generateRotation({
+  required DateTime start,
+  required DateTime end,
+  required List<CycleBlock> blocks,
+  ({int hour, int minute})? handoffTime,
+}) {
+  final result = <GeneratedDay>[];
+  if (blocks.isEmpty) return result;
+  var current = dateOnly(start);
+  final last = dateOnly(end);
+  var blockIndex = 0;
+  var dayInBlock = 0;
+  int? previousParentId;
+  while (current.isBefore(last)) {
+    final block = blocks[blockIndex];
+    final isTransition =
+        previousParentId != null && previousParentId != block.profileId;
+    result.add(GeneratedDay(
+      current,
+      block.profileId,
+      isTransition && handoffTime != null ? handoffTime : null,
+    ));
+    previousParentId = block.profileId;
+    dayInBlock++;
+    if (dayInBlock >= block.days) {
+      dayInBlock = 0;
+      blockIndex = (blockIndex + 1) % blocks.length;
+    }
+    current = DateTime(current.year, current.month, current.day + 1);
+  }
+  return result;
+}
