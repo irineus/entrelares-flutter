@@ -23,6 +23,14 @@ class Member {
   /// invite nudge here); every admin power is re-checked by RLS/triggers.
   final bool isAdmin;
 
+  /// The `roles` row this member holds — resolved against the fetched role list
+  /// for display (built-ins translate, F-41 custom roles pass through).
+  final int? roleId;
+
+  /// The address on the profile row. Read-only in this client; changing it is
+  /// a sudo-gated flow of its own.
+  final String? email;
+
   const Member({
     required this.id,
     required this.fullName,
@@ -32,6 +40,8 @@ class Member {
     this.language,
     this.languageDetected,
     this.isAdmin = false,
+    this.roleId,
+    this.email,
   });
 
   /// A live, present member holds a family seat (Profile.IsActiveMember).
@@ -46,7 +56,14 @@ class Member {
         language: json['language'] as String?,
         languageDetected: json['language_detected'] as String?,
         isAdmin: (json['is_admin'] as bool?) ?? false,
+        roleId: json['role_id'] as int?,
+        email: json['email'] as String?,
       );
+
+  /// The avatar letter the roster shows — "?" when there is no usable name,
+  /// mirroring the web's `GetInitial`.
+  String get initial =>
+      fullName.trim().isEmpty ? '?' : fullName.trim()[0].toUpperCase();
 
   MemberView toView() => MemberView(
         id: id,

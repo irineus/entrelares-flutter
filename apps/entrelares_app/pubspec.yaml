@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionName / versionCode. Bump on every functional change handed to the
 # owner, same rule as the product repos.
-version: 0.2.15+17
+version: 0.2.16+18
 
 environment:
   sdk: ^3.12.2
@@ -52,6 +52,10 @@ dependencies:
   # Legal pages stay on the web until lote 4 — opened in the browser (the
   # stores accept external legal links; parity map, lote 4).
   url_launcher: ^6.3.1
+  # Lote 4 — the native improvement the parity map asks for twice: the system
+  # share sheet replaces the web's "copy the link and send it on WhatsApp" hint
+  # (invitations) and the browser download (LGPD export, PR 4).
+  share_plus: ^10.1.4
   # Pure client mirrors of the server rules, tested with `dart test`.
   entrelares_core:
     path: ../../packages/entrelares_core
