@@ -1,5 +1,8 @@
-import 'package:entrelares_core/entrelares_core.dart' show PreEditNotes;
+import 'package:entrelares_core/entrelares_core.dart'
+    show PreEditNotes, SwapOrigin, auditPageSize;
 
+import '../models/account_log.dart';
+import '../models/activity_log.dart';
 import '../models/app_notification.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
@@ -335,6 +338,29 @@ abstract class CustodyDataSource {
 
   /// Reopening the checklist from the profile clears the dismissal.
   Future<void> clearChecklistDismissal();
+
+  // ── Lote 6: reports (audit trail reads) ───────────────────────────────────
+  // All family-scoped by RLS; the client only READS here — every audit row is
+  // written by a trigger or a definer RPC.
+
+  /// The newest page of calendar changes ("Recentes" tab). One page is
+  /// [auditPageSize] rows; a FULL page means "there may be more".
+  Future<List<ActivityLog>> fetchRecentActivityLogs({int offset = 0});
+
+  /// Every calendar change whose AFFECTED DATE falls in the period — the
+  /// month/year tabs and the F-33 document both read this way (the web filters
+  /// on `affected_date`, not on when the change was made).
+  Future<List<ActivityLog>> fetchActivityLogsForPeriod(
+      DateTime start, DateTime end);
+
+  /// S-10: the newest page of account operations ("Conta" tab).
+  Future<List<AccountLog>> fetchAccountLogs({int offset = 0});
+
+  /// F-45: batch reverse lookup — which swap request produced each of these
+  /// log rows (keyed by `resolution_log_id`, stamped by the DB on both
+  /// resolution paths). Enrichment only: a failure costs the origin line, never
+  /// the timeline.
+  Future<Map<int, SwapOrigin>> fetchResolutionOrigins(List<int> logIds);
 }
 
 /// The three U-23 stamps, named rather than passed as column strings.

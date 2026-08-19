@@ -2,6 +2,8 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../deep_link_urls.dart';
+import '../models/account_log.dart';
+import '../models/activity_log.dart';
 import '../models/app_notification.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
@@ -1211,6 +1213,71 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
     await _client
         .from('profiles')
         .update({OnboardingStamp.dismissed.column: null}).eq('user_id', uid);
+  }
+
+  // ── Lote 6: reports (audit trail reads) ───────────────────────────────────
+
+  @override
+  Future<List<ActivityLog>> fetchRecentActivityLogs({int offset = 0}) async {
+    final rows = await _client
+        .from('activity_logs')
+        .select()
+        .order('created_at', ascending: false)
+        .range(offset, offset + auditPageSize - 1);
+    return rows.map(ActivityLog.fromJson).toList();
+  }
+
+  @override
+  Future<List<ActivityLog>> fetchActivityLogsForPeriod(
+      DateTime start, DateTime end) async {
+    // The web filters on `affected_date` — the DAY the change is about, not
+    // when it was made — and orders newest-first for the timeline; the F-33
+    // document re-sorts oldest-first in core.
+    final rows = await _client
+        .from('activity_logs')
+        .select()
+        .gte('affected_date', CareSchedule.isoDate(start))
+        .lte('affected_date', CareSchedule.isoDate(end))
+        .order('created_at', ascending: false);
+    return rows.map(ActivityLog.fromJson).toList();
+  }
+
+  @override
+  Future<List<AccountLog>> fetchAccountLogs({int offset = 0}) async {
+    final rows = await _client
+        .from('account_logs')
+        .select()
+        .order('created_at', ascending: false)
+        .range(offset, offset + auditPageSize - 1);
+    return rows.map(AccountLog.fromJson).toList();
+  }
+
+  @override
+  Future<Map<int, SwapOrigin>> fetchResolutionOrigins(List<int> logIds) async {
+    if (logIds.isEmpty) return const {};
+    final rows = await _client
+        .from('swap_requests')
+        .select()
+        .inFilter('resolution_log_id', logIds);
+
+    final origins = <int, SwapOrigin>{};
+    for (final row in rows) {
+      final request = SwapRequest.fromJson(row);
+      final logId = request.resolutionLogId;
+      // First wins, as the web's GroupBy().First() does — one log can only
+      // have been produced by one resolution.
+      if (logId != null && !origins.containsKey(logId)) {
+        origins[logId] = SwapOrigin(
+          requestingProfileId: request.requestingProfileId,
+          targetProfileId: request.targetProfileId,
+          status: request.status,
+          resolvedBy: request.resolvedBy,
+          requestMessage: request.requestMessage,
+          approvalNote: request.approvalNote,
+        );
+      }
+    }
+    return origins;
   }
 
   /// The `error` field an Edge Function puts in its body, when there is one.
