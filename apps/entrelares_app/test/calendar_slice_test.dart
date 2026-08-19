@@ -578,6 +578,35 @@ class FakeCustodyDataSource implements CustodyDataSource {
     if (throwOnLifecycle != null) throw throwOnLifecycle!;
     policyAccepts++;
   }
+
+  // ── Lote 4: first-run onboarding (U-23) ──
+  bool openInvitationExists = false;
+  OnboardingFacts onboardingFacts = const OnboardingFacts();
+  final List<OnboardingStamp> stamps = [];
+  int dismissalsCleared = 0;
+
+  /// Records whether the caller asked for the second (optional) read.
+  final List<bool> onboardingFactReads = [];
+
+  @override
+  Future<bool> hasOpenInvitation() async => openInvitationExists;
+
+  @override
+  Future<OnboardingFacts> fetchOnboardingFacts({
+    required int myProfileId,
+    bool includeSwapParticipation = true,
+  }) async {
+    onboardingFactReads.add(includeSwapParticipation);
+    return onboardingFacts;
+  }
+
+  @override
+  Future<void> stampOnboarding(OnboardingStamp stamp) async {
+    stamps.add(stamp);
+  }
+
+  @override
+  Future<void> clearChecklistDismissal() async => dismissalsCleared++;
 }
 
 const ana = Member(id: 1, fullName: 'Ana Souza', colorSlot: 1, userId: 'u1');

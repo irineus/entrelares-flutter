@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../services/admin_mode.dart';
 import '../services/notification_badge.dart';
 import '../widgets/app_l10n.dart';
+import '../widgets/onboarding.dart';
 
 /// What the shell needs to paint the S-11 banner: the deadline, whether the
 /// family already agreed unanimously, and whether I am the one who asked (the
@@ -39,12 +40,17 @@ class HomeShell extends StatelessWidget {
   /// scheduled for removal.
   final FamilyDeletionBanner? deletionBanner;
 
+  /// U-23: the notifications tab is the tour's fourth stop, and it lives here
+  /// rather than in any screen — so the key registry is shared.
+  final TourKeys? tourKeys;
+
   const HomeShell(
       {super.key,
       required this.shell,
       required this.adminMode,
       required this.badge,
-      this.deletionBanner});
+      this.deletionBanner,
+      this.tourKeys});
 
   @override
   Widget build(BuildContext context) {
@@ -113,6 +119,7 @@ class HomeShell extends StatelessWidget {
                 selectedIcon: const Icon(Icons.group),
                 label: l[K.navFamily]),
             NavigationDestination(
+                key: tourKeys?.keyFor(TourTarget.notificationsTab),
                 icon: _bellIcon(const Icon(Icons.notifications_outlined)),
                 selectedIcon: _bellIcon(const Icon(Icons.notifications)),
                 tooltip: badge.count > 0

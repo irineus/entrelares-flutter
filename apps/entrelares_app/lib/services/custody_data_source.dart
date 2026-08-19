@@ -314,6 +314,52 @@ abstract class CustodyDataSource {
   /// version that is not the one `app_settings` declares, so a client that is
   /// behind fails loudly instead of stamping an unconsented version.
   Future<void> acceptCurrentPolicy();
+
+  // ── Lote 4: first-run onboarding (U-23) ───────────────────────────────────
+
+  /// Whether an invitation is still open. Bounded to one row: the checklist
+  /// only needs to know THAT one exists.
+  Future<bool> hasOpenInvitation();
+
+  /// The two facts only a query can answer. [includeSwapParticipation] is
+  /// false whenever the explanation stamp already settles that step, so the
+  /// calendar does not pay for a read it cannot use.
+  Future<OnboardingFacts> fetchOnboardingFacts({
+    required int myProfileId,
+    bool includeSwapParticipation = true,
+  });
+
+  /// Writes one of the three U-23 stamps on MY profile row. Idempotent: a
+  /// stamp that already exists is left alone, so "seen" keeps its first date.
+  Future<void> stampOnboarding(OnboardingStamp stamp);
+
+  /// Reopening the checklist from the profile clears the dismissal.
+  Future<void> clearChecklistDismissal();
+}
+
+/// The three U-23 stamps, named rather than passed as column strings.
+enum OnboardingStamp {
+  swapExplained('onboarding_swap_explained_at'),
+  tourSeen('onboarding_tour_seen_at'),
+  dismissed('onboarding_dismissed_at');
+
+  const OnboardingStamp(this.column);
+
+  final String column;
+}
+
+class OnboardingFacts {
+  /// At least one row in `care_schedules`, ANY date — someone who planned
+  /// August in July has done that step.
+  final bool hasAnyPlannedDay;
+
+  /// This member requested, or was asked to approve, a swap.
+  final bool hasTakenPartInASwap;
+
+  const OnboardingFacts({
+    this.hasAnyPlannedDay = false,
+    this.hasTakenPartInASwap = false,
+  });
 }
 
 /// The family-deletion request together with the answers to it — they are

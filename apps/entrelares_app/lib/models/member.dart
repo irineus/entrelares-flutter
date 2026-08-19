@@ -44,6 +44,14 @@ class Member {
   /// which the gate deliberately captures rather than backfilling.
   final String? consentPolicyVersion;
 
+  /// U-23 — the three onboarding stamps. They are the ONLY "seen" flags in the
+  /// checklist: every other step reads real family state, because a card that
+  /// ticked itself off from a flag would claim someone had finished something
+  /// they never did.
+  final DateTime? onboardingSwapExplainedAt;
+  final DateTime? onboardingTourSeenAt;
+  final DateTime? onboardingDismissedAt;
+
   const Member({
     required this.id,
     required this.fullName,
@@ -58,6 +66,9 @@ class Member {
     this.deletionScheduledFor,
     this.joinedViaInvite = false,
     this.consentPolicyVersion,
+    this.onboardingSwapExplainedAt,
+    this.onboardingTourSeenAt,
+    this.onboardingDismissedAt,
   });
 
   /// A live, present member holds a family seat (Profile.IsActiveMember).
@@ -79,7 +90,15 @@ class Member {
             : DateTime.parse(json['deletion_scheduled_for'] as String).toUtc(),
         joinedViaInvite: (json['joined_via_invite'] as bool?) ?? false,
         consentPolicyVersion: json['consent_policy_version'] as String?,
+        onboardingSwapExplainedAt:
+            _utc(json['onboarding_swap_explained_at'] as String?),
+        onboardingTourSeenAt: _utc(json['onboarding_tour_seen_at'] as String?),
+        onboardingDismissedAt:
+            _utc(json['onboarding_dismissed_at'] as String?),
       );
+
+  static DateTime? _utc(String? wire) =>
+      wire == null ? null : DateTime.parse(wire).toUtc();
 
   /// The avatar letter the roster shows — "?" when there is no usable name,
   /// mirroring the web's `GetInitial`.
