@@ -1,0 +1,210 @@
+// The slice against a fake data source: grid painting, the day sheet's write
+// path (insert and full-row update), conflict translation, and the Realtime
+// callback triggering a reload.
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:entrelares_app/models/care_schedule.dart';
+import 'package:entrelares_app/models/member.dart';
+import 'package:entrelares_app/screens/calendar_screen.dart';
+import 'package:entrelares_app/services/custody_data_source.dart';
+
+class FakeCustodyDataSource implements CustodyDataSource {
+  final List<Member> members;
+  List<CareSchedule> days;
+  final List<CareSchedule> inserted = [];
+  final List<CareSchedule> updated = [];
+  Object? throwOnWrite;
+  void Function()? realtimeCallback;
+  int monthFetches = 0;
+
+  FakeCustodyDataSource({required this.members, required this.days});
+
+  @override
+  Future<List<Member>> fetchMembers() async => members;
+
+  @override
+  Future<List<CareSchedule>> fetchMonth(int year, int month) async {
+    monthFetches++;
+    return days
+        .where((d) =>
+            d.scheduleDate.year == year && d.scheduleDate.month == month)
+        .toList();
+  }
+
+  @override
+  Future<void> insertDay(CareSchedule day) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    inserted.add(day);
+  }
+
+  @override
+  Future<void> updateDay(CareSchedule day) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    updated.add(day);
+  }
+
+  @override
+  Future<void Function()> watchChanges(void Function() onChange) async {
+    realtimeCallback = onChange;
+    return () => realtimeCallback = null;
+  }
+}
+
+const ana = Member(id: 1, fullName: 'Ana Souza', colorSlot: 1, userId: 'u1');
+const bruno = Member(id: 2, fullName: 'Bruno Lima', colorSlot: 2, userId: 'u2');
+
+DateTime get today => DateTime.now();
+DateTime dayOfMonth(int day) => DateTime(today.year, today.month, day);
+
+CareSchedule row(int id, DateTime date, int scheduled,
+        {int? actual, int revision = 1}) =>
+    CareSchedule.fromJson({
+      'id': id,
+      'schedule_date': CareSchedule.isoDate(date),
+      'scheduled_parent_id': scheduled,
+      'actual_parent_id': actual,
+      'revision': revision,
+      'revision_token': 'tok-$id',
+    });
+
+Widget app(FakeCustodyDataSource ds) => MaterialApp(
+      home: CalendarScreen(dataSource: ds, onSignOut: () async {}),
+    );
+
+/// Tomorrow, unless the month ends today (then the write tests short-circuit
+/// — the fixed today of a CI clock never hits it two runs in a row).
+int? get futureDay {
+  final lastDay = DateTime(today.year, today.month + 1, 0).day;
+  return today.day == lastDay ? null : today.day + 1;
+}
+
+Future<void> openDay(WidgetTester tester, int day) async {
+  final finder = find.text('$day').last;
+  await tester.ensureVisible(finder);
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+void main() {
+  testWidgets('legend shows active members and the grid paints initials',
+      (tester) async {
+    final ds = FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(1, dayOfMonth(10), 1), row(2, dayOfMonth(11), 1, actual: 2)],
+    );
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ana'), findsOneWidget);
+    expect(find.text('Bruno'), findsOneWidget);
+    expect(find.text('Trocado'), findsOneWidget);
+    // Day 10 belongs to Ana ("A"); day 11 is swapped to Bruno ("B").
+    expect(find.text('A'), findsWidgets);
+    expect(find.text('B'), findsWidgets);
+  });
+
+  testWidgets('unassigned future day: sheet inserts with the chosen parent',
+      (tester) async {
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    final day = futureDay;
+    if (day == null) return;
+    await openDay(tester, day);
+    expect(find.text('Quem fica com a criança neste dia?'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Bruno'));
+    await tester.pump();
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(ds.inserted, hasLength(1));
+    expect(ds.inserted.single.scheduledParentId, 2);
+    expect(ds.inserted.single.scheduleDate, dayOfMonth(day));
+    expect(ds.updated, isEmpty);
+  });
+
+  testWidgets(
+      'assigned future day: sheet updates the FULL row with the token echo',
+      (tester) async {
+    final day = futureDay;
+    if (day == null) return;
+    final ds = FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(5, dayOfMonth(day), 1, revision: 4)],
+    );
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    await openDay(tester, day);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Bruno'));
+    await tester.pump();
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(ds.updated, hasLength(1));
+    final sent = ds.updated.single;
+    expect(sent.id, 5);
+    expect(sent.scheduledParentId, 2);
+    final json = sent.toUpdateJson();
+    expect(json['submitted_token'], 'tok-5', reason: 'T-35 echo must survive');
+    expect(json['revision'], 4, reason: 'T-33 revision as read');
+  });
+
+  testWidgets('day conflict shows the "salvou primeiro" message',
+      (tester) async {
+    final day = futureDay;
+    if (day == null) return;
+    final ds = FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(5, dayOfMonth(day), 1)],
+    )..throwOnWrite = Exception(
+        '{"code":"23505","message":"duplicate key value violates unique '
+        'constraint \\"care_schedules_family_schedule_date_key\\""}');
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    await openDay(tester, day);
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Bruno'));
+    await tester.pump();
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+
+    expect(
+        find.textContaining('salvou este dia primeiro'), findsOneWidget);
+  });
+
+  testWidgets('past days are read-only (day-protection mirror)',
+      (tester) async {
+    // Run this one only when the month has a past day (i.e. not on the 1st).
+    if (today.day == 1) return;
+    final ds = FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(9, dayOfMonth(1), 1)],
+    );
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    final finder = find.text('1').last;
+    await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
+    await tester.tap(finder);
+    await tester.pumpAndSettle();
+    expect(find.text('Dias passados são imutáveis.'), findsOneWidget);
+    expect(find.text('Salvar'), findsNothing);
+  });
+
+  testWidgets('a Realtime event reloads the visible month', (tester) async {
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+    final before = ds.monthFetches;
+
+    ds.realtimeCallback!();
+    await tester.pumpAndSettle();
+    expect(ds.monthFetches, greaterThan(before));
+  });
+}

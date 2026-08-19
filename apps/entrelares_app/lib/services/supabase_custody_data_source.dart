@@ -1,0 +1,61 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../models/care_schedule.dart';
+import '../models/member.dart';
+import 'custody_data_source.dart';
+
+/// The real data source. Mirrors `CustodyService.cs`/`ProfileService.cs` reads
+/// and the full-row write; Realtime is NATIVE here — the F-29 JS bridge and
+/// the F-23 poll retire in this stack (the poll returns as a safety net only
+/// if the socket misbehaves under real load; the spike must observe it).
+class SupabaseCustodyDataSource implements CustodyDataSource {
+  final SupabaseClient _client;
+
+  SupabaseCustodyDataSource(this._client);
+
+  @override
+  Future<List<Member>> fetchMembers() async {
+    final rows = await _client.from('profiles').select();
+    return rows.map(Member.fromJson).toList();
+  }
+
+  @override
+  Future<List<CareSchedule>> fetchMonth(int year, int month) async {
+    final first = DateTime(year, month, 1);
+    final last = DateTime(year, month + 1, 0);
+    final rows = await _client
+        .from('care_schedules')
+        .select()
+        .gte('schedule_date', CareSchedule.isoDate(first))
+        .lte('schedule_date', CareSchedule.isoDate(last))
+        .order('schedule_date', ascending: true);
+    return rows.map(CareSchedule.fromJson).toList();
+  }
+
+  @override
+  Future<void> insertDay(CareSchedule day) async {
+    await _client.from('care_schedules').insert(day.toInsertJson());
+  }
+
+  @override
+  Future<void> updateDay(CareSchedule day) async {
+    await _client
+        .from('care_schedules')
+        .update(day.toUpdateJson())
+        .eq('id', day.id);
+  }
+
+  @override
+  Future<void Function()> watchChanges(void Function() onChange) async {
+    final channel = _client
+        .channel('care_schedules_changes')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'care_schedules',
+          callback: (_) => onChange(),
+        )
+        .subscribe();
+    return () => _client.removeChannel(channel);
+  }
+}
