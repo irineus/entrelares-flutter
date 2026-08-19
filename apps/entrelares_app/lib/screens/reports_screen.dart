@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 import 'reports_audit_tab.dart';
+import 'reports_pdf_tab.dart';
 import 'reports_summary_tab.dart';
 
 /// The Relatórios hub — port of the `ReportsTabs` switcher shared by
@@ -39,39 +40,7 @@ class ReportsScreen extends StatelessWidget {
           children: [
             ReportsSummaryTab(dataSource: dataSource),
             ReportsAuditTab(dataSource: dataSource),
-            // Lote 6, PR 4 — the F-33 native PDF.
-            const ReportTabUnderConstruction(),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The filling of a report tab whose screen belongs to a later PR of this
-/// batch — the same copy the shell destinations used before their screens
-/// landed.
-class ReportTabUnderConstruction extends StatelessWidget {
-  const ReportTabUnderConstruction({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppL10n.of(context).l;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.construction,
-                size: 48, color: Theme.of(context).colorScheme.outline),
-            const SizedBox(height: 16),
-            Text(l[KApp.shellUnderConstructionTitle],
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(l[KApp.shellUnderConstructionBody],
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall),
+            ReportsPdfTab(dataSource: dataSource),
           ],
         ),
       ),

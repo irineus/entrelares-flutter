@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionName / versionCode. Bump on every functional change handed to the
 # owner, same rule as the product repos.
-version: 0.2.22+24
+version: 0.2.23+25
 
 environment:
   sdk: ^3.12.2
@@ -60,6 +60,12 @@ dependencies:
   # the app's own cache directory first (never external storage — no extra
   # permission, and the OS reclaims it).
   path_provider: ^2.1.5
+  # F-33 redesign: the browser's print() does not exist in a native app, so the
+  # report is a REAL PDF built on the device. `pdf` composes the document (pure
+  # Dart — the composition is unit-testable without a device) and `printing`
+  # hands it to the system share sheet or the native print dialog.
+  pdf: ^3.13.0
+  printing: ^5.15.0
   # Pure client mirrors of the server rules, tested with `dart test`.
   entrelares_core:
     path: ../../packages/entrelares_core
@@ -93,6 +99,17 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  # F-33: the fonts the generated PDF embeds. dart_pdf's built-in Helvetica has
+  # NO Unicode support — it silently DROPS accents ("Relatório" printed as
+  # "Relatrio") and refuses the em dash, which would ship a mangled Portuguese
+  # document. Roboto (Apache-2.0, vendored from the Flutter SDK's own material
+  # fonts with its license alongside) is embedded in every report instead. They
+  # are declared as ASSETS, not as a Flutter font family: only the PDF reads
+  # them, as raw bytes.
+  assets:
+    - assets/fonts/Roboto-Regular.ttf
+    - assets/fonts/Roboto-Bold.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:
