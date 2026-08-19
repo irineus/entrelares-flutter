@@ -10,6 +10,12 @@
 abstract final class DeepLinkUrls {
   static const String webOrigin = 'https://web.entrelares.app';
   static const String updatePassword = '$webOrigin/update-password';
+
+  /// Where GoTrue sends the founder's confirmation e-mail. It lands on the web
+  /// sign-in page by design: the account is not usable until the link is
+  /// clicked, and that click happens in whatever mail client the person uses,
+  /// often on another device.
+  static const String login = '$webOrigin/login';
   static const String privacy = '$webOrigin/privacy';
   static const String terms = '$webOrigin/terms';
 }

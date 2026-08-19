@@ -55,6 +55,42 @@ abstract final class RegisterRules {
   /// person's own name — mirrored here only to render the hint, never sent.
   static String defaultFamilyName(String fullName) =>
       'Família ${fullName.trim()}';
+
+  /// Mirror of `AuthService.TranslateSignUpError`. GoTrue answers in ENGLISH
+  /// regardless of the reader, so the signatures below are matched against its
+  /// text and mapped to a catalog key. They are a contract with GoTrue, not
+  /// with our own server — reviewed on every Supabase upgrade.
+  ///
+  /// `Database error` is the interesting one: it is how GoTrue wraps ANY
+  /// exception raised by the `handle_new_user` trigger (a dead invitation, the
+  /// seat cap, an invalid role), so it gets its own message instead of the
+  /// generic one.
+  static String signUpErrorKey(String rawMessage) {
+    if (rawMessage.contains('429') ||
+        rawMessage.toLowerCase().contains('rate')) {
+      return K.authErrRateLimited;
+    }
+    if (rawMessage.contains('already registered')) {
+      return K.authErrAlreadyRegistered;
+    }
+    if (rawMessage.contains('Password should be')) {
+      return K.authErrPasswordWeak;
+    }
+    if (rawMessage.contains('invalid format') ||
+        rawMessage.contains('Unable to validate email')) {
+      return K.authErrEmailFormat;
+    }
+    if (rawMessage.contains('Database error')) return K.authErrDatabaseSignUp;
+    return K.authErrSignUpGeneric;
+  }
+
+  /// The anti-enumeration guard: GoTrue answers a sign-up for an EXISTING
+  /// address with a success-shaped user carrying no identities, precisely so an
+  /// attacker cannot probe which e-mails are registered. The web turns that
+  /// shape into the "already registered" message for the legitimate user who is
+  /// simply signing up twice.
+  static bool isSilentDuplicate({required bool hasUser, required int identityCount}) =>
+      hasUser && identityCount == 0;
 }
 
 abstract final class InviteFormRules {
@@ -92,4 +128,14 @@ abstract final class InviteFormRules {
     final token = uri.queryParameters['invite'];
     return (token == null || token.trim().isEmpty) ? null : token.trim();
   }
+
+  /// Whether a token even has the shape of the `uuid` the column holds. Mirror
+  /// of the web's `Guid.TryParse` guard: a malformed token is answered locally,
+  /// because sending it would make the RPC fail on a cast rather than answer
+  /// the honest "this invitation is not valid" the screen wants.
+  static bool isTokenShaped(String token) => _uuid.hasMatch(token.trim());
+
+  static final RegExp _uuid = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+      r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 }

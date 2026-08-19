@@ -30,6 +30,7 @@ export 'src/localization/strings_en.dart';
 export 'src/localization/strings_pt_br.dart';
 export 'src/policy_versions.dart';
 export 'src/role_catalog.dart';
+export 'src/route_rules.dart';
 export 'src/save_errors.dart';
 export 'src/settings_rules.dart';
 export 'src/sudo_rules.dart';

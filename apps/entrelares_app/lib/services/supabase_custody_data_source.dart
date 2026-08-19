@@ -1,9 +1,11 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../deep_link_urls.dart';
 import '../models/app_notification.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
+import '../models/invite_info.dart';
 import '../models/member.dart';
 import '../models/swap_request.dart';
 import 'custody_data_source.dart';
@@ -806,6 +808,100 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
         wrongPassword: e.status == 401,
         rateLimited: e.status == 429,
       );
+    }
+  }
+
+  // ── Lote 4: sign-up and invitations ───────────────────────────────────────
+
+  @override
+  Future<InviteInfo?> fetchInviteInfo(String token) async {
+    // A malformed token is answered here: sending it would make the RPC fail
+    // on the uuid cast instead of answering "not valid", and the screen wants
+    // the same dead end for every unusable token.
+    if (!InviteFormRules.isTokenShaped(token)) return null;
+    try {
+      final data =
+          await _client.rpc('get_invite_info', params: {'p_token': token});
+      // The RPC returns SETOF — PostgREST hands back a list or a bare object
+      // depending on the shape; tolerate both, as the web does.
+      final row = data is List ? (data.isEmpty ? null : data.first) : data;
+      if (row is! Map) return null;
+      return InviteInfo.fromJson(Map<String, dynamic>.from(row));
+    } catch (_) {
+      // An unusable token must look identical to an unreachable server here:
+      // the screen shows "this invitation is not valid" either way.
+      return null;
+    }
+  }
+
+  @override
+  Future<void> signUpFounder({
+    required String email,
+    required String password,
+    required String fullName,
+    required String role,
+    required String familyName,
+    required String languageCode,
+  }) async {
+    final AuthResponse response;
+    try {
+      response = await _client.auth.signUp(
+        email: email,
+        password: password,
+        emailRedirectTo: DeepLinkUrls.login,
+        // Everything `handle_new_user` needs to build family + profile in ONE
+        // transaction. `policy_version` is the S-13 evidence of what was
+        // accepted; `language` is what the confirmation e-mail is written in.
+        data: {
+          'full_name': fullName,
+          'role': role,
+          'invite_token': '',
+          'family_name': familyName,
+          'policy_version': PolicyVersions.current,
+          'language': languageCode,
+        },
+      );
+    } on AuthException catch (e) {
+      throw SignUpFailure(RegisterRules.signUpErrorKey(e.message));
+    } catch (_) {
+      throw const SignUpFailure(K.authErrConnection);
+    }
+
+    if (RegisterRules.isSilentDuplicate(
+        hasUser: response.user != null,
+        identityCount: response.user?.identities?.length ?? 0)) {
+      throw const SignUpFailure(K.authErrAlreadyRegistered);
+    }
+  }
+
+  @override
+  Future<InviteeResult> registerInvitee({
+    required String token,
+    required String fullName,
+    required String password,
+    bool confirmMigration = false,
+  }) async {
+    try {
+      await _client.functions.invoke('register-invitee', body: {
+        'token': token,
+        'fullName': fullName,
+        'password': password,
+        'confirmMigration': confirmMigration,
+        'policyVersion': PolicyVersions.current,
+      });
+      return const InviteeRegistered();
+    } on FunctionException catch (e) {
+      final details = e.details;
+      if (details is Map) {
+        // S-11: not a failure — a question the visitor must answer.
+        if (details['needsMigration'] == true) {
+          return InviteeNeedsMigration(
+              details['previousFamilyName'] as String?);
+        }
+      }
+      return InviteeFailed(_functionErrorText(e));
+    } catch (_) {
+      return const InviteeFailed(null);
     }
   }
 

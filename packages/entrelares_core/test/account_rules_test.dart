@@ -126,6 +126,64 @@ void main() {
     expect(RegisterRules.defaultFamilyName('  Ana Souza '), 'Família Ana Souza');
   });
 
+  group('signUpErrorKey — GoTrue answers in English, the reader does not', () {
+    test('an address already in use', () {
+      expect(RegisterRules.signUpErrorKey('User already registered'),
+          K.authErrAlreadyRegistered);
+    });
+
+    test('a password GoTrue considers weak', () {
+      expect(
+          RegisterRules.signUpErrorKey(
+              'Password should be at least 6 characters'),
+          K.authErrPasswordWeak);
+    });
+
+    test('both malformed-address signatures', () {
+      expect(RegisterRules.signUpErrorKey('Email address is invalid format'),
+          K.authErrEmailFormat);
+      expect(RegisterRules.signUpErrorKey('Unable to validate email address'),
+          K.authErrEmailFormat);
+    });
+
+    test('a trigger refusal arrives wrapped as "Database error"', () {
+      expect(
+          RegisterRules.signUpErrorKey(
+              'Database error saving new user: Convite inválido, expirado ou '
+              'emitido para outro e-mail.'),
+          K.authErrDatabaseSignUp);
+    });
+
+    test('rate limiting wins over everything — it is checked first', () {
+      expect(RegisterRules.signUpErrorKey('429 Too Many Requests'),
+          K.authErrRateLimited);
+      expect(RegisterRules.signUpErrorKey('email rate limit exceeded'),
+          K.authErrRateLimited);
+    });
+
+    test('anything unrecognised falls back to the generic sign-up error', () {
+      expect(RegisterRules.signUpErrorKey('something new from GoTrue'),
+          K.authErrSignUpGeneric);
+    });
+  });
+
+  group('isSilentDuplicate — the anti-enumeration guard', () {
+    test('a user with no identities is an address already registered', () {
+      expect(RegisterRules.isSilentDuplicate(hasUser: true, identityCount: 0),
+          isTrue);
+    });
+
+    test('a genuine new sign-up carries an identity', () {
+      expect(RegisterRules.isSilentDuplicate(hasUser: true, identityCount: 1),
+          isFalse);
+    });
+
+    test('no user at all is not this case', () {
+      expect(RegisterRules.isSilentDuplicate(hasUser: false, identityCount: 0),
+          isFalse);
+    });
+  });
+
   group('invite form', () {
     String? check({
       String email = 'vovo@example.com',
@@ -174,6 +232,24 @@ void main() {
             'https://web.entrelares.app/register?invite=abc-123')),
         'abc-123',
       );
+    });
+
+    test('only a uuid-shaped token is worth a round-trip', () {
+      expect(
+          InviteFormRules.isTokenShaped(
+              '11111111-2222-3333-4444-555555555555'),
+          isTrue);
+      expect(
+          InviteFormRules.isTokenShaped(
+              '  11111111-2222-3333-4444-555555555555  '),
+          isTrue,
+          reason: 'a pasted link often brings blanks along');
+      expect(
+          InviteFormRules.isTokenShaped(
+              '11111111-2222-3333-4444-55555555555'),
+          isFalse);
+      expect(InviteFormRules.isTokenShaped('abc-123'), isFalse);
+      expect(InviteFormRules.isTokenShaped(''), isFalse);
     });
 
     test('a register link with no token is not an invitation', () {

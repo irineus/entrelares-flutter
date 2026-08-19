@@ -20,6 +20,9 @@ class LoginScreen extends StatefulWidget {
 
   final VoidCallback onForgotPassword;
 
+  /// Opens `/register` — live since lote 4.
+  final VoidCallback onSignUp;
+
   /// S-01 throttle state store — the web keeps it in sessionStorage; local
   /// prefs here so a process restart does not reset the clock.
   final SharedPreferences prefs;
@@ -28,6 +31,7 @@ class LoginScreen extends StatefulWidget {
       {super.key,
       required this.onSignIn,
       required this.onForgotPassword,
+      required this.onSignUp,
       required this.prefs,
       this.expiredReason = SessionExpiredReason.none});
 
@@ -196,8 +200,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: widget.onForgotPassword,
                   child: Text(l[K.loginForgot]),
                 ),
-                // Sign-up CTA arrives with /register (lote 4) — no dead link
-                // until then.
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(l[K.loginSignupCta],
+                        style: Theme.of(context).textTheme.bodySmall),
+                    TextButton(
+                      onPressed: widget.onSignUp,
+                      child: Text(l[K.loginSignupLink]),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 Wrap(
                   alignment: WrapAlignment.center,

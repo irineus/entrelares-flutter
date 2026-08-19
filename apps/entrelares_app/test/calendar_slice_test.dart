@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:entrelares_app/models/app_notification.dart';
 import 'package:entrelares_app/models/care_schedule.dart';
 import 'package:entrelares_app/models/family.dart';
+import 'package:entrelares_app/models/invite_info.dart';
 import 'package:entrelares_app/models/member.dart';
 import 'package:entrelares_app/models/swap_request.dart';
 import 'package:entrelares_app/screens/calendar_screen.dart';
@@ -314,6 +315,57 @@ class FakeCustodyDataSource implements CustodyDataSource {
     }
     throw const ElevationRefused(
         serverMessage: 'Senha incorreta.', wrongPassword: true);
+  }
+
+  // ── Lote 4: sign-up and invitations ──
+  /// What [fetchInviteInfo] resolves to; null makes every token invalid.
+  InviteInfo? inviteInfo;
+
+  /// Refuses the founder branch with this catalog key.
+  String? signUpFailureKey;
+
+  /// What [registerInvitee] answers; defaults to success.
+  InviteeResult inviteeResult = const InviteeRegistered();
+
+  final List<Map<String, Object?>> signUps = [];
+  final List<Map<String, Object?>> inviteeRegistrations = [];
+
+  @override
+  Future<InviteInfo?> fetchInviteInfo(String token) async =>
+      InviteFormRules.isTokenShaped(token) ? inviteInfo : null;
+
+  @override
+  Future<void> signUpFounder({
+    required String email,
+    required String password,
+    required String fullName,
+    required String role,
+    required String familyName,
+    required String languageCode,
+  }) async {
+    signUps.add({
+      'email': email,
+      'fullName': fullName,
+      'role': role,
+      'familyName': familyName,
+      'language': languageCode,
+    });
+    if (signUpFailureKey != null) throw SignUpFailure(signUpFailureKey!);
+  }
+
+  @override
+  Future<InviteeResult> registerInvitee({
+    required String token,
+    required String fullName,
+    required String password,
+    bool confirmMigration = false,
+  }) async {
+    inviteeRegistrations.add({
+      'token': token,
+      'fullName': fullName,
+      'confirmMigration': confirmMigration,
+    });
+    return inviteeResult;
   }
 }
 
