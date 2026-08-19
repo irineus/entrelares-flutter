@@ -15,6 +15,7 @@ import 'package:entrelares_app/models/member.dart';
 import 'package:entrelares_app/models/role.dart';
 import 'package:entrelares_app/screens/family_screen.dart';
 import 'package:entrelares_app/services/admin_mode.dart';
+import 'package:entrelares_app/services/sudo_service.dart';
 import 'package:entrelares_app/widgets/app_l10n.dart';
 
 import 'calendar_slice_test.dart' show FakeCustodyDataSource;
@@ -99,6 +100,7 @@ Future<void> pumpFamily(
       home: FamilyScreen(
         dataSource: ds,
         adminMode: adminMode ?? AdminMode(),
+        sudo: SudoService(ds),
         onOpenCustomRoles: onOpenCustomRoles,
       ),
     ),

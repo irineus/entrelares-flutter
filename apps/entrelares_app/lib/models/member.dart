@@ -31,6 +31,19 @@ class Member {
   /// a sudo-gated flow of its own.
   final String? email;
 
+  /// S-11: when this member's data is purged, once they asked to leave. Null
+  /// while they are staying.
+  final DateTime? deletionScheduledFor;
+
+  /// S-15: which declaration this member accepted — founder or invitee. The
+  /// re-consent gate has no invite context left, so the marker is persisted
+  /// (and immutable: a trigger preserves it on update).
+  final bool joinedViaInvite;
+
+  /// S-13: the policy version stamped at sign-up. Null on legacy profiles,
+  /// which the gate deliberately captures rather than backfilling.
+  final String? consentPolicyVersion;
+
   const Member({
     required this.id,
     required this.fullName,
@@ -42,6 +55,9 @@ class Member {
     this.isAdmin = false,
     this.roleId,
     this.email,
+    this.deletionScheduledFor,
+    this.joinedViaInvite = false,
+    this.consentPolicyVersion,
   });
 
   /// A live, present member holds a family seat (Profile.IsActiveMember).
@@ -58,6 +74,11 @@ class Member {
         isAdmin: (json['is_admin'] as bool?) ?? false,
         roleId: json['role_id'] as int?,
         email: json['email'] as String?,
+        deletionScheduledFor: json['deletion_scheduled_for'] == null
+            ? null
+            : DateTime.parse(json['deletion_scheduled_for'] as String).toUtc(),
+        joinedViaInvite: (json['joined_via_invite'] as bool?) ?? false,
+        consentPolicyVersion: json['consent_policy_version'] as String?,
       );
 
   /// The avatar letter the roster shows — "?" when there is no usable name,

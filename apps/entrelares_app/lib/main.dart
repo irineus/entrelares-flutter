@@ -15,9 +15,11 @@ import 'screens/calendar_screen.dart';
 import 'screens/custom_roles_screen.dart';
 import 'screens/family_screen.dart';
 import 'screens/home_shell.dart';
+import 'screens/leaving_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/placeholder_screen.dart';
+import 'screens/policy_update_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/reset_password_screen.dart';
@@ -149,9 +151,39 @@ class _EntrelaresAppState extends State<EntrelaresApp>
           onDone: () => _router.go('/'),
         ),
       ),
+      // S-11: outside the shell on purpose — a member on their way out has no
+      // tabs to browse.
+      GoRoute(
+        path: '/leaving',
+        builder: (_, _) => LeavingScreen(
+          dataSource: _dataSource,
+          sudo: _sudo,
+          onSignOut: _signOut,
+          onReturned: () {
+            _isLeaving = false;
+            _router.go('/');
+          },
+        ),
+      ),
+      // S-15: also outside the shell — past the notice window this is the only
+      // screen the app offers.
+      GoRoute(
+        path: '/policy-update',
+        builder: (_, _) => PolicyUpdateScreen(
+          dataSource: _dataSource,
+          onSignOut: _signOut,
+          onAccepted: () {
+            _consentState = ConsentGateState.upToDate;
+            _router.go('/');
+          },
+        ),
+      ),
       StatefulShellRoute.indexedStack(
-        builder: (_, _, shell) =>
-            HomeShell(shell: shell, adminMode: _adminMode, badge: _badge),
+        builder: (_, _, shell) => HomeShell(
+            shell: shell,
+            adminMode: _adminMode,
+            badge: _badge,
+            deletionBanner: _deletionBanner),
         branches: [
           StatefulShellBranch(routes: [
             GoRoute(
@@ -168,6 +200,8 @@ class _EntrelaresAppState extends State<EntrelaresApp>
               builder: (_, _) => FamilyScreen(
                 dataSource: _dataSource,
                 adminMode: _adminMode,
+                sudo: _sudo,
+                onFamilyDeleted: _signOut,
                 onOpenCustomRoles: () => _router.go('/family/custom-roles'),
                 // F-16: own card opens my profile; another member's opens
                 // theirs, and the screen itself re-checks that I may look.
@@ -185,8 +219,15 @@ class _EntrelaresAppState extends State<EntrelaresApp>
                 ),
                 GoRoute(
                   path: 'profile',
-                  builder: (_, _) =>
-                      ProfileScreen(dataSource: _dataSource, sudo: _sudo),
+                  builder: (_, _) => ProfileScreen(
+                    dataSource: _dataSource,
+                    sudo: _sudo,
+                    onOpenFamily: () => _router.go('/family'),
+                    onLeaving: () {
+                      _isLeaving = true;
+                      _router.go('/leaving');
+                    },
+                  ),
                   routes: [
                     GoRoute(
                       path: ':id',
@@ -226,6 +267,16 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   /// with its own tests).
   String? _pendingLocation;
 
+  /// S-11: this member asked to leave, so the app is closed to them until they
+  /// cancel or sign out (mirror of `MainLayout.EnforceLeaving`).
+  bool _isLeaving = false;
+
+  /// S-15/B-4: whether the re-consent gate warns, blocks, or says nothing.
+  ConsentGateState _consentState = ConsentGateState.upToDate;
+
+  /// S-11: what the shell's persistent deletion banner shows, or null.
+  FamilyDeletionBanner? _deletionBanner;
+
   String? _redirect(BuildContext context, GoRouterState state) {
     final location = state.matchedLocation;
 
@@ -234,6 +285,23 @@ class _EntrelaresAppState extends State<EntrelaresApp>
       // — for as long as the gate is still deciding.
       if (location != RouteRules.splash) _pendingLocation = state.uri.toString();
       return RouteRules.redirect(phase: AuthPhase.gate, location: location);
+    }
+
+    // The web's order, and it matters: authentication first, then the exit
+    // confinement, then the consent gate. A member on their way out never
+    // meets the re-consent screen — asking someone to accept new terms on the
+    // way to deleting their account would be absurd.
+    if (_phase == _AuthPhase.authed) {
+      if (FamilyLifecycleRules.mustStayOnLeavingScreen(
+          isLeaving: _isLeaving, location: location)) {
+        return FamilyLifecycleRules.leavingRoute;
+      }
+      if (!_isLeaving &&
+          _consentState == ConsentGateState.blocked &&
+          location != FamilyLifecycleRules.policyUpdateRoute &&
+          location != RouteRules.login) {
+        return FamilyLifecycleRules.policyUpdateRoute;
+      }
     }
 
     final pending = _pendingLocation;
@@ -390,6 +458,15 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     }
     if (me == null) return;
 
+    // S-11/S-15 — the two account gates, decided once per authenticated boot
+    // exactly like the web's MainLayout does after its first render.
+    _isLeaving = me.leftAt != null;
+    _consentState = _isLeaving
+        ? ConsentGateState.upToDate
+        : PolicyVersions.evaluate(me.consentPolicyVersion, DateTime.now());
+    _refresh.ping();
+    unawaited(_refreshDeletionBanner(me));
+
     final stored = widget.prefs.getString(LanguageResolver.storageKey);
     if (!_adoptedThisProcess &&
         Localization.shouldAdopt(me.language, _l.current, stored)) {
@@ -415,6 +492,47 @@ class _EntrelaresAppState extends State<EntrelaresApp>
       } catch (_) {
         // best-effort by design
       }
+    }
+  }
+
+  /// S-11 — the banner that has to reach every tab. Best-effort: a family with
+  /// no pending request is the overwhelmingly common case, and a failed read
+  /// must never keep the app from opening.
+  Future<void> _refreshDeletionBanner(Member me) async {
+    try {
+      final pending = await _dataSource.fetchPendingFamilyDeletion();
+      if (!mounted) return;
+      if (pending == null || _isLeaving) {
+        if (_deletionBanner != null) {
+          setState(() => _deletionBanner = null);
+        }
+        return;
+      }
+      final members = await _dataSource.fetchMembers();
+      if (!mounted) return;
+      setState(() {
+        _deletionBanner = FamilyDeletionBanner(
+          scheduledFor: pending.request.scheduledFor,
+          allAgreed: FamilyLifecycleRules.allAgreed(
+            members: members
+                .map((m) => LifecycleMember(
+                    id: m.id,
+                    isActiveMember: m.isActiveMember,
+                    isAdmin: m.isAdmin))
+                .toList(),
+            requesterProfileId: pending.request.requestedBy,
+            votes: pending.responses
+                .map((r) =>
+                    DeletionVote(profileId: r.profileId, agreed: r.agreed))
+                .toList(),
+          ),
+          iAmRequester: pending.request.requestedBy == me.id,
+          onTap: () => _router.go('/family'),
+        );
+      });
+    } catch (_) {
+      // No banner is the honest fallback: the Família page still shows the
+      // whole panel, and the DB enforces the deadline regardless.
     }
   }
 
