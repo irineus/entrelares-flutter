@@ -54,9 +54,10 @@ Os keystores vivem **FORA do repositório** e as senhas nunca entram no repo nem
 sessão cloud (regra permanente 1). O `key.properties` tem entradas **por flavor**:
 
 ```properties
-# dev — keystore dedicado de sideload (T-55); gere uma única vez, fora do repo:
-#   keytool -genkey -v -keystore %USERPROFILE%\keystores\entrelares-flutter.jks ^
-#     -keyalg RSA -keysize 2048 -validity 10000 -alias entrelares
+# dev — keystore dedicado de sideload (T-55), gerado em 19/08/2026. Para
+# recriar do zero (PowerShell — a pasta primeiro, o keytool não a cria):
+#   New-Item -ItemType Directory -Force "$env:USERPROFILE\keystores"
+#   keytool -genkey -v -keystore "$env:USERPROFILE\keystores\entrelares-flutter.jks" -keyalg RSA -keysize 2048 -validity 10000 -alias entrelares
 dev.storeFile=C:/Users/irineu/keystores/entrelares-flutter.jks
 dev.storePassword=...
 dev.keyAlias=entrelares
