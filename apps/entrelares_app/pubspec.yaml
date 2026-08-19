@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionName / versionCode. Bump on every functional change handed to the
 # owner, same rule as the product repos.
-version: 0.2.2+4
+version: 0.2.3+5
 
 environment:
   sdk: ^3.12.2
@@ -40,12 +40,18 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  # Lote 1 shell: URL-based routing so Android App Links land on the right
+  # screen (recovery is the first consumer; invitations follow in lote 4).
+  go_router: ^16.2.0
   # U-13 port: the persisted language override (the web's localStorage
   # equivalent) — read at boot, before any session exists.
   shared_preferences: ^2.5.3
   # Same major the console pilot and the Desmalha benchmark pin — GoTrue auth,
   # PostgREST and NATIVE Realtime (the F-29 JS bridge retires here).
   supabase_flutter: ^2.17.2
+  # Legal pages stay on the web until lote 4 — opened in the browser (the
+  # stores accept external legal links; parity map, lote 4).
+  url_launcher: ^6.3.1
   # Pure client mirrors of the server rules, tested with `dart test`.
   entrelares_core:
     path: ../../packages/entrelares_core

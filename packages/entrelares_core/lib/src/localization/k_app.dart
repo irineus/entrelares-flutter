@@ -33,6 +33,12 @@ abstract final class KApp {
   static const String errSwapPendingExists = 'app.save.swapPendingExists';
   static const String errConcurrentSaveRetry = 'app.save.concurrentRetry';
 
+  // ── Navigation shell (lote 1) — screens the later batches fill in ──
+  static const String shellUnderConstructionTitle =
+      'app.shell.underConstructionTitle';
+  static const String shellUnderConstructionBody =
+      'app.shell.underConstructionBody';
+
   /// See `K.allKeys`.
   static const List<String> allKeys = [
     sessionRestoredExpired,
@@ -50,6 +56,8 @@ abstract final class KApp {
     errDaySave,
     errSwapPendingExists,
     errConcurrentSaveRetry,
+    shellUnderConstructionTitle,
+    shellUnderConstructionBody,
   ];
 }
 
@@ -75,6 +83,9 @@ abstract final class StringsAppPtBr {
     KApp.errConcurrentSaveRetry:
         'Outro responsável salvou este dia primeiro — atualize o calendário e '
             'tente novamente.',
+    KApp.shellUnderConstructionTitle: 'Em construção',
+    KApp.shellUnderConstructionBody:
+        'Esta tela chega em uma próxima atualização.',
   };
 }
 
@@ -100,5 +111,8 @@ abstract final class StringsAppEn {
     KApp.errConcurrentSaveRetry:
         'The other caregiver saved this day first — refresh the calendar and '
             'try again.',
+    KApp.shellUnderConstructionTitle: 'Under construction',
+    KApp.shellUnderConstructionBody:
+        'This screen arrives in an upcoming update.',
   };
 }

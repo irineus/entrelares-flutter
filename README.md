@@ -101,11 +101,34 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
 - **Gate adiado de propósito:** o teste "toda chave declarada tem call site" (lição U-23)
   só faz sentido com as telas todas portadas — entra no fechamento do lote 6.
 
+## Casco e deep links (lote 1 — PR2)
+
+- **Navegação:** `go_router` com `StatefulShellRoute` — os mesmos 4 destinos do NavMenu
+  web (Calendário, Família, Avisos, Relatórios); telas não portadas mostram placeholder
+  localizado e cada lote só troca o miolo. Guard estilo S-02 no `redirect`: tudo é
+  protegido exceto `/login`, `/reset-password` e `/update-password`.
+- **Deep links (App Links):** host `web.entrelares.app` (a origem do PWA — o apex é a
+  landing), path `/update-password`, `autoVerify`. O `assetlinks.json` de produção já
+  listava o prod (`com.entrelares.app`, F-54); o statement do dev
+  (`com.entrelares.flutter`, certificado de sideload T-55) entra por PR pareado no
+  `entrelares-app`. Build DEBUG nunca verifica (certificado por máquina) — QA de deep
+  link usa o release dev.
+- **Recovery:** "Esqueci minha senha" → `resetPasswordForEmail` com `redirectTo` para o
+  deep link; o `supabase_flutter` consome os tokens do link e emite `passwordRecovery`,
+  que roteia para a tela de nova senha (validação espelhada em `UpdatePasswordRules`).
+  ⚠️ Config de ambiente: o projeto Supabase DEV precisa de
+  `https://web.entrelares.app/update-password` no allowlist de redirect de auth.
+- **S-01 throttling:** espelho `LoginThrottle` (≥3 falhas → falhas×5 s; ≥5 → 60 s),
+  estado em prefs locais (o análogo do sessionStorage web) — sobrevive a restart.
+- **S-04 inatividade:** espelho `InactivityPolicy` (30 min, poll de 30 s) — pointer-down
+  em qualquer lugar reseta; o resume do lifecycle reavalia na hora (tempo em background
+  conta, como a aba escondida no web). Expirou → signOut local + banner no login.
+
 ## Versionamento
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.2.2+4` (T-53 lote 1 — i18n U-13/U-24: catálogos, resolver, formatos e renderer) |
+| `apps/entrelares_app` | `0.2.3+5` (T-53 lote 1 PR2 — casco go_router, App Links + recovery, throttling S-01, inatividade S-04) |
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 

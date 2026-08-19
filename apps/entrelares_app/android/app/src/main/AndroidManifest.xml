@@ -29,6 +29,24 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- App Links (lote 1): the recovery e-mail's link opens the app
+                 directly. autoVerify requires web.entrelares.app (the PWA
+                 origin) to serve .well-known/assetlinks.json naming this
+                 applicationId + signing cert — prod is already listed there
+                 since F-54; the dev statement (T-55 sideload cert) ships in
+                 the paired entrelares-app PR. Until verified — and on debug
+                 builds, whose per-machine cert is never listed — Android
+                 falls back to the browser, where the PWA serves the same
+                 page, so nothing breaks. Invitation links (/register) join
+                 in lote 4. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https"
+                      android:host="web.entrelares.app"
+                      android:path="/update-password"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
