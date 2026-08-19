@@ -95,6 +95,25 @@ class FakeCustodyDataSource implements CustodyDataSource {
   }
 
   @override
+  Future<int> bulkInsertNewDays(List<CareSchedule> newDays,
+      {void Function(int percent)? onProgress}) async {
+    if (throwOnWrite != null) throw throwOnWrite!;
+    final existing = {for (final d in days) CareSchedule.isoDate(d.scheduleDate)};
+    final now = DateTime.now();
+    final todayFloor = DateTime(now.year, now.month, now.day);
+    var created = 0;
+    for (final d in newDays) {
+      if (d.scheduleDate.isBefore(todayFloor)) continue;
+      if (existing.contains(CareSchedule.isoDate(d.scheduleDate))) continue;
+      inserted.add(d);
+      days = [...days, d];
+      created++;
+    }
+    onProgress?.call(100);
+    return created;
+  }
+
+  @override
   Future<void> updateDay(CareSchedule day) async {
     if (throwOnWrite != null) throw throwOnWrite!;
     updated.add(day);

@@ -44,6 +44,11 @@ abstract final class KApp {
   //    app; the catalogued rule ports, the residue does not ──
   static const String bulkProgressSaving = 'app.bulk.progressSaving';
 
+  // ── Rotation wizard (lote 2) — two validation sentences the web kept as
+  //    pre-U-13 hardcoded PT literals (ScheduleWizard.razor:223/236) ──
+  static const String wizErrTooFewBlocks = 'app.wiz.errTooFewBlocks';
+  static const String wizErrBlockDays = 'app.wiz.errBlockDays';
+
   // ── Navigation shell (lote 1) — screens the later batches fill in ──
   static const String shellUnderConstructionTitle =
       'app.shell.underConstructionTitle';
@@ -69,6 +74,8 @@ abstract final class KApp {
     editorRetroBeyondFree,
     editorRetroBeyondPremium,
     bulkProgressSaving,
+    wizErrTooFewBlocks,
+    wizErrBlockDays,
     shellUnderConstructionTitle,
     shellUnderConstructionBody,
   ];
@@ -101,6 +108,8 @@ abstract final class StringsAppPtBr {
     KApp.editorRetroBeyondPremium:
         'Correções retroativas vão até {0} meses atrás.',
     KApp.bulkProgressSaving: 'Salvando {0}/{1}...',
+    KApp.wizErrTooFewBlocks: 'O ciclo deve ter pelo menos 1 bloco.',
+    KApp.wizErrBlockDays: 'Cada bloco deve ter pelo menos 1 dia.',
     KApp.shellUnderConstructionTitle: 'Em construção',
     KApp.shellUnderConstructionBody:
         'Esta tela chega em uma próxima atualização.',
@@ -134,6 +143,8 @@ abstract final class StringsAppEn {
     KApp.editorRetroBeyondPremium:
         'Retroactive corrections reach up to {0} months back.',
     KApp.bulkProgressSaving: 'Saving {0}/{1}...',
+    KApp.wizErrTooFewBlocks: 'The cycle needs at least 1 block.',
+    KApp.wizErrBlockDays: 'Each block needs at least 1 day.',
     KApp.shellUnderConstructionTitle: 'Under construction',
     KApp.shellUnderConstructionBody:
         'This screen arrives in an upcoming update.',

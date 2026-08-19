@@ -13,6 +13,7 @@ import '../widgets/app_snack.dart';
 import '../widgets/today_card.dart';
 import 'bulk_sheet.dart';
 import 'day_sheet.dart';
+import 'wizard_sheet.dart';
 
 /// F-27 slot palette (slot 0 = gray: inactive/unknown); swapped is its own
 /// color, matching the web's "Trocado" convention.
@@ -303,6 +304,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
+  Future<void> _openWizard() async {
+    final generated = await showWizardSheet(
+      context: context,
+      activeMembers: _members.where((m) => m.isActiveMember).toList(),
+      today: _today,
+      dataSource: widget.dataSource,
+      // F-39: the wizard clamps to the same horizon as the paging.
+      maxScheduleDate: _horizonDate,
+      isFreeTier: !_isPremiumForPaging,
+    );
+    if (generated == true) _load(silent: true);
+  }
+
   Future<void> _openDay(DateTime date) async {
     HapticFeedback.selectionClick();
     final iso = CareSchedule.isoDate(date);
@@ -416,6 +430,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
               icon: const Icon(Icons.check_box_outlined),
               onPressed: () => setState(() => _selectionArmed = true),
             ),
+          IconButton(
+            tooltip: l[K.calWizard],
+            icon: const Icon(Icons.event_repeat),
+            onPressed: _openWizard,
+          ),
           // F-14: the explicit admin-mode toggle — mirror of the web's NavMenu
           // button. Only a real admin sees it; the shell shows the persistent
           // banner while it is on.
