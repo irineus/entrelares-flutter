@@ -200,17 +200,29 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
     return inserted;
   }
 
+  /// Channel topics must be unique per subscription — two subscribers on the
+  /// same name would collide in the Realtime client.
+  int _channelSeq = 0;
+
+  void Function(RealtimeSubscribeStatus, Object?)? _statusCallback(
+          void Function(bool connected)? onStatus) =>
+      onStatus == null
+          ? null
+          : (status, _) =>
+              onStatus(status == RealtimeSubscribeStatus.subscribed);
+
   @override
-  Future<void Function()> watchChanges(void Function() onChange) async {
+  Future<void Function()> watchChanges(void Function() onChange,
+      {void Function(bool connected)? onStatus}) async {
     final channel = _client
-        .channel('care_schedules_changes')
+        .channel('care_schedules_changes_${_channelSeq++}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'care_schedules',
           callback: (_) => onChange(),
         )
-        .subscribe();
+        .subscribe(_statusCallback(onStatus));
     return () => _client.removeChannel(channel);
   }
 
@@ -747,10 +759,10 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   }
 
   @override
-  Future<void Function()> watchWorkflowChanges(
-      void Function() onChange) async {
+  Future<void Function()> watchWorkflowChanges(void Function() onChange,
+      {void Function(bool connected)? onStatus}) async {
     final channel = _client
-        .channel('workflow_changes')
+        .channel('workflow_changes_${_channelSeq++}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
@@ -763,7 +775,7 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
           table: 'notifications',
           callback: (_) => onChange(),
         )
-        .subscribe();
+        .subscribe(_statusCallback(onStatus));
     return () => _client.removeChannel(channel);
   }
 }

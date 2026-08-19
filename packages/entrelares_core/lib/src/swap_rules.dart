@@ -11,6 +11,7 @@ library;
 
 import 'date_math.dart';
 import 'day_protection_rules.dart';
+import 'localization/k.dart';
 
 // ── F-20/F-22: the dynamic priority tag ──────────────────────────────────────
 
@@ -232,6 +233,41 @@ List<SwapRequestView> selectedSentByMe({
         r,
   ];
 }
+
+// ── F-23: the safety-poll cadence (mirror of Home.razor's constants) ────────
+// The poll survives the native Realtime until the socket proves itself under
+// real load (owner decision, 19/08/2026); removal is a future board decision.
+
+/// While the socket is DOWN the poll is the only fresh-data path: 25 s.
+const int pollIntervalMsDown = 25000;
+
+/// With a healthy socket the poll is only a safety net: 120 s.
+const int pollIntervalMsHealthy = 120000;
+
+int pollIntervalMs({required bool socketConnected}) =>
+    socketConnected ? pollIntervalMsHealthy : pollIntervalMsDown;
+
+/// Mirror of `NavMenu.GetUnreadBadgeText`: the bell badge caps at "99+".
+/// ⚠️ The count is the OPEN REQUESTS AWAITING ME (`fetchPendingForMe`), not
+/// unread notifications — the web's naming is misleading on purpose kept.
+String bellBadgeText(int count) => count > 99 ? '99+' : '$count';
+
+/// Mirror of `Notifications.GetStatusLabel`: the catalog key for a
+/// `swap_requests.status` value — the KEYS are the DB's status values and
+/// never change with the language. Unknown statuses return null (the web
+/// falls back to the raw status string).
+String? swapStatusLabelKey(String status) => switch (status) {
+      'pending' => K.notifStatusPending,
+      'approved' => K.notifStatusApproved,
+      'rejected' => K.notifStatusRejected,
+      'cancelled' => K.notifStatusCancelled,
+      'reverted' => K.notifStatusReverted,
+      'revert_pending' => K.notifStatusRevertPending,
+      'revert_approved' => K.notifStatusRevertApproved,
+      'revert_rejected' => K.notifStatusRevertRejected,
+      'revert_cancelled' => K.notifStatusRevertCancelled,
+      _ => null,
+    };
 
 /// Whether a selected day qualifies for the bulk "request revert" section
 /// (`SelectedRevertable`): today or future, carrying an approved swap (actual
