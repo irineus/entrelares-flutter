@@ -31,14 +31,16 @@ cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per
 ambientes são variantes de build (o singleton do Supabase inicializa uma vez por
 processo), nunca um switcher de runtime. `dev` = `com.entrelares.flutter` contra o
 projeto dev ("Entrelares Dev" no launcher, título com `[Dev]`); `prod` =
-`com.entrelares.app` (o pacote da Play) contra produção. Distribuir o flavor prod
-está travado no keystore próprio (T-55). `fvm flutter test` não tem flavor e cai em
-dev por construção.
+`com.entrelares.app` (o pacote da Play) contra produção. Builds release assinam por
+flavor via `key.properties` (T-55 — ver "Assinatura (release)" abaixo). `fvm flutter
+test` não tem flavor e cai em dev por construção.
 
 **CI (T-54):** todo push/PR roda `.github/workflows/verify.yml` — analyze + `dart test`
 no core e analyze + `flutter test` no app, com o Flutter lido do `.fvmrc`. O build de
 APK fica FORA do gate (cota de 2000 min/mês da conta, compartilhada com os repos do
-produto) — para gerar APK pela CI, use o `workflow_dispatch` com `build-apk`.
+produto) — para gerar APK pela CI, use o `workflow_dispatch` com `build-apk`. O APK
+da CI é **debug** (o runner não tem — e nunca terá — os keystores do T-55; release é
+build local por construção).
 
 ## Assinatura (release) — T-55
 
