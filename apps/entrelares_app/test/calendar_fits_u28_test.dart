@@ -45,8 +45,10 @@ void main() {
       // that is the case the layout has to survive every year.
       final rows = (grid.height / (_cellHeight + _spacing)).round();
       final sixWeeks = grid.height / rows * 6;
-      // The weekday initials and the list padding ride above the grid.
-      const chrome = 40.0;
+      // The weekday initials and the list padding ride above the grid, plus
+      // the admin strip the owner had ON when he found this scrolling, plus a
+      // second legend row for a four-carer family.
+      const chrome = 40.0 + 40.0 + 26.0;
 
       expect(sixWeeks + chrome, lessThanOrEqualTo(viewport.height),
           reason: 'a six-week month needs ${sixWeeks + chrome} and the '
@@ -59,5 +61,5 @@ void main() {
 /// Mirrors `_dayCellHeight` and the grid spacing in `calendar_screen.dart`.
 /// Duplicated on purpose: the test asserts against the numbers a reader can
 /// see, so a change to either shows up here as a failure to think about.
-const double _cellHeight = 54;
-const double _spacing = 4;
+const double _cellHeight = 52;
+const double _spacing = 3;

@@ -75,7 +75,7 @@ class TodayCard extends StatelessWidget {
         !showInviteNudge &&
         glance.userSlot != glance.responsibleSlot;
     return Card(
-      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 4),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         // Web: the card is clickable only when NOT viewing the current month.
@@ -85,20 +85,43 @@ class TodayCard extends StatelessWidget {
           children: [
             Container(
               color: user.tone.container,
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(l.format(K.cardGreeting, [_firstName]),
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(color: user.tone.onContainer)),
-                  Text(l.formatTodayHeading(today),
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: user.tone.onContainer)),
+                  // U-28 QA: one line, greeting left and date right. The web
+                  // puts them on one line too but lets the name wrap; the first
+                  // name plus an ellipsis keeps the promise the layout makes.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          l.format(K.cardGreeting, [_firstName]),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleSmall
+                              ?.copyWith(color: user.tone.onContainer),
+                        ),
+                      ),
+                      const SizedBox(width: Spacing.sm),
+                      Flexible(
+                        child: Text(
+                          l.formatTodayHeading(today),
+                          textAlign: TextAlign.end,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(color: user.tone.onContainer),
+                        ),
+                      ),
+                    ],
+                  ),
                   if (!viewingCurrentMonth)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -140,7 +163,7 @@ class TodayCard extends StatelessWidget {
               // child today" without reading a word.
               Container(
                 color: responsible.tone.container,
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
                 child: _responsibleRow(context, l, responsible),
               ),
           ],
@@ -178,20 +201,23 @@ class TodayCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         CircleAvatar(
+          radius: 18,
           backgroundColor: responsible.tone.solid,
           child: Text(glance.avatarLetter,
               style: TextStyle(color: responsible.tone.onSolid)),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: Spacing.sm),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(l[K.cardResponsibleToday],
                   style: textTheme.labelSmall?.copyWith(color: on)),
+              // U-28 QA: one line at `titleSmall`. At `titleMedium` over two
+              // lines this single field was costing the grid a whole week.
               Text(glance.responsibleName ?? l[K.homeNotDefined],
-                  style: textTheme.titleMedium?.copyWith(color: on),
-                  maxLines: 2,
+                  style: textTheme.titleSmall?.copyWith(color: on),
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis),
               // Web: both badges can appear — swapped and the ⏰ time are
               // independent. U-28 adds the ROLE, which the port had dropped.
@@ -276,14 +302,18 @@ class TodayCard extends StatelessWidget {
     // U-28 QA: its own box, as the web has it. Loose on the tinted band the
     // three lines read as a continuation of the responsible's name; framed,
     // they read as what they are — a different fact, about a different day.
-    final tokens = context.tokens;
+    // U-28 QA: the box belongs to the responsible's card, so it wears the
+    // responsible's colour — one shade STRONGER than the band, the way the web
+    // draws it. White made it read as a hole punched in the card.
+    final slot = context.tokens.slot(glance.responsibleSlot);
     return Container(
       margin: const EdgeInsets.only(left: Spacing.sm),
       padding: const EdgeInsets.symmetric(
           horizontal: Spacing.sm, vertical: Spacing.xs),
       decoration: BoxDecoration(
-        color: tokens.surfaceAlt,
-        border: Border.all(color: tokens.outline),
+        color: Color.alphaBlend(
+            slot.tone.solid.withValues(alpha: 0.18), slot.tone.container),
+        border: Border.all(color: slot.tone.border),
         borderRadius: BorderRadius.circular(Radii.md),
       ),
       child: Column(
@@ -294,9 +324,14 @@ class TodayCard extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .labelSmall
-                  ?.copyWith(color: tokens.textMuted)),
+                  ?.copyWith(color: slot.tone.onContainer)),
           Text(formatHandoffDate(date, l),
-              style: Theme.of(context).textTheme.bodyMedium),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(
+                      color: slot.tone.onContainer,
+                      fontWeight: FontWeight.w600)),
           Text(daysUntilLabel(date, today, l),
               style: Theme.of(context)
                   .textTheme
