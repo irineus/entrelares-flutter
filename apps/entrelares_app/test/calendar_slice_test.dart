@@ -822,6 +822,13 @@ Future<void> settleSnack(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// U-28 QA: the month bar capitalises the heading — `formatMonthYear` lowercases
+/// because its output usually sits inside a sentence.
+String monthHeading(Localization l, DateTime month) {
+  final text = l.formatMonthYear(month.year, month.month);
+  return text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+}
+
 void main() {
   testWidgets('legend shows active members and the grid paints initials',
       (tester) async {
@@ -984,7 +991,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final l = Localization(AppLanguage.ptBr);
-    final month = l.formatMonthYear(today.year, today.month);
+    final month = monthHeading(l, today);
     expect(find.text(month), findsOneWidget);
     // The app bar names the TAB now — five actions up there were what
     // truncated the month to "agosto de..." for an admin.
@@ -1007,13 +1014,13 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pumpAndSettle();
-    expect(find.text(l.formatMonthYear(next.year, next.month)), findsOneWidget);
+    expect(find.text(monthHeading(l, next)), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.chevron_left));
     await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.chevron_left));
     await tester.pumpAndSettle();
-    expect(find.text(l.formatMonthYear(previous.year, previous.month)),
+    expect(find.text(monthHeading(l, previous)),
         findsOneWidget);
   });
 
@@ -1129,7 +1136,7 @@ void main() {
 
     // The calendar's actions moved up to the app bar; sharing the month row
     // with them is what put "agosto de 20…" on screen.
-    final month = find.text(l.formatMonthYear(today.year, today.month));
+    final month = find.text(monthHeading(l, today));
     expect(month, findsOneWidget);
     final text = tester.widget<Text>(month);
     expect(text.overflow, TextOverflow.ellipsis);

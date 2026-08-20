@@ -63,7 +63,9 @@ void main() {
     // U-28: the greeting uses the FIRST name — the full legal name wrapped
     // onto three lines of card on a phone.
     expect(find.text('Olá, Ana!'), findsOneWidget);
-    expect(find.text('quarta-feira, 19 de agosto'), findsOneWidget);
+    // U-28 QA: the date heading starts with a capital — it is a heading, not a
+    // clause inside a sentence — and it never truncates.
+    expect(find.text('Quarta-feira, 19 de agosto'), findsOneWidget);
     expect(find.text('Responsável hoje'), findsOneWidget);
     expect(find.text('Bruno Lima'), findsOneWidget);
     expect(find.text('B'), findsOneWidget, reason: 'naive avatar letter');

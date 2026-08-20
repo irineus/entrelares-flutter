@@ -30,13 +30,29 @@ import 'wizard_sheet.dart';
 
 /// U-28 — what one day of the grid is tall enough to hold: the day number, the
 /// carer's initial, and the handoff mark under it. The width follows from the
-/// screen; only the height is a design decision, so only the height is here.
+/// screen; the height is a design decision, so it lives here.
 ///
-/// U-28 QA settled the number by measurement, not by taste: the content is
-/// 12 + 2 + 18 + 11 ≈ 43 dp inside a 2.5 dp "today" ring, and a six-week month
-/// with the admin strip on and a four-carer legend has to fit a 700 dp phone.
+/// **U-28 QA: it is a RANGE, not a number.** A fixed height sized for the worst
+/// case — six weeks with the admin strip on — left a five-week month with a
+/// band of dead space under the grid, and the owner was right that the number
+/// we had was the FLOOR rather than the answer. The grid now spends whatever
+/// height the screen actually gives it, divided by the weeks the month really
+/// has, clamped at both ends.
+///
+/// The floor is measurement, not taste: the content is 12 + 2 + 18 + 11 = 43 dp
+/// with every line's height pinned, inside a 2.5 dp "today" ring — 48 dp, so 50
+/// is the floor with two to spare. A six-week month with the admin strip on and
+/// a four-carer legend has to fit a 700 dp phone, and
 /// `calendar_fits_u28_test` fails if either side of that stops being true.
-const double _dayCellHeight = 52;
+///
+/// The ceiling exists so a five-week month on a tall phone does not turn each
+/// day into a letterbox: past about 76 dp the cell is mostly empty and the grid
+/// stops reading as a month.
+const double _dayCellMinHeight = 50;
+const double _dayCellMaxHeight = 76;
+
+/// The vertical gap between two week rows.
+const double _daySpacing = 3;
 
 /// U-27 — the F-27 slot palette now lives in [AppTokens.slots], with a
 /// [SlotPattern] alongside each hue and a dark set that did not exist before.
@@ -693,6 +709,11 @@ class _CalendarScreenState extends State<CalendarScreen>
     );
   }
 
+  /// A heading starts with a capital; the date formatters lowercase because
+  /// their output usually sits inside a sentence.
+  String _capitalize(String text) =>
+      text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+
   /// U-18 parity (QA round): the swap key appears only on a month that has a
   /// swapped day. The web hides it for exactly this reason — on a month with no
   /// swap it is a legend entry explaining something that is not on screen, and
@@ -740,7 +761,10 @@ class _CalendarScreenState extends State<CalendarScreen>
         ),
         Flexible(
           child: Text(
-            l.formatMonthYear(_visibleMonth.year, _visibleMonth.month),
+            // U-28 QA: "Agosto de 2026". The formatter lowercases because a
+            // month reads that way INSIDE a sentence; this is a heading.
+            _capitalize(
+                l.formatMonthYear(_visibleMonth.year, _visibleMonth.month)),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -863,7 +887,8 @@ class _CalendarScreenState extends State<CalendarScreen>
                 final month = _monthForPage(page);
                 final isVisible = month.year == _visibleMonth.year &&
                     month.month == _visibleMonth.month;
-                return RefreshIndicator(
+                return LayoutBuilder(builder: (context, box) {
+                  return RefreshIndicator(
                   onRefresh: _load,
                   child: _loadError != null && isVisible
                       ? ListView(children: [
@@ -887,8 +912,11 @@ class _CalendarScreenState extends State<CalendarScreen>
                           },
                           onDayTap: _onDayTap,
                           onDayLongPress: _onDayLongPress,
+                          // U-28 QA: the height the grid may actually spend.
+                          availableHeight: box.maxHeight,
                         ),
                 );
+                });
               },
             ),
           ),
@@ -1081,21 +1109,39 @@ class _Legend extends StatelessWidget {
     );
   }
 
+  /// One key, as the web draws it: a pill in the carer's own colour with their
+  /// name in it.
+  ///
+  /// U-28 QA replaced a swatch-plus-label pair with this. The pill IS the
+  /// colour, so carrying a separate swatch beside it said the same thing twice
+  /// and spent width the legend cannot spare. The swapped key keeps its dashed
+  /// outline — that border is the signal, not the fill.
   Widget _key(BuildContext context,
-          {required SlotColors slot,
-          required String label,
-          bool dashed = false}) =>
-      SizedBox(
-        height: rowHeight,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SlotSwatch(slot: slot, dashedBorder: dashed),
-            const SizedBox(width: Spacing.xs + 2),
-            Text(label, style: Theme.of(context).textTheme.labelSmall),
-          ],
-        ),
-      );
+      {required SlotColors slot,
+      required String label,
+      bool dashed = false}) {
+    final pill = Container(
+      height: rowHeight,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+      decoration: BoxDecoration(
+        color: slot.tone.container,
+        borderRadius: BorderRadius.circular(Radii.lg),
+        border: dashed ? null : Border.all(color: slot.tone.border),
+      ),
+      child: Text(label,
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(color: slot.tone.onContainer)),
+    );
+    if (!dashed) return pill;
+    return CustomPaint(
+      foregroundPainter:
+          DashedBorderPainter(color: slot.tone.border, radius: Radii.lg),
+      child: pill,
+    );
+  }
 }
 
 class _MonthGrid extends StatelessWidget {
@@ -1110,6 +1156,10 @@ class _MonthGrid extends StatelessWidget {
   final void Function(DateTime) onDayTap;
   final void Function(DateTime) onDayLongPress;
 
+  /// What the PageView's box gives this month, in logical pixels. The cell
+  /// height is derived from it and the number of weeks the month really has.
+  final double availableHeight;
+
   const _MonthGrid({
     required this.month,
     required this.daysByIso,
@@ -1121,6 +1171,7 @@ class _MonthGrid extends StatelessWidget {
     required this.selectedIso,
     required this.onDayTap,
     required this.onDayLongPress,
+    required this.availableHeight,
   });
 
   /// The F-12 cell badge — mirror of Home.razor's day-frozen markup: 🔔 when
@@ -1192,7 +1243,17 @@ class _MonthGrid extends StatelessWidget {
         // the real width, so the same cell holds on any screen.
         LayoutBuilder(builder: (context, constraints) {
           final cellWidth = (constraints.maxWidth - 6 * 4) / 7;
-          final ratio = cellWidth / _dayCellHeight;
+          // Weeks this month actually needs — a February that starts on Sunday
+          // is four rows, most months are five, and only a 31-day month
+          // starting on Saturday is six.
+          final rows = ((blanksBefore + daysInMonth) / 7).ceil();
+          // What is left after the weekday initials, the list's bottom padding
+          // and the gaps between rows.
+          const chrome = 20.0 + 2 + 8;
+          final free = availableHeight - chrome - (rows - 1) * _daySpacing;
+          final cellHeight = (free / rows)
+              .clamp(_dayCellMinHeight, _dayCellMaxHeight);
+          final ratio = cellWidth / cellHeight;
           return loading
               // U-27: the grid's own shape, at its own aspect ratio — the month
               // does not jump into place when the days land.
@@ -1211,7 +1272,7 @@ class _MonthGrid extends StatelessWidget {
             physics: const NeverScrollableScrollPhysics(),
             // 3 dp, not 4: five gaps in a six-week month, and the month has to
             // clear the admin strip on a 700 dp phone.
-            mainAxisSpacing: 3,
+            mainAxisSpacing: _daySpacing,
             crossAxisSpacing: 4,
             childAspectRatio: ratio,
             children: [
@@ -1369,7 +1430,7 @@ class _DayCell extends StatelessWidget {
                           .formatTimeString(day!.handoffTime!),
                       style: TextStyle(
                           fontSize: 9,
-                          height: 1.2,
+                          height: 1,
                           color: assigned
                               ? slot.tone.onContainer
                               : Theme.of(context).hintColor),
