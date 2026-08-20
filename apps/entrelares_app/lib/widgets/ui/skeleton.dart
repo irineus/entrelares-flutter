@@ -169,14 +169,10 @@ class AppSkeletonCalendar extends StatelessWidget {
       padding: const EdgeInsets.all(Spacing.sm + Spacing.xs),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              for (var i = 0; i < 7; i++)
-                const AppSkeleton(width: 24, height: 10),
-            ],
-          ),
-          const SizedBox(height: Spacing.sm),
+          // U-28: no weekday row here. The screen already prints the real
+          // initials above this widget, and the skeleton was drawing a second,
+          // grey one under them — the loading state showed a header the loaded
+          // state does not have.
           GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,

@@ -21,6 +21,9 @@ abstract final class StringsPtBr {
     K.languagePtBr: 'Português',
     K.languageEn: 'English',
     K.languageHint: 'O idioma escolhido vale também para os e-mails que você receber.',
+    // ── Splash ──
+    K.splashTagline: 'De quem é o dia hoje?',
+
     // ── Login ──
     K.loginPageTitle: 'Login - Entrelares',
     K.loginHeading: 'Entrelares',
@@ -106,6 +109,8 @@ abstract final class StringsPtBr {
     K.navNotificationsManyPending: 'Notificações, {0} pendentes',
     K.navReports: 'Relatórios',
     K.navLogout: 'Sair',
+    K.navAccount: 'Conta',
+    K.navProfile: 'Perfil',
     K.navAdmin: 'Admin',
     K.navAdminEnter: 'Ativar modo administrador',
     K.navAdminExit: 'Sair do modo administrador',
@@ -792,6 +797,8 @@ abstract final class StringsPtBr {
     K.auditLoadingMore: 'A carregar…',
     K.auditLoadMore: 'Carregar mais',
     K.auditErrLoad: 'Erro ao carregar histórico: {0}',
+    K.sumHeading: '📊 Resumo do período',
+    K.auditHeading: '⏱️ Histórico de ajustes',
     K.repTabSummary: 'Resumo',
     K.repTabHistory: 'Histórico',
     K.repTabPdf: 'PDF',

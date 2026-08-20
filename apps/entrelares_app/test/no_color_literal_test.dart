@@ -61,17 +61,26 @@ void main() {
       expect(AppTokens.light.slot(2), AppTokens.light.slots[2]);
     });
 
-    test('the four active slots are distinguishable without colour', () {
-      // The whole point of the patterns: strip the hue and the slots must
-      // still differ. Slot 1 keeps `none`, which is itself one of the states.
-      final patterns =
-          AppTokens.light.slots.map((s) => s.pattern).toSet();
-      expect(patterns.length, AppTokens.light.slots.length,
-          reason: 'Two slots share a pattern — with no colour vision they '
-              'become the same slot.');
+    test('U-28: a texture marks the departed member and nothing else', () {
+      // This SUPERSEDES U-27's "a pattern per slot". Hatching every active
+      // carer made the mother and the third and fourth carers look flagged for
+      // something; the owner's review named it. The non-chromatic vector the
+      // U-27 decision was protecting did not go away — every cell prints the
+      // carer's INITIAL, which is pinned in calendar_slice_test.
+      expect(AppTokens.light.slots[0].pattern, SlotPattern.verticalHatch,
+          reason: 'slot 0 is the member who left — that is what a texture '
+              'means now');
+      for (var i = 1; i < AppTokens.light.slots.length; i++) {
+        expect(AppTokens.light.slots[i].pattern, SlotPattern.none,
+            reason: 'an ACTIVE carer wears colour and an initial, never a '
+                'hatch (slot $i)');
+      }
+      expect(AppTokens.light.swapped.pattern, SlotPattern.none,
+          reason: 'the swapped day is a dashed BORDER, so a fill texture '
+              'would be a second signal saying the same thing');
       expect(AppTokens.dark.slots.map((s) => s.pattern).toList(),
           AppTokens.light.slots.map((s) => s.pattern).toList(),
-          reason: 'The texture is the slot\'s identity; it cannot change with '
+          reason: "The texture is the slot's identity; it cannot change with "
               'the theme.');
     });
 

@@ -8,6 +8,7 @@ import '../models/member.dart';
 import '../models/swap_request.dart';
 import '../services/custody_data_source.dart';
 import '../services/notification_badge.dart';
+import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
 
@@ -183,7 +184,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final l = AppL10n.of(context).l;
     return Scaffold(
-      appBar: AppBar(title: Text(l[K.notifPageTitle])),
+      appBar: AppBar(
+          title: Text(l[K.notifPageTitle]),
+          actions: const [AppAccountButton()]),
       body: Column(
         children: [
           Padding(
@@ -244,6 +247,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _infoRow(String label, String value) =>
       AppListRow(label: label, value: value);
 
+  /// U-28 — a card's first line: the day on the left, its state pills on the
+  /// right, and a SECOND LINE for the pills when they do not fit.
+  ///
+  /// It was a `Row` with the date in an `Expanded` beside a `Wrap` of up to
+  /// three badges. `Row` lays the inflexible child out first, so the badges took
+  /// the width they wanted and the `Expanded` got what was left — around ten
+  /// pixels, which the date then filled ONE CHARACTER PER LINE while the badges
+  /// still reported `RIGHT OVERFLOWED BY 85 PIXELS`. A `Wrap` cannot do that to
+  /// itself: what does not fit moves down.
+  Widget _cardHeader(String title, List<Widget> badges) => Wrap(
+        spacing: Spacing.sm,
+        runSpacing: Spacing.xs,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          Wrap(spacing: Spacing.xs, runSpacing: Spacing.xs, children: badges),
+        ],
+      );
+
   Widget _statusBadge(String text, {ToneColors? tone, String? semantics}) =>
       AppBadge(
         text: text,
@@ -299,16 +322,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final error = _actionErrors[req.id];
 
     return _card(children: [
-      Row(
-        children: [
-          Expanded(child: Text('📅 ${l.formatDate(req.scheduleDate)}')),
-          _statusBadge(
-            l[isRevert ? K.notifRevertPendingBadge : K.notifPendingBadge],
-            tone:
-                isRevert ? context.tokens.accent : context.tokens.warning,
-          ),
-        ],
-      ),
+      _cardHeader('📅 ${l.formatDate(req.scheduleDate)}', [
+        _statusBadge(
+          l[isRevert ? K.notifRevertPendingBadge : K.notifPendingBadge],
+          tone: isRevert ? context.tokens.accent : context.tokens.warning,
+        ),
+      ]),
       if (tag != SwapPriorityTag.none) _tagBanner(tag, l),
       _infoRow(l[K.notifLabelRequester],
           _nameOf(req.requestingProfileId) ?? '—'),
@@ -441,34 +460,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final statusKey = swapStatusLabelKey(req.status);
 
     return _card(children: [
-      Row(
-        children: [
-          Expanded(child: Text('📅 ${l.formatDate(req.scheduleDate)}')),
-          Wrap(
-            spacing: 4,
-            children: [
-              // The state the request had AT RESOLUTION, kept forever (F-20).
-              if (!isPending && tag != SwapPriorityTag.none)
-                _statusBadge(
-                  l[tag == SwapPriorityTag.overdue
-                      ? K.notifTagOverdueShort
-                      : K.notifTagUrgentShort],
-                  tone: tag == SwapPriorityTag.overdue
-                      ? context.tokens.danger
-                      : context.tokens.warning,
-                  semantics: l[K.notifResolvedStateTitle],
-                ),
-              _statusBadge(
-                  statusKey == null ? req.status : l[statusKey]),
-              // F-24: resolved by the 48h server cron.
-              if (req.isAutoResolved)
-                _statusBadge(l[K.notifAutoBadge],
-                    tone: context.tokens.info,
-                    semantics: l[K.notifAutoBadgeTitle]),
-            ],
+      _cardHeader('📅 ${l.formatDate(req.scheduleDate)}', [
+        // The state the request had AT RESOLUTION, kept forever (F-20).
+        if (!isPending && tag != SwapPriorityTag.none)
+          _statusBadge(
+            l[tag == SwapPriorityTag.overdue
+                ? K.notifTagOverdueShort
+                : K.notifTagUrgentShort],
+            tone: tag == SwapPriorityTag.overdue
+                ? context.tokens.danger
+                : context.tokens.warning,
+            semantics: l[K.notifResolvedStateTitle],
           ),
-        ],
-      ),
+        _statusBadge(statusKey == null ? req.status : l[statusKey]),
+        // F-24: resolved by the 48h server cron.
+        if (req.isAutoResolved)
+          _statusBadge(l[K.notifAutoBadge],
+              tone: context.tokens.info,
+              semantics: l[K.notifAutoBadgeTitle]),
+      ]),
       _infoRow(l[K.notifLabelTo], _nameOf(req.targetProfileId) ?? '—'),
       _infoRow(l[K.notifLabelProposed],
           _nameOf(req.proposedActualParentId) ?? '—'),
@@ -544,43 +554,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final createdLocal = notif.createdAt == null
         ? null
         : DateTime.tryParse(notif.createdAt!)?.toLocal();
+    // U-28: an entry on a rail, not a free-floating stack of three greys.
+    //
+    // Title, body and timestamp all had nearly the same weight and colour, and
+    // nothing connected one entry to the next — the tab read as a wall of text
+    // where the web reads as a sequence. [AppTimelineEntry] restores the rail
+    // and gives the timestamp its own (quieter, right-aligned) place.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(notifIcon(notif.type), style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // U-13: the row was written in the LANGUAGE OF WHOEVER ACTED,
-                // so the stored sentence is only correct by accident. Rebuild
-                // from type + params in THIS reader's language; rows written
-                // before the item carry no params and render as stored.
-                Text(
-                  NotificationRenderer.title(
-                      notif.type, notif.paramsJson, notif.title, l),
-                  style: TextStyle(
-                      fontWeight:
-                          notif.isRead ? FontWeight.normal : FontWeight.w600),
-                ),
-                Text(
-                  NotificationRenderer.message(
-                      notif.type, notif.paramsJson, notif.message, l),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                if (createdLocal != null)
-                  Text(l.formatDateTime(createdLocal),
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(color: Theme.of(context).hintColor)),
-              ],
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+      child: AppTimelineEntry(
+        tone: notif.isRead ? context.tokens.neutral : context.tokens.accent,
+        marker: notifIcon(notif.type),
+        isLast: identical(notif, _history.last),
+        // U-13: the row was written in the LANGUAGE OF WHOEVER ACTED, so the
+        // stored sentence is only correct by accident. Rebuild from type +
+        // params in THIS reader's language; rows written before the item carry
+        // no params and render as stored.
+        title: Text(
+          NotificationRenderer.title(
+              notif.type, notif.paramsJson, notif.title, l),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight:
+                  notif.isRead ? FontWeight.w600 : FontWeight.w700),
+        ),
+        body: Text(
+          NotificationRenderer.message(
+              notif.type, notif.paramsJson, notif.message, l),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        timestamp:
+            createdLocal == null ? '' : l.formatDateTime(createdLocal),
       ),
     );
   }

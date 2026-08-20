@@ -36,8 +36,10 @@ void main() {
       (tester) async {
     await tester.pumpWidget(_host(
         const SingleChildScrollView(child: AppSkeletonCalendar())));
-    // 7 weekday marks + 42 cells.
-    expect(find.byType(AppSkeleton), findsNWidgets(49));
+    // 42 cells and nothing else: U-28 removed the skeleton's own weekday row,
+    // because the calendar screen prints the real initials right above it and
+    // the loading state was showing a header the loaded state does not have.
+    expect(find.byType(AppSkeleton), findsNWidgets(42));
     expect(tester.takeException(), isNull);
   });
 

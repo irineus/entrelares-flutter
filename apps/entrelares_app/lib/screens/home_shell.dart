@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 import 'package:go_router/go_router.dart';
 
+import '../services/account_identity.dart';
 import '../services/admin_mode.dart';
 import '../services/notification_badge.dart';
+import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/onboarding.dart';
 
@@ -35,6 +37,16 @@ class HomeShell extends StatelessWidget {
   final AdminMode adminMode;
   final NotificationBadge badge;
 
+  /// U-28: who is signed in, published by whichever screen loaded them and read
+  /// by the account button in every tab's app bar.
+  final AccountIdentity identity;
+
+  /// U-28: the defect this closes — sign-out used to be a `CalendarScreen`
+  /// parameter, so three of the four tabs had no way out of the app.
+  final Future<void> Function() onSignOut;
+
+  final VoidCallback onOpenProfile;
+
   /// S-11: the live family-deletion request, if there is one. The banner sits
   /// above every tab because the deadline applies to the whole app, and it is
   /// the only way a member who never opens Família learns their family is
@@ -50,6 +62,9 @@ class HomeShell extends StatelessWidget {
       required this.shell,
       required this.adminMode,
       required this.badge,
+      required this.identity,
+      required this.onSignOut,
+      required this.onOpenProfile,
       this.deletionBanner,
       this.tourKeys});
 
@@ -103,7 +118,14 @@ class HomeShell extends StatelessWidget {
                     ),
             ),
             if (deletionBanner != null) _deletionBanner(context, l),
-            Expanded(child: shell),
+            Expanded(
+              child: AccountScope(
+                identity: identity,
+                onSignOut: onSignOut,
+                onOpenProfile: onOpenProfile,
+                child: shell,
+              ),
+            ),
           ],
         ),
       ),

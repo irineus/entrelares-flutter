@@ -21,6 +21,9 @@ abstract final class StringsEn {
     K.languagePtBr: 'Português',
     K.languageEn: 'English',
     K.languageHint: 'Your choice also applies to the e-mails you receive.',
+    // ── Splash ──
+    K.splashTagline: 'Whose day is it today?',
+
     // ── Login ──
     K.loginPageTitle: 'Sign in - Entrelares',
     K.loginHeading: 'Entrelares',
@@ -106,6 +109,8 @@ abstract final class StringsEn {
     K.navNotificationsManyPending: 'Notifications, {0} pending',
     K.navReports: 'Reports',
     K.navLogout: 'Sign out',
+    K.navAccount: 'Account',
+    K.navProfile: 'Profile',
     K.navAdmin: 'Admin',
     K.navAdminEnter: 'Enter administrator mode',
     K.navAdminExit: 'Leave administrator mode',
@@ -792,6 +797,8 @@ abstract final class StringsEn {
     K.auditLoadingMore: 'Loading…',
     K.auditLoadMore: 'Load more',
     K.auditErrLoad: 'Error loading the history: {0}',
+    K.sumHeading: '📊 Period summary',
+    K.auditHeading: '⏱️ Adjustment history',
     K.repTabSummary: 'Summary',
     K.repTabHistory: 'History',
     K.repTabPdf: 'PDF',

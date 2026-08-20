@@ -436,8 +436,8 @@ void main() {
         child: MaterialApp(
           home: PolicyUpdateScreen(
             dataSource: ds,
-            onAccepted: onAccepted ?? () {},
             onSignOut: () async {},
+            onAccepted: onAccepted ?? () {},
           ),
         ),
       ));

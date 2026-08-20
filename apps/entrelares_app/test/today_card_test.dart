@@ -60,7 +60,9 @@ void main() {
     await tester.pumpWidget(wrap(card(
         glance: glance, nextHandoff: DateTime(2026, 8, 22))));
 
-    expect(find.text('Olá, Ana Souza!'), findsOneWidget);
+    // U-28: the greeting uses the FIRST name — the full legal name wrapped
+    // onto three lines of card on a phone.
+    expect(find.text('Olá, Ana!'), findsOneWidget);
     expect(find.text('quarta-feira, 19 de agosto'), findsOneWidget);
     expect(find.text('Responsável hoje'), findsOneWidget);
     expect(find.text('Bruno Lima'), findsOneWidget);
@@ -146,7 +148,7 @@ void main() {
       language: AppLanguage.en,
     ));
 
-    expect(find.text('Hi, Ana Souza!'), findsOneWidget);
+    expect(find.text('Hi, Ana!'), findsOneWidget);
     expect(find.text('Wednesday, August 19'), findsOneWidget);
     expect(find.text('Caregiver today'), findsOneWidget);
     expect(find.text('Next handover'), findsOneWidget);

@@ -26,6 +26,7 @@ import 'screens/register_screen.dart';
 import 'screens/reports_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/update_password_screen.dart';
+import 'services/account_identity.dart';
 import 'services/admin_mode.dart';
 import 'services/analytics_service.dart';
 import 'services/custody_data_source.dart';
@@ -37,6 +38,7 @@ import 'services/sudo_service.dart';
 import 'services/supabase_custody_data_source.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_l10n.dart';
+import 'widgets/app_splash.dart';
 import 'widgets/onboarding.dart';
 
 Future<void> main() async {
@@ -85,6 +87,10 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   late final SessionGate _gate;
   late final CustodyDataSource _dataSource;
   late final NotificationBadge _badge;
+
+  /// U-28 — who is signed in, published by the screens that load the member
+  /// list and read by the account button in every tab's app bar.
+  final AccountIdentity _identity = AccountIdentity();
   /// T-37 — one per process; a no-op unless the flavor carries a website id.
   late final AnalyticsService _analytics;
   // S-10: session-scoped like admin mode, and for a stronger reason — an
@@ -125,8 +131,9 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     routes: [
       GoRoute(
         path: '/splash',
-        builder: (_, _) =>
-            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        // U-28: the product's first frame says what the product is — the
+        // web's U-10 animated calendar, ported to Flutter over the tokens.
+        builder: (_, _) => const AppSplash(),
       ),
       GoRoute(
         path: '/login',
@@ -211,6 +218,11 @@ class _EntrelaresAppState extends State<EntrelaresApp>
             shell: shell,
             adminMode: _adminMode,
             badge: _badge,
+            identity: _identity,
+            // U-28: the shell owns sign-out now, so it is reachable from all
+            // four tabs — it used to be a CalendarScreen parameter only.
+            onSignOut: _signOut,
+            onOpenProfile: () => _router.go('/family/profile'),
             deletionBanner: _deletionBanner,
             tourKeys: _tourKeys),
         branches: [
@@ -221,7 +233,6 @@ class _EntrelaresAppState extends State<EntrelaresApp>
                   dataSource: _dataSource,
                   adminMode: _adminMode,
                   analytics: _analytics,
-                  onSignOut: _signOut,
                   onboarding: _onboarding,
                   tourKeys: _tourKeys,
                   onOpenFamily: () => _router.go('/family')),
@@ -503,6 +514,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
 
   Future<void> _signOut() async {
     await _gate.signOutSafely();
+    _identity.clear();
     // Lesson 1.3: navigate ALWAYS (the auth listener also fires on success).
     _expiredReason = SessionExpiredReason.none;
     _setPhase(_AuthPhase.anon);

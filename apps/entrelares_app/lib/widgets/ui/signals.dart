@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../../theme/tokens.dart';
+import 'surfaces.dart';
 
 /// A tone-coloured block that says something about the whole screen or the
 /// whole form: an admin override in effect, a read that failed, a warning about
@@ -142,6 +143,100 @@ class AppEmptyState extends StatelessWidget {
             Text(body!,
                 textAlign: TextAlign.center, style: textTheme.bodySmall),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+/// The block that ends a screen able to destroy something: leaving the family,
+/// deleting it, revoking a member.
+///
+/// It is a component and not a convention because the port proved the
+/// convention does not hold — the same block was a red bordered card on the
+/// web and became loose paragraphs plus a text link in Flutter, on BOTH screens
+/// that carry one. A destructive action that looks like a link is the one place
+/// where visual weight is a safety feature, not decoration.
+class AppDangerZone extends StatelessWidget {
+  final String title;
+
+  /// The sentence that introduces the notices ("Ao confirmar você declara estar
+  /// ciente de que:").
+  final String? intro;
+
+  /// What the reader is declaring they understand. Rendered as a bulleted list
+  /// in the danger tone.
+  final List<String> notices;
+
+  /// Anything the action needs before it can run — the "novo administrador"
+  /// picker on the leaving screen is the reason this exists.
+  final Widget? child;
+
+  final String actionLabel;
+
+  /// `null` disables the action — the leaving screen keeps it off until a
+  /// successor is chosen.
+  final VoidCallback? onAction;
+
+  final bool busy;
+
+  const AppDangerZone({
+    super.key,
+    required this.title,
+    required this.notices,
+    required this.actionLabel,
+    required this.onAction,
+    this.intro,
+    this.child,
+    this.busy = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = context.tokens.danger;
+    final textTheme = Theme.of(context).textTheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(Spacing.md),
+      decoration: BoxDecoration(
+        color: tone.container,
+        border: Border.all(color: tone.border),
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: textTheme.titleSmall?.copyWith(color: tone.onContainer)),
+          if (intro != null) ...[
+            const SizedBox(height: Spacing.xs),
+            Text(intro!,
+                style:
+                    textTheme.bodySmall?.copyWith(color: tone.onContainer)),
+          ],
+          if (notices.isNotEmpty) ...[
+            const SizedBox(height: Spacing.sm),
+            AppBulletList(items: notices, color: tone.onContainer),
+          ],
+          if (child != null) ...[
+            const SizedBox(height: Spacing.md),
+            child!,
+          ],
+          const SizedBox(height: Spacing.md),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: busy ? null : onAction,
+              style: FilledButton.styleFrom(
+                  backgroundColor: tone.solid, foregroundColor: tone.onSolid),
+              child: busy
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(actionLabel),
+            ),
+          ),
         ],
       ),
     );

@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
+import '../theme/tokens.dart';
 import '../env.dart';
 import '../models/family.dart';
 import '../models/member.dart';
@@ -451,6 +452,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 24),
             _passwordSection(l, target),
             const SizedBox(height: 24),
+            // U-28: the picker the web has on this page, and the sentence that
+            // explains why it matters — both were dropped in the port. The
+            // account menu switches the language too, but this is where a
+            // reader looks for a SETTING, and `languageHint` is the only place
+            // the app says the choice follows them into their e-mail.
+            _languageSection(l),
+            const SizedBox(height: 24),
             _lgpdSection(l),
             if (widget.onReopenOnboarding != null) ...[
               const SizedBox(height: 24),
@@ -461,6 +469,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
           const SizedBox(height: 24),
           _legalFooter(l),
+          const SizedBox(height: Spacing.sm),
+          // U-28: the version the web prints in its own footer — the first
+          // thing a tester is asked for when they report something.
+          Text('Entrelares v${Env.appVersion}',
+              textAlign: TextAlign.center,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: context.tokens.textMuted)),
         ],
       ),
     );
@@ -469,11 +486,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _sectionTitle(String text) =>
       Text(text, style: Theme.of(context).textTheme.titleMedium);
 
-  Widget _dataSection(Localization l, Member target) => Column(
+  /// U-28 — the language setting, back on the page that holds settings.
+  Widget _languageSection(Localization l) => AppCard(
+        title: l[K.languageLabel],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l[K.languageHint],
+                style: Theme.of(context).textTheme.bodySmall),
+            const SizedBox(height: Spacing.md),
+            const LanguagePickerRow(),
+          ],
+        ),
+      );
+
+  Widget _dataSection(Localization l, Member target) => AppCard(
+        title: l[K.profSectionData],
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _sectionTitle(l[K.profSectionData]),
-          const SizedBox(height: 12),
           AppTextField(
             label: l[K.registerFullName],
             controller: _nameDraft,
@@ -500,18 +531,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: Theme.of(context).textTheme.bodySmall),
           ],
           const SizedBox(height: 12),
-          FilledButton(
+          FilledButton.icon(
             onPressed: _savingData ? null : () => _saveData(l),
-            child: Text(l[K.profSaveData]),
+            icon: const Icon(Icons.save_outlined),
+            label: Text(l[K.profSaveData]),
           ),
         ],
-      );
+      ));
 
-  Widget _adminSection(Localization l, Member target) => Column(
+  Widget _adminSection(Localization l, Member target) => AppCard(
+        title: l[K.profSectionAdmin],
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _sectionTitle(l[K.profSectionAdmin]),
-          const SizedBox(height: 8),
           Text(target.isAdmin ? l[K.profIsAdmin] : l[K.profIsNotAdmin],
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
@@ -521,20 +553,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 target.isAdmin ? l[K.profRemoveAdmin] : l[K.profMakeAdmin]),
           ),
           const SizedBox(height: 8),
-          TextButton(
+          // U-28: an OutlinedButton, not a bare link. As text these read as
+          // captions floating under the section rather than as things to press.
+          OutlinedButton.icon(
             onPressed: () => _sendPasswordReset(l, target.email ?? '',
                 own: false),
-            child: Text(l[K.profSendPasswordReset]),
+            icon: const Icon(Icons.mail_outline),
+            label: Text(l[K.profSendPasswordReset]),
           ),
         ],
-      );
+      ));
 
-  Widget _emailSection(Localization l, Member target) => Column(
+  Widget _emailSection(Localization l, Member target) => AppCard(
+        title: l[K.profSectionEmail],
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _sectionTitle(l[K.profSectionEmail]),
-          const SizedBox(height: 8),
-          Text('${l[K.profCurrentEmail]} ${target.email ?? ''}',
+          // U-28 defect: the key is a FORMAT string ("E-mail atual: {0}"), and
+          // interpolating it printed the placeholder verbatim next to the
+          // address — "E-mail atual: {0} irineus@gmail.com".
+          Text(l.format(K.profCurrentEmail, [target.email ?? '']),
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
           AppTextField(
@@ -550,18 +588,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: Theme.of(context).textTheme.bodySmall),
           ],
           const SizedBox(height: 12),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () => _changeEmail(l),
-            child: Text(l[K.profChangeEmail]),
+            icon: const Icon(Icons.alternate_email),
+            label: Text(l[K.profChangeEmail]),
           ),
         ],
-      );
+      ));
 
-  Widget _passwordSection(Localization l, Member target) => Column(
+  Widget _passwordSection(Localization l, Member target) => AppCard(
+        title: l[K.profSectionPassword],
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _sectionTitle(l[K.profSectionPassword]),
-          const SizedBox(height: 12),
           TextField(
             controller: _newPassword,
             obscureText: true,
@@ -581,9 +620,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          FilledButton(
+          FilledButton.icon(
             onPressed: () => _changePassword(l),
-            child: Text(l[K.profChangePassword]),
+            icon: const Icon(Icons.key_outlined),
+            label: Text(l[K.profChangePassword]),
           ),
           const SizedBox(height: 8),
           Text(l[K.profForgotCurrent],
@@ -591,49 +631,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (_passwordLinkSent)
             Text(l.format(K.profPasswordLinkSentTo, [target.email ?? '']),
                 style: Theme.of(context).textTheme.bodySmall),
-          TextButton(
+          OutlinedButton.icon(
             onPressed: () =>
                 _sendPasswordReset(l, target.email ?? '', own: true),
-            child: Text(l[K.profResetByEmail]),
+            icon: const Icon(Icons.mail_outline),
+            label: Text(l[K.profResetByEmail]),
           ),
         ],
-      );
+      ));
 
-  Widget _lgpdSection(Localization l) => Column(
+  Widget _lgpdSection(Localization l) => AppCard(
+        title: l[K.profSectionLgpd],
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _sectionTitle(l[K.profSectionLgpd]),
-          const SizedBox(height: 8),
           Text(l[K.profExportHint],
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
-          FilledButton(
+          FilledButton.icon(
             onPressed: _exporting ? null : () => _export(l),
-            child: Text(l[K.profExportAction]),
+            icon: const Icon(Icons.download_outlined),
+            label: Text(l[K.profExportAction]),
           ),
         ],
-      );
+      ));
 
   /// U-23 — the permanent way back into the first-run guide.
-  Widget _onboardingSection(Localization l) => Column(
+  Widget _onboardingSection(Localization l) => AppCard(
+        title: l[K.onbChecklistReopen],
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _sectionTitle(l[K.onbChecklistReopen]),
-          const SizedBox(height: 4),
           Text(l[K.onbChecklistReopenHint],
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: () =>
-                widget.onReopenOnboarding!(replayTour: false),
-            child: Text(l[K.onbChecklistReopen]),
-          ),
-          TextButton(
-            onPressed: () => widget.onReopenOnboarding!(replayTour: true),
-            child: Text(l[K.onbChecklistReplayTour]),
+          // U-28: two buttons on one row, as the web has them. The second was
+          // a bare TextButton under the first, which read as a caption rather
+          // than as the alternative it is.
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonal(
+                  onPressed: () =>
+                      widget.onReopenOnboarding!(replayTour: false),
+                  child: Text(l[K.onbChecklistReopen],
+                      textAlign: TextAlign.center),
+                ),
+              ),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () =>
+                      widget.onReopenOnboarding!(replayTour: true),
+                  child: Text(l[K.onbChecklistReplayTour],
+                      textAlign: TextAlign.center),
+                ),
+              ),
+            ],
           ),
         ],
-      );
+      ));
 
   /// S-11 — leaving. Two different acts share one button, and the copy is what
   /// tells them apart: the LAST live member is deleting the family, everyone
@@ -659,31 +716,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _sectionTitle(l[last ? K.profLeaveTitleLast : K.profLeaveTitle]),
-        const SizedBox(height: 8),
-        Text(l[last ? K.profLeaveLastIntro : K.profLeaveIntro],
-            style: theme.textTheme.bodySmall),
-        const SizedBox(height: 8),
-        for (final consequence in last
-            ? [K.profLeaveLastConsequenceData, K.profLeaveLastConsequenceCancel]
-            : [
-                K.profLeaveConsequenceAccount,
-                K.profLeaveConsequenceDays,
-                K.profLeaveConsequenceHistory,
-                K.profLeaveConsequenceNotice,
-                if (_needsSuccessor) K.profLeaveConsequenceSuccessor,
-              ])
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child:
-                Text('• ${l[consequence]}', style: theme.textTheme.bodySmall),
-          ),
-        if (_needsSuccessor) ...[
-          const SizedBox(height: 12),
-          DropdownButtonFormField<int>(
+    final successorPicker = !_needsSuccessor
+        ? null
+        : DropdownButtonFormField<int>(
             initialValue: _successorId,
             decoration: InputDecoration(
               labelText: l[K.profSuccessorLabel],
@@ -702,17 +737,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
             ],
             onChanged: (value) => setState(() => _successorId = value),
-          ),
+          );
+
+    // U-28: the same danger zone the family screen uses. This action deletes
+    // the reader's own account (or the whole family, when they are the last
+    // one), and it was rendered as loose paragraphs under an OutlinedButton —
+    // less visual weight than "Salvar dados" two sections above it.
+    if (!_confirmingLeave) {
+      return AppDangerZone(
+        title: l[last ? K.profLeaveTitleLast : K.profLeaveTitle],
+        intro: l[last ? K.profLeaveLastIntro : K.profLeaveIntro],
+        notices: [
+          for (final consequence in last
+              ? [
+                  K.profLeaveLastConsequenceData,
+                  K.profLeaveLastConsequenceCancel
+                ]
+              : [
+                  K.profLeaveConsequenceAccount,
+                  K.profLeaveConsequenceDays,
+                  K.profLeaveConsequenceHistory,
+                  K.profLeaveConsequenceNotice,
+                  if (_needsSuccessor) K.profLeaveConsequenceSuccessor,
+                ])
+            l[consequence],
         ],
-        const SizedBox(height: 12),
-        if (!_confirmingLeave)
-          OutlinedButton(
-            onPressed: () => setState(() => _confirmingLeave = true),
-            child: Text(l[last ? K.profLeaveOpenLast : K.profLeaveOpen]),
-          )
-        else ...[
+        actionLabel: l[last ? K.profLeaveOpenLast : K.profLeaveOpen],
+        onAction: () => setState(() => _confirmingLeave = true),
+        child: successorPicker,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionTitle(l[last ? K.profLeaveTitleLast : K.profLeaveTitle]),
+        const SizedBox(height: 8),
+        ...[
           Text(l[last ? K.profLeaveConfirmTextLast : K.profLeaveConfirmText],
               style: TextStyle(color: theme.colorScheme.error)),
+          if (successorPicker != null) ...[
+            const SizedBox(height: 12),
+            successorPicker,
+          ],
           const SizedBox(height: 8),
           FilledButton(
             onPressed: _leaving || (_needsSuccessor && _successorId == null)

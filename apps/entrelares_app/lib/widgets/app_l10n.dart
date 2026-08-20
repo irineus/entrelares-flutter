@@ -1,6 +1,8 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 
+import 'ui/ui.dart';
+
 /// U-13 — hands every screen the session's [Localization] and the switcher.
 ///
 /// The language is FIXED for the lifetime of the subtree: a switch rebuilds
@@ -38,25 +40,20 @@ class LanguagePickerRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = AppL10n.of(context);
     final l = app.l;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        for (final (language, label) in [
-          (AppLanguage.ptBr, l[K.languagePtBr]),
-          (AppLanguage.en, l[K.languageEn]),
-        ]) ...[
-          if (language != AppLanguage.ptBr) const SizedBox(width: 8),
-          Semantics(
-            label: l[K.languageAriaLabel],
-            child: TextButton(
-              onPressed: l.current == language
-                  ? null
-                  : () => app.setLanguage(language),
-              child: Text(label),
-            ),
-          ),
+    // U-28: a segmented control, not two text buttons. The pair read as two
+    // loose links with one of them mysteriously dead (the current language was
+    // a `TextButton` with `onPressed: null`) — nothing said they were ONE
+    // choice with a state. The segmented button says both at once.
+    return Center(
+      child: AppSegmented<AppLanguage>(
+        semantics: l[K.languageAriaLabel],
+        selected: l.current,
+        onChanged: app.setLanguage,
+        options: [
+          (value: AppLanguage.ptBr, label: l[K.languagePtBr]),
+          (value: AppLanguage.en, label: l[K.languageEn]),
         ],
-      ],
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 
 import '../services/custody_data_source.dart';
+import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import 'reports_audit_tab.dart';
 import 'reports_pdf_tab.dart';
@@ -28,11 +29,23 @@ class ReportsScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text(l[K.navReports]),
+          actions: const [AppAccountButton()],
+          // U-28: the tab bar joins the app's icon system. Emoji in a tab
+          // label sits at a different optical weight from every other icon on
+          // the screen and does not follow the selected colour — the rest of
+          // the app is Material icons, so these are too. Emoji stays where the
+          // catalog owns it: inside sentences the app writes.
           bottom: TabBar(
             tabs: [
-              Tab(text: '📋 ${l[K.repTabSummary]}'),
-              Tab(text: '⏱️ ${l[K.repTabHistory]}'),
-              Tab(text: '📄 ${l[K.repTabPdf]}'),
+              Tab(
+                  icon: const Icon(Icons.summarize_outlined),
+                  text: l[K.repTabSummary]),
+              Tab(
+                  icon: const Icon(Icons.history),
+                  text: l[K.repTabHistory]),
+              Tab(
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  text: l[K.repTabPdf]),
             ],
           ),
         ),

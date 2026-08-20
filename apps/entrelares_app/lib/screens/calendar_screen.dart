@@ -9,12 +9,14 @@ import 'package:go_router/go_router.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import '../models/role.dart';
 import '../models/swap_request.dart';
 import '../services/admin_mode.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../theme/slot_pattern.dart';
 import '../theme/tokens.dart';
+import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
 import '../widgets/today_card.dart';
@@ -25,6 +27,11 @@ import 'resolve_sheet.dart';
 import '../services/onboarding_service.dart';
 import '../widgets/onboarding.dart';
 import 'wizard_sheet.dart';
+
+/// U-28 — what one day of the grid is tall enough to hold: the day number, the
+/// carer's initial, and the handoff mark under it. The width follows from the
+/// screen; only the height is a design decision, so only the height is here.
+const double _dayCellHeight = 58;
 
 /// U-27 — the F-27 slot palette now lives in [AppTokens.slots], with a
 /// [SlotPattern] alongside each hue and a dark set that did not exist before.
@@ -42,7 +49,6 @@ class CalendarScreen extends StatefulWidget {
   /// T-37 — optional, and only passed through to the wizard.
   final AnalyticsService? analytics;
   final AdminMode adminMode;
-  final Future<void> Function() onSignOut;
 
   /// U-23 — the first-run surfaces. Null in tests that do not exercise them
   /// (and in any host that has no tour targets to offer).
@@ -56,7 +62,6 @@ class CalendarScreen extends StatefulWidget {
       {super.key,
       required this.dataSource,
       required this.adminMode,
-      required this.onSignOut,
       this.onboarding,
       this.tourKeys,
       this.analytics,
@@ -76,6 +81,11 @@ class _CalendarScreenState extends State<CalendarScreen>
   late DateTime _visibleMonth;
 
   List<Member> _members = const [];
+
+  /// U-28 — the roles, so the legend and the today card can say "Fernanda
+  /// (Mãe)" the way the web does. The port dropped the role everywhere on this
+  /// screen, which is what made the legend read as four unexplained colours.
+  List<Role> _roles = const [];
   Map<String, CareSchedule> _daysByIso = const {};
   Member? _ownProfile;
 
@@ -240,6 +250,12 @@ class _CalendarScreenState extends State<CalendarScreen>
     if (!silent) setState(() => _loading = true);
     try {
       final members = await widget.dataSource.fetchMembers();
+      // Best-effort: a family whose roles fail to load still gets its
+      // calendar, just without the "(Mãe)" suffix.
+      List<Role> roles = _roles;
+      try {
+        roles = await widget.dataSource.fetchRoles();
+      } catch (_) {/* keep whatever we had */}
       final days = await widget.dataSource
           .fetchMonth(_visibleMonth.year, _visibleMonth.month);
       final frozen = await widget.dataSource
@@ -250,6 +266,7 @@ class _CalendarScreenState extends State<CalendarScreen>
       if (!mounted) return;
       setState(() {
         _members = members;
+        _roles = roles;
         _daysByIso = {
           for (final d in days) CareSchedule.isoDate(d.scheduleDate): d
         };
@@ -263,6 +280,9 @@ class _CalendarScreenState extends State<CalendarScreen>
         _loading = false;
         _loadError = null;
       });
+      // U-28: the account button in every tab's app bar wears this.
+      AccountScope.identityOf(context)?.adopt(
+          fullName: ownProfile?.fullName, colorSlot: ownProfile?.colorSlot);
       unawaited(_refreshOnboarding(ownProfile, members));
     } catch (e) {
       if (!mounted) return;
@@ -661,22 +681,64 @@ class _CalendarScreenState extends State<CalendarScreen>
         isAdmin: _ownProfile?.isAdmin ?? false,
         activeMemberCount: _members.where((m) => m.isActiveMember).length,
       ),
+      responsibleRole: _roleLabelFor(
+          todayRow?.effectiveParentId, AppL10n.of(context).l.current),
       onGoToToday: _goToToday,
       onInvite: () => context.go('/family'),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final app = AppL10n.of(context);
-    final l = app.l;
-    final views = _memberViews;
-    final title =
-        l.formatMonthYear(_visibleMonth.year, _visibleMonth.month);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
+  /// U-28 — how a member's role reads for this reader, or null when the family
+  /// never set one. Built-ins translate, custom roles pass through — the
+  /// composition lives in [Role.displayLabel], same as the family screen's.
+  String? _roleLabelFor(int? memberId, AppLanguage language) {
+    if (memberId == null) return null;
+    for (final m in _members) {
+      if (m.id != memberId) continue;
+      for (final r in _roles) {
+        if (r.id == m.roleId) {
+          final label = r.displayLabel(language);
+          return label.isEmpty ? null : label;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// U-28 — the month, its two arrows and the calendar's own actions, sitting
+  /// directly above the grid they act on.
+  ///
+  /// Two things were wrong before. The month name lived in the app bar, four
+  /// icon buttons away from the calendar it names, and truncated to
+  /// "agosto de…" whenever the admin shield made a fifth. And month navigation
+  /// was swipe-ONLY — an improvement the owner asked for (18/08/2026), but one
+  /// that silently removed the web's explicit `<` `>`, leaving no visible way
+  /// to change month at all. The swipe stays; the arrows come back.
+  Widget _monthBar(BuildContext context, Localization l) {
+    final tokens = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Spacing.sm, Spacing.xs, Spacing.sm, 0),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: l[K.calPrevMonth],
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => _stepMonth(-1),
+          ),
+          Expanded(
+            child: Text(
+              l.formatMonthYear(_visibleMonth.year, _visibleMonth.month),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          IconButton(
+            tooltip: l[K.calNextMonth],
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => _stepMonth(1),
+          ),
           // U-11: the accessible entry point to bulk selection (mirrors the
           // long-press). Once armed, tapping a day toggles its selection.
           if (!_isSelectionMode)
@@ -693,46 +755,44 @@ class _CalendarScreenState extends State<CalendarScreen>
           ),
           // F-14: the explicit admin-mode toggle — mirror of the web's NavMenu
           // button. Only a real admin sees it; the shell shows the persistent
-          // banner while it is on.
+          // banner while it is on. It stays with the calendar and not in the
+          // account menu because what it unlocks is a day on THIS grid.
           if (_ownProfile?.isAdmin == true)
             IconButton(
               tooltip: l[widget.adminMode.isActive
                   ? K.navAdminExit
                   : K.navAdminEnter],
               icon: Icon(
-                widget.adminMode.isActive
-                    ? Icons.shield
-                    : Icons.shield_outlined,
-                color: widget.adminMode.isActive
-                    ? context.tokens.dangerBar
-                    : null,
+                widget.adminMode.isActive ? Icons.shield : Icons.shield_outlined,
+                color: widget.adminMode.isActive ? tokens.dangerBar : null,
               ),
               onPressed: widget.adminMode.toggle,
             ),
-          // U-13: the signed-in picker — a switch persists to the profile so
-          // the server-side senders follow (best-effort, in _setLanguage).
-          PopupMenuButton<AppLanguage>(
-            tooltip: l[K.languageAriaLabel],
-            icon: const Icon(Icons.language),
-            onSelected: app.setLanguage,
-            itemBuilder: (context) => [
-              for (final (language, label) in [
-                (AppLanguage.ptBr, l[K.languagePtBr]),
-                (AppLanguage.en, l[K.languageEn]),
-              ])
-                PopupMenuItem(
-                  value: language,
-                  enabled: l.current != language,
-                  child: Text(label),
-                ),
-            ],
-          ),
-          IconButton(
-            tooltip: l[K.navLogout],
-            icon: const Icon(Icons.logout),
-            onPressed: widget.onSignOut,
-          ),
         ],
+      ),
+    );
+  }
+
+  /// One month forward or back, on the same controller the swipe drives — so
+  /// the arrows and the gesture cannot disagree about where the calendar is.
+  void _stepMonth(int delta) {
+    final page = (_pageController.page ?? _basePage.toDouble()).round() + delta;
+    _pageController.animateToPage(page,
+        duration: Motion.sheet, curve: Motion.sheetCurve);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = AppL10n.of(context);
+    final l = app.l;
+    final views = _memberViews;
+    return Scaffold(
+      // U-28: the app bar names the TAB, like the other three do. The month
+      // moved down to sit against the grid it labels — up here, competing with
+      // five icon buttons, it truncated to "agosto de…" for any admin.
+      appBar: AppBar(
+        title: Text(l[K.navCalendar]),
+        actions: const [AppAccountButton()],
       ),
       body: Column(
         children: [
@@ -742,14 +802,28 @@ class _CalendarScreenState extends State<CalendarScreen>
               onOpen: _openChecklist,
               onDismiss: _dismissChecklist,
             ),
-          if (_ownProfile != null)
+          // U-28: the skeleton covers the WHOLE screen it stands in for. Before,
+          // only the grid had one — the today card and the legend simply did
+          // not exist until data arrived, so the calendar loaded as a bare grid
+          // and then shoved itself down by two blocks when the load returned.
+          if (_ownProfile == null && _loading)
+            const _TodayCardSkeleton()
+          else if (_ownProfile != null)
             KeyedSubtree(
                 key: widget.tourKeys?.keyFor(TourTarget.todayCard),
                 child: _todayCard(context)),
-          KeyedSubtree(
-            key: widget.tourKeys?.keyFor(TourTarget.calendarLegend),
-            child: _Legend(members: _members, views: views),
-          ),
+          _monthBar(context, l),
+          if (_members.isEmpty && _loading)
+            const _LegendSkeleton()
+          else
+            KeyedSubtree(
+              key: widget.tourKeys?.keyFor(TourTarget.calendarLegend),
+              child: _Legend(
+                members: _members,
+                views: views,
+                roleOf: (id) => _roleLabelFor(id, l.current),
+              ),
+            ),
           const Divider(height: 1),
           Expanded(
             child: PageView.builder(
@@ -835,32 +909,114 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 }
 
+/// The today card's outline while it loads — the same card, the same two
+/// bands, the same heights, so nothing moves when the real one arrives.
+class _TodayCardSkeleton extends StatelessWidget {
+  const _TodayCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Card(
+        margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppSkeleton(width: 180, height: 18),
+              const SizedBox(height: Spacing.xs),
+              const AppSkeleton(width: 130, height: 12),
+              const Divider(height: Spacing.lg),
+              Row(
+                children: [
+                  const AppSkeleton.circle(size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        AppSkeleton(width: 90, height: 10),
+                        SizedBox(height: Spacing.xs),
+                        AppSkeleton(width: 150, height: 16),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const AppSkeleton(width: 70, height: 32),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+/// The legend's outline: one line of pills, the height the real one keeps.
+class _LegendSkeleton extends StatelessWidget {
+  const _LegendSkeleton();
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 40,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(
+              horizontal: Spacing.sm, vertical: Spacing.xs),
+          children: const [
+            AppSkeleton(width: 96, height: 32, radius: Radii.lg),
+            SizedBox(width: Spacing.sm),
+            AppSkeleton(width: 110, height: 32, radius: Radii.lg),
+            SizedBox(width: Spacing.sm),
+            AppSkeleton(width: 88, height: 32, radius: Radii.lg),
+          ],
+        ),
+      );
+}
+
+/// U-28 — the legend, scrolling sideways instead of wrapping.
+///
+/// Three problems, one shape. The chips wrapped onto a second row and pushed
+/// the grid down (on a four-carer family the calendar lost a whole week of
+/// height to a legend); every carer but the first wore a hatch, which the
+/// owner's review read as "these people are marked for something"; and the
+/// names had lost the ROLE, so the legend was a row of colours with first names
+/// and no explanation of who anyone is.
+///
+/// It is one line that scrolls now: the calendar keeps its height no matter how
+/// many carers a family has.
 class _Legend extends StatelessWidget {
   final List<Member> members;
   final List<MemberView> views;
 
-  const _Legend({required this.members, required this.views});
+  /// Resolves a member's role for the current reader; null keeps the bare name.
+  final String? Function(int memberId) roleOf;
+
+  const _Legend(
+      {required this.members, required this.views, required this.roleOf});
 
   @override
   Widget build(BuildContext context) {
     // F-27/S-11: colors are per ACTIVE member (persistent color_slot).
     final active = members.where((m) => m.isActiveMember).toList()
       ..sort((a, b) => (a.colorSlot ?? 9).compareTo(b.colorSlot ?? 9));
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 4,
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
         children: [
           for (final m in active)
             Builder(builder: (context) {
               final slot = context.tokens.slot(profileSlotIndex(m.id, views));
-              return Chip(
-                visualDensity: VisualDensity.compact,
-                // The swatch carries the texture as well as the hue — that is
-                // where a reader learns which pattern is whose.
-                avatar: SlotSwatch(slot: slot),
-                label: Text(m.fullName.split(' ').first),
+              final role = roleOf(m.id);
+              final first = m.fullName.split(' ').first;
+              return Padding(
+                padding: const EdgeInsets.only(right: Spacing.sm),
+                child: Chip(
+                  visualDensity: VisualDensity.compact,
+                  avatar: SlotSwatch(slot: slot),
+                  label: Text(role == null ? first : '$first ($role)'),
+                ),
               );
             }),
           Chip(
@@ -960,17 +1116,34 @@ class _MonthGrid extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        if (loading)
-          // U-27: the grid's own shape, at its own aspect ratio — the month
-          // does not jump into place when the days land.
-          const AppSkeletonCalendar()
-        else
-          GridView.count(
+        // U-28: the cell is sized by its CONTENT, not by the accident of being
+        // square. `GridView.count` defaults to `childAspectRatio: 1`, which on a
+        // phone gives a ~43 dp cell for the ~50 dp the day number, the avatar
+        // and the handoff mark need — every assigned day rendered
+        // `BOTTOM OVERFLOWED`. The height is fixed and the ratio derives from
+        // the real width, so the same cell holds on any screen.
+        LayoutBuilder(builder: (context, constraints) {
+          final cellWidth = (constraints.maxWidth - 6 * 4) / 7;
+          final ratio = cellWidth / _dayCellHeight;
+          return loading
+              // U-27: the grid's own shape, at its own aspect ratio — the month
+              // does not jump into place when the days land.
+              ? AppSkeletonCalendar(childAspectRatio: ratio)
+              : _grid(context, ratio, daysInMonth, blanksBefore, todayIso);
+        }),
+      ],
+    );
+  }
+
+  Widget _grid(BuildContext context, double ratio, int daysInMonth,
+          int blanksBefore, String todayIso) =>
+      GridView.count(
             crossAxisCount: 7,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 4,
             crossAxisSpacing: 4,
+            childAspectRatio: ratio,
             children: [
               for (var i = 0; i < blanksBefore; i++) const SizedBox.shrink(),
               for (var day = 1; day <= daysInMonth; day++)
@@ -992,10 +1165,7 @@ class _MonthGrid extends StatelessWidget {
                   onLongPress: onDayLongPress,
                 ),
             ],
-          ),
-      ],
-    );
-  }
+          );
 }
 
 /// What a frozen day paints on its cell (computed in [_MonthGrid._markFor]).
@@ -1057,12 +1227,17 @@ class _DayCell extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(Radii.md),
-              border: isSelected || isToday
+              // U-28: "today" was a 2 px indigo hairline that vanished into a
+              // tinted cell. It is the mark a reader looks for FIRST, so it
+              // takes the text colour and real weight — the web's black ring.
+              border: isSelected
                   ? Border.all(color: primary, width: 2)
-                  : Border.all(
-                      color: assigned && !isSwapped
-                          ? slot.tone.border
-                          : tokens.outline),
+                  : isToday
+                      ? Border.all(color: tokens.text, width: 2.5)
+                      : Border.all(
+                          color: assigned && !isSwapped
+                              ? slot.tone.border
+                              : tokens.outline),
               color: isSelected
                   ? primary.withValues(alpha: 0.12)
                   : assigned
@@ -1110,8 +1285,22 @@ class _DayCell extends StatelessWidget {
                       ),
                     )
                   else if (day?.handoffTime != null)
-                    Icon(Icons.swap_horiz,
-                        size: 10, color: Theme.of(context).hintColor),
+                    // U-28: the TIME, not an anonymous swap arrow. The web
+                    // prints "18:00" on every handoff day and the port replaced
+                    // it with an icon that says a handoff exists but not when —
+                    // which is the only thing a parent reads a handoff day for.
+                    // (It is also what the square cell had no room for: the
+                    // overflow the review caught was this line being clipped.)
+                    Text(
+                      AppL10n.of(context)
+                          .l
+                          .formatTimeString(day!.handoffTime!),
+                      style: TextStyle(
+                          fontSize: 9,
+                          color: assigned
+                              ? slot.tone.onContainer
+                              : Theme.of(context).hintColor),
+                    ),
                 ],
               ),
             ),

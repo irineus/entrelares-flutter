@@ -74,12 +74,28 @@ abstract final class AppTheme {
         titleTextStyle: textTheme.titleLarge,
         contentTextStyle: textTheme.bodyMedium,
       ),
+      // U-28: the active destination takes the brand colour, in its icon AND
+      // its label. The web's bar carried colour and the port's was uniformly
+      // grey — the owner read the difference as the app having lost its life.
+      // Colour lands HERE and nowhere else in the bar: one destination at a
+      // time, so the greys still carry the surface and the hues stay reserved
+      // for data.
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: t.surfaceAlt,
         surfaceTintColor: Colors.transparent,
         indicatorColor: t.accent.container,
         elevation: Elevations.bottomNav,
-        labelTextStyle: WidgetStatePropertyAll(textTheme.labelSmall),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? IconThemeData(color: t.accent.onContainer)
+              : IconThemeData(color: t.textMuted),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? textTheme.labelSmall?.copyWith(
+                  color: t.accent.onContainer, fontWeight: FontWeight.w600)
+              : textTheme.labelSmall?.copyWith(color: t.textMuted),
+        ),
       ),
       // U-27, WCAG 1.4.11: the field border stays a light hairline, and the
       // 3:1 the norm asks for is satisfied the other way it allows — a label
@@ -118,12 +134,23 @@ abstract final class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(textStyle: textTheme.labelLarge),
       ),
+      // U-28: the UNSELECTED segment used to inherit `colorScheme.primary`, so
+      // every option read as chosen and the fill was the only difference. The
+      // unselected label is muted and the selected one is bold — the control
+      // now says which option is active from two vectors, not half of one.
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: SegmentedButton.styleFrom(
+          foregroundColor: t.textMuted,
           selectedBackgroundColor: t.accent.container,
           selectedForegroundColor: t.accent.onContainer,
           side: BorderSide(color: t.outline),
           textStyle: textTheme.labelMedium,
+        ).copyWith(
+          textStyle: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.selected)
+                ? textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700)
+                : textTheme.labelMedium,
+          ),
         ),
       ),
       chipTheme: ChipThemeData(

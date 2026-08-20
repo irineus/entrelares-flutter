@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:entrelares_app/screens/home_shell.dart';
 import 'package:entrelares_app/screens/login_screen.dart';
+import 'package:entrelares_app/services/account_identity.dart';
 import 'package:entrelares_app/services/admin_mode.dart';
 import 'calendar_slice_test.dart' show FakeCustodyDataSource;
 import 'package:entrelares_app/services/notification_badge.dart';
@@ -28,7 +29,8 @@ Widget wrap(Widget child, {AppLanguage language = AppLanguage.ptBr}) =>
 
 void main() {
   group('HomeShell', () {
-    Widget shellApp({AdminMode? adminMode}) {
+    Widget shellApp({AdminMode? adminMode, AccountIdentity? identity,
+        Future<void> Function()? onSignOut}) {
       final router = GoRouter(
         initialLocation: '/',
         routes: [
@@ -37,6 +39,9 @@ void main() {
                 HomeShell(
                     shell: shell,
                     adminMode: adminMode ?? AdminMode(),
+                    identity: identity ?? AccountIdentity(),
+                    onSignOut: onSignOut ?? () async {},
+                    onOpenProfile: () {},
                     badge: NotificationBadge(
                         FakeCustodyDataSource(members: const [], days: []))),
             branches: [

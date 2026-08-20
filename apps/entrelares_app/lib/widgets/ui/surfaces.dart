@@ -178,3 +178,183 @@ class AppSheetHeader extends StatelessWidget {
     );
   }
 }
+
+/// A bulleted list with a hanging indent — the shape of every "you declare you
+/// are aware that…" block in the app (family deletion, leaving, the Premium
+/// benefits).
+///
+/// It exists because the port wrote these as one `Text` per line with a literal
+/// `•` glued to the front: the second line of a wrapping item then starts under
+/// the bullet instead of under the text, which is what made the Premium block
+/// and both danger zones read as loose paragraphs.
+class AppBulletList extends StatelessWidget {
+  final List<String> items;
+
+  /// The bullet glyph. A `•` for a notice, `—` for an enumeration that must not
+  /// look like a checklist.
+  final String bullet;
+
+  /// Overrides the text colour — a list inside a toned block takes that block's
+  /// `onContainer`, never the page's default text colour.
+  final Color? color;
+
+  /// Rendered before the item's text, one per item, when the list is a set of
+  /// features rather than a set of warnings (the Premium benefits carry them).
+  final List<Widget>? leadingIcons;
+
+  const AppBulletList({
+    super.key,
+    required this.items,
+    this.bullet = '•',
+    this.color,
+    this.leadingIcons,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Checked here and not in the constructor: `List.length` is not a constant
+    // expression, so an assert on it would make every `const AppBulletList`
+    // with icons fail to COMPILE — which is how this was found.
+    assert(leadingIcons == null || leadingIcons!.length == items.length,
+        'One icon per item, or none at all.');
+    final style = Theme.of(context)
+        .textTheme
+        .bodySmall
+        ?.copyWith(color: color ?? context.tokens.text);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < items.length; i++)
+          Padding(
+            padding: EdgeInsets.only(top: i == 0 ? 0 : Spacing.sm),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: Spacing.lg,
+                  // The glyph sits on the text's own baseline box, so a
+                  // wrapping item keeps its second line under the text.
+                  child: leadingIcons == null
+                      ? Text(bullet, style: style)
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: leadingIcons![i]),
+                ),
+                Expanded(child: Text(items[i], style: style)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// One entry of an event log — the shape the web's audit and history lists use
+/// and the port flattened into stacked cards.
+///
+/// The rail (the dot and the line under it) is the whole point: it says these
+/// entries are ONE sequence in time. Without it a reader has to infer the order
+/// from the timestamps, which is exactly the work a log exists to save.
+class AppTimelineEntry extends StatelessWidget {
+  /// The dot's tone — `neutral` for a plain record, `warning`/`danger` for one
+  /// the reader should stop at.
+  final ToneColors tone;
+
+  /// What the dot carries. The app writes these as emoji, in the catalog.
+  final String marker;
+
+  /// The small line above the title ("Dia: 21/08/2026").
+  final String? overline;
+
+  final Widget title;
+  final Widget? body;
+
+  /// An inset block for the entry's own detail — the "Responsável real /
+  /// Horário da troca" panel, the origin of an automatic change.
+  final Widget? detail;
+
+  final String timestamp;
+
+  /// The last entry stops the rail at its dot instead of running it into the
+  /// padding.
+  final bool isLast;
+
+  const AppTimelineEntry({
+    super.key,
+    required this.tone,
+    required this.marker,
+    required this.title,
+    required this.timestamp,
+    this.overline,
+    this.body,
+    this.detail,
+    this.isLast = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    final textTheme = Theme.of(context).textTheme;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: Spacing.xl,
+            child: Column(
+              children: [
+                Container(
+                  width: Spacing.lg,
+                  height: Spacing.lg,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: tone.container,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: tone.border),
+                  ),
+                  child: Text(marker,
+                      style: const TextStyle(fontSize: TypeScale.label)),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(width: 2, color: tokens.outline),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Spacing.sm),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : Spacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (overline != null)
+                    Text(overline!,
+                        style: textTheme.labelSmall
+                            ?.copyWith(color: tokens.textMuted)),
+                  title,
+                  if (body != null) ...[
+                    const SizedBox(height: Spacing.xs),
+                    body!,
+                  ],
+                  if (detail != null) ...[
+                    const SizedBox(height: Spacing.sm),
+                    detail!,
+                  ],
+                  const SizedBox(height: Spacing.xs),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(timestamp,
+                        style: textTheme.labelSmall
+                            ?.copyWith(color: tokens.textMuted)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
