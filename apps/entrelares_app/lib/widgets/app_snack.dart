@@ -1,6 +1,8 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 
+import '../theme/tokens.dart';
+
 /// The web's three toast types (`ToastService`), same visual language.
 enum AppSnackType { success, error, info }
 
@@ -17,35 +19,22 @@ void showAppSnack(BuildContext context, String message,
   final messenger = ScaffoldMessenger.of(context);
   messenger.hideCurrentSnackBar();
 
-  // The web palette (MainLayout.razor.css .toast-*), verbatim.
-  final (background, foreground, border, icon) = switch (type) {
-    AppSnackType.success => (
-        const Color(0xFFECFDF5),
-        const Color(0xFF065F46),
-        const Color(0xFF6EE7B7),
-        '✅'
-      ),
-    AppSnackType.error => (
-        const Color(0xFFFEF2F2),
-        const Color(0xFF991B1B),
-        const Color(0xFFFCA5A5),
-        '❌'
-      ),
-    AppSnackType.info => (
-        const Color(0xFFEFF6FF),
-        const Color(0xFF1E40AF),
-        const Color(0xFF93C5FD),
-        'ℹ️'
-      ),
+  // The web palette (MainLayout.razor.css .toast-*), now as U-27 tones — same
+  // light values, and a dark set that exists because the tokens carry one.
+  final t = context.tokens;
+  final (tone, icon) = switch (type) {
+    AppSnackType.success => (t.success, '✅'),
+    AppSnackType.error => (t.danger, '❌'),
+    AppSnackType.info => (t.info, 'ℹ️'),
   };
 
   messenger.showSnackBar(SnackBar(
     duration: Duration(milliseconds: snackDismissDelayMs(message.length)),
     behavior: SnackBarBehavior.floating,
-    backgroundColor: background,
+    backgroundColor: tone.container,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-      side: BorderSide(color: border),
+      borderRadius: BorderRadius.circular(Radii.md),
+      side: BorderSide(color: tone.border),
     ),
     content: GestureDetector(
       onTap: messenger.hideCurrentSnackBar,
@@ -55,13 +44,13 @@ void showAppSnack(BuildContext context, String message,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(icon),
-          const SizedBox(width: 8),
+          const SizedBox(width: Spacing.sm),
           Expanded(
             child: Text(
               message,
               style: TextStyle(
-                  color: foreground,
-                  fontSize: 14,
+                  color: tone.onContainer,
+                  fontSize: TypeScale.bodySmall,
                   fontWeight: FontWeight.w500,
                   height: 1.45),
             ),

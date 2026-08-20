@@ -10,6 +10,7 @@ library;
 
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 
 import 'app_l10n.dart';
 import 'rich_label.dart';
@@ -288,7 +289,8 @@ class _GuidedTourState extends State<_GuidedTour> {
           // The dim, with a hole punched over the target when it is on screen.
           Positioned.fill(
             child: IgnorePointer(
-              child: CustomPaint(painter: _SpotlightPainter(target)),
+              child: CustomPaint(
+                  painter: _SpotlightPainter(target, context.tokens.scrim)),
             ),
           ),
           Positioned(
@@ -346,11 +348,14 @@ class _GuidedTourState extends State<_GuidedTour> {
 class _SpotlightPainter extends CustomPainter {
   final Rect? target;
 
-  const _SpotlightPainter(this.target);
+  /// U-27: a painter has no BuildContext, so the token travels in.
+  final Color scrim;
+
+  const _SpotlightPainter(this.target, this.scrim);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final dim = Paint()..color = const Color(0xB3000000);
+    final dim = Paint()..color = scrim;
     final full = Rect.fromLTWH(0, 0, size.width, size.height);
     if (target == null) {
       // No target on screen: dim everything rather than pretend to point at
@@ -372,5 +377,5 @@ class _SpotlightPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SpotlightPainter oldDelegate) =>
-      oldDelegate.target != target;
+      oldDelegate.target != target || oldDelegate.scrim != scrim;
 }

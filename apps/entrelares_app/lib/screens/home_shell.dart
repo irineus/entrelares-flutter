@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/admin_mode.dart';
@@ -64,7 +65,7 @@ class HomeShell extends StatelessWidget {
             // mirror of the web's MainLayout strip (shown on every tab).
             if (adminMode.isActive)
               Material(
-                color: const Color(0xFFB91C1C),
+                color: context.tokens.dangerBar,
                 child: SafeArea(
                   bottom: false,
                   child: Padding(
@@ -143,7 +144,7 @@ class HomeShell extends StatelessWidget {
   Widget _deletionBanner(BuildContext context, Localization l) {
     final banner = deletionBanner!;
     return Material(
-      color: const Color(0xFF7F1D1D),
+      color: context.tokens.dangerBarDeep,
       child: InkWell(
         onTap: banner.onTap,
         child: SafeArea(

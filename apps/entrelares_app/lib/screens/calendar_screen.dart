@@ -12,6 +12,8 @@ import '../models/swap_request.dart';
 import '../services/admin_mode.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
+import '../theme/slot_pattern.dart';
+import '../theme/tokens.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
 import '../widgets/today_card.dart';
@@ -23,16 +25,15 @@ import '../services/onboarding_service.dart';
 import '../widgets/onboarding.dart';
 import 'wizard_sheet.dart';
 
-/// F-27 slot palette (slot 0 = gray: inactive/unknown); swapped is its own
-/// color, matching the web's "Trocado" convention.
-const slotColors = <int, Color>{
-  0: Color(0xFF9E9E9E),
-  1: Color(0xFF4F46E5),
-  2: Color(0xFF0D9488),
-  3: Color(0xFFD97706),
-  4: Color(0xFFDB2777),
-};
-const swappedColor = Color(0xFFE11D48);
+/// U-27 — the F-27 slot palette now lives in [AppTokens.slots], with a
+/// [SlotPattern] alongside each hue and a dark set that did not exist before.
+/// "Trocado" is the web's amber with a DASHED border, which is also what frees
+/// the rose for a role again.
+SlotColors _slotOf(BuildContext context, DayPaint paint) => switch (paint) {
+      DaySwapped() => context.tokens.swapped,
+      DaySlot(slot: final s) => context.tokens.slot(s),
+      DayUnassigned() => context.tokens.slot(0),
+    };
 
 class CalendarScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
@@ -702,7 +703,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                     ? Icons.shield
                     : Icons.shield_outlined,
                 color: widget.adminMode.isActive
-                    ? const Color(0xFFB91C1C)
+                    ? context.tokens.dangerBar
                     : null,
               ),
               onPressed: widget.adminMode.toggle,
@@ -851,19 +852,19 @@ class _Legend extends StatelessWidget {
         runSpacing: 4,
         children: [
           for (final m in active)
-            Chip(
-              visualDensity: VisualDensity.compact,
-              avatar: CircleAvatar(
-                backgroundColor:
-                    slotColors[profileSlotIndex(m.id, views)] ?? slotColors[0],
-                child: Text(displayInitials(m.id, views),
-                    style: const TextStyle(fontSize: 10, color: Colors.white)),
-              ),
-              label: Text(m.fullName.split(' ').first),
-            ),
+            Builder(builder: (context) {
+              final slot = context.tokens.slot(profileSlotIndex(m.id, views));
+              return Chip(
+                visualDensity: VisualDensity.compact,
+                // The swatch carries the texture as well as the hue — that is
+                // where a reader learns which pattern is whose.
+                avatar: SlotSwatch(slot: slot),
+                label: Text(m.fullName.split(' ').first),
+              );
+            }),
           Chip(
             visualDensity: VisualDensity.compact,
-            avatar: const CircleAvatar(backgroundColor: swappedColor),
+            avatar: SlotSwatch(slot: context.tokens.swapped, dashedBorder: true),
             label: Text(AppL10n.of(context).l[K.calSwapped]),
           ),
         ],
@@ -1036,15 +1037,15 @@ class _DayCell extends StatelessWidget {
             actualParentId: day!.actualParentId,
           );
     final paint = dayPaint(assignment, views);
-    final color = switch (paint) {
-      DayUnassigned() => Colors.transparent,
-      DaySwapped() => swappedColor,
-      DaySlot(slot: final s) => slotColors[s] ?? slotColors[0]!,
-    };
+    final slot = _slotOf(context, paint);
     final initial = parentInitial(assignment, views);
     final assigned = paint is! DayUnassigned;
+    // The swap wears a dashed border instead of the slot's solid one — the
+    // border IS the signal, so it cannot be drawn twice.
+    final isSwapped = paint is DaySwapped;
 
     final primary = Theme.of(context).colorScheme.primary;
+    final tokens = context.tokens;
     return InkWell(
       onTap: () => onTap(date),
       // U-11: the mobile entry point to bulk selection (web: 500 ms press).
@@ -1055,58 +1056,73 @@ class _DayCell extends StatelessWidget {
         children: [
           Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: isSelected
+              borderRadius: BorderRadius.circular(Radii.md),
+              border: isSelected || isToday
                   ? Border.all(color: primary, width: 2)
-                  : isToday
-                      ? Border.all(color: primary, width: 2)
-                      : Border.all(color: Theme.of(context).dividerColor),
+                  : Border.all(
+                      color: assigned && !isSwapped
+                          ? slot.tone.border
+                          : tokens.outline),
               color: isSelected
                   ? primary.withValues(alpha: 0.12)
                   : assigned
-                      ? color.withValues(alpha: 0.15)
+                      ? slot.tone.container
                       : null,
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('${date.day}',
-                    style: Theme.of(context).textTheme.labelSmall),
-                const SizedBox(height: 2),
-                CircleAvatar(
-                  radius: 10,
-                  backgroundColor: assigned ? color : Colors.transparent,
-                  child: Text(initial,
-                      style: TextStyle(
-                          fontSize: 9,
-                          color: assigned
-                              ? Colors.white
-                              : Theme.of(context).hintColor)),
-                ),
-                // Web parity: the frozen badge REPLACES the handoff badge.
-                if (frozenMark != null)
-                  Semantics(
-                    label: frozenMark!.label,
-                    child: Container(
-                      padding: frozenMark!.overdue
-                          ? const EdgeInsets.symmetric(horizontal: 3)
-                          : EdgeInsets.zero,
-                      decoration: frozenMark!.overdue
-                          ? BoxDecoration(
-                              color: const Color(0xFFFEE2E2),
-                              borderRadius: BorderRadius.circular(6),
-                            )
-                          : null,
-                      child: Text(frozenMark!.badge,
-                          style: const TextStyle(fontSize: 9)),
-                    ),
-                  )
-                else if (day?.handoffTime != null)
-                  Icon(Icons.swap_horiz,
-                      size: 10, color: Theme.of(context).hintColor),
-              ],
+            child: CustomPaint(
+              painter: assigned
+                  ? SlotPatternPainter(slot.pattern, slot.tone.border)
+                  : null,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('${date.day}',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: assigned ? slot.tone.onContainer : null)),
+                  const SizedBox(height: 2),
+                  CircleAvatar(
+                    radius: 10,
+                    backgroundColor:
+                        assigned ? slot.tone.solid : Colors.transparent,
+                    child: Text(initial,
+                        style: TextStyle(
+                            fontSize: 9,
+                            color: assigned
+                                ? slot.tone.onSolid
+                                : Theme.of(context).hintColor)),
+                  ),
+                  // Web parity: the frozen badge REPLACES the handoff badge.
+                  if (frozenMark != null)
+                    Semantics(
+                      label: frozenMark!.label,
+                      child: Container(
+                        padding: frozenMark!.overdue
+                            ? const EdgeInsets.symmetric(horizontal: 3)
+                            : EdgeInsets.zero,
+                        decoration: frozenMark!.overdue
+                            ? BoxDecoration(
+                                color: tokens.danger.container,
+                                borderRadius: BorderRadius.circular(6),
+                              )
+                            : null,
+                        child: Text(frozenMark!.badge,
+                            style: const TextStyle(fontSize: 9)),
+                      ),
+                    )
+                  else if (day?.handoffTime != null)
+                    Icon(Icons.swap_horiz,
+                        size: 10, color: Theme.of(context).hintColor),
+                ],
+              ),
             ),
           ),
+          // Drawn over the fill so it survives the selected/today border,
+          // which is the one thing allowed to outrank it.
+          if (isSwapped && !isSelected && !isToday)
+            CustomPaint(
+              painter: DashedBorderPainter(
+                  color: slot.tone.border, radius: Radii.md),
+            ),
           // The web's corner mark on selected cells.
           if (isSelected)
             Positioned(

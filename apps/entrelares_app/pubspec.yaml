@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionName / versionCode. Bump on every functional change handed to the
 # owner, same rule as the product repos.
-version: 0.2.28+30
+version: 0.2.29+31
 
 environment:
   sdk: ^3.12.2
@@ -115,6 +115,28 @@ flutter:
   assets:
     - assets/fonts/Roboto-Regular.ttf
     - assets/fonts/Roboto-Bold.ttf
+
+  # U-27 — the app's own typeface. Inter (SIL OFL, from google/fonts), pinned to
+  # the text optical size and instanced into the four STATIC weights the type
+  # scale uses: statics map from `fontWeight` deterministically, while the
+  # variable file would need an explicit FontVariation at every call site.
+  # Subset to Google Fonts' `latin` range — 438 glyphs, ~57 KB each, ~96 KB
+  # gzipped for the set. `latin-ext` would take it to 1118 glyphs for scripts
+  # this product does not render, and the web target's first-load weight is an
+  # OPEN acceptance criterion. Regenerate with `tool/subset_inter.py`.
+  # The PDF keeps Roboto (F-33 above): a report is near-evidentiary, and a full
+  # font cannot print tofu for an unusual name the way a subset could.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

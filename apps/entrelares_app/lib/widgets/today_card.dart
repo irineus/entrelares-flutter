@@ -1,7 +1,7 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 
-import '../screens/calendar_screen.dart' show slotColors;
+import '../theme/tokens.dart';
 import 'app_l10n.dart';
 
 /// Today at a Glance — port of `TodayCard.razor`. A dumb presentational
@@ -34,8 +34,9 @@ class TodayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context).l;
-    final topColor = slotColors[glance.userSlot] ?? slotColors[0]!;
-    final bottomColor = slotColors[glance.responsibleSlot] ?? slotColors[0]!;
+    final topColor = context.tokens.slot(glance.userSlot).tone.solid;
+    final bottomColor =
+        context.tokens.slot(glance.responsibleSlot).tone.solid;
 
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
@@ -172,8 +173,8 @@ class TodayCard extends StatelessWidget {
     final date = nextHandoffDate!;
     final urgencyColor = switch (handoffUrgency(date, today)) {
       HandoffUrgency.urgent => Theme.of(context).colorScheme.error,
-      HandoffUrgency.soon => const Color(0xFF92400E),
-      HandoffUrgency.near => const Color(0xFFB45309),
+      HandoffUrgency.soon => context.tokens.warning.onContainer,
+      HandoffUrgency.near => context.tokens.warning.solid,
       HandoffUrgency.none => Theme.of(context).hintColor,
     };
     return Column(

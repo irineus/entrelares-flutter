@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 
 import '../models/care_schedule.dart';
 import '../models/member.dart';
@@ -861,15 +862,16 @@ class _BulkSheetState extends State<_BulkSheet> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFEE2E2),
-        border: Border.all(color: const Color(0xFFFECACA)),
-        borderRadius: BorderRadius.circular(8),
+        color: context.tokens.danger.container,
+        border: Border.all(color: context.tokens.danger.border),
+        borderRadius: BorderRadius.circular(Radii.md),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(warning,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF991B1B))),
+              style: TextStyle(
+                  fontSize: 13, color: context.tokens.danger.onContainer)),
           const SizedBox(height: 8),
           Row(
             children: [
