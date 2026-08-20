@@ -777,6 +777,36 @@ class _CalendarScreenState extends State<CalendarScreen>
           icon: const Icon(Icons.chevron_right),
           onPressed: () => _stepMonth(1),
         ),
+        // U-28 QA: the way back to today lives HERE, not in the today card.
+        //
+        // As a line of link text under the greeting it read as an orphan
+        // sentence in the middle of a coloured band. It is a navigation
+        // action, and this row is where navigation lives — so it appears
+        // beside the month it would take you away from, and it animates in
+        // rather than shoving the arrows sideways between two frames.
+        AnimatedSize(
+          duration: Motion.micro,
+          curve: Motion.microCurve,
+          child: isCurrentMonth(_visibleMonth, _today)
+              ? const SizedBox(height: 32)
+              : Padding(
+                  padding: const EdgeInsets.only(left: Spacing.xs),
+                  child: ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    avatar: Icon(Icons.today_outlined,
+                        size: TypeScale.subtitle,
+                        color: context.tokens.accent.onContainer),
+                    label: Text(l[K.calToday]),
+                    labelStyle: Theme.of(context)
+                        .textTheme
+                        .labelSmall
+                        ?.copyWith(color: context.tokens.accent.onContainer),
+                    backgroundColor: context.tokens.accent.container,
+                    side: BorderSide(color: context.tokens.accent.border),
+                    onPressed: _goToToday,
+                  ),
+                ),
+        ),
       ],
     );
   }
@@ -1120,20 +1150,26 @@ class _Legend extends StatelessWidget {
       {required SlotColors slot,
       required String label,
       bool dashed = false}) {
+    // No `alignment:` here, and that is the whole fix: a Container WITH an
+    // alignment expands to fill whatever space it is offered, so each key took
+    // a full row of the Wrap and the legend became a stack of banners. Without
+    // it the Container shrink-wraps its text, which is what a pill is.
     final pill = Container(
       height: rowHeight,
-      alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
       decoration: BoxDecoration(
         color: slot.tone.container,
         borderRadius: BorderRadius.circular(Radii.lg),
         border: dashed ? null : Border.all(color: slot.tone.border),
       ),
-      child: Text(label,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: slot.tone.onContainer)),
+      child: Center(
+        widthFactor: 1,
+        child: Text(label,
+            style: Theme.of(context)
+                .textTheme
+                .labelSmall
+                ?.copyWith(color: slot.tone.onContainer)),
+      ),
     );
     if (!dashed) return pill;
     return CustomPaint(

@@ -79,10 +79,13 @@ void main() {
     // The point of making the height a range: with a fixed cell a five-week
     // month left a band of nothing under the grid on anything but the smallest
     // phone, which is what the owner read as "this is the minimum".
-    await _pump(tester, const Size(360, 740));
+    // 640 keeps the cell below its ceiling; by 740 a six-week month has
+    // already reached it, so comparing 740 with anything taller compares two
+    // clamped values and proves nothing.
+    await _pump(tester, const Size(360, 640));
     final short = tester.getSize(find.byType(GridView).first).height;
 
-    await _pump(tester, const Size(360, 980));
+    await _pump(tester, const Size(360, 740));
     final tall = tester.getSize(find.byType(GridView).first).height;
 
     expect(tall, greaterThan(short),
