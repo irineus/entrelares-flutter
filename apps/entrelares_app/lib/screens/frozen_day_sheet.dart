@@ -41,10 +41,8 @@ Future<FrozenDayOutcome?> showFrozenDaySheet({
   required int? ownProfileId,
   required CustodyDataSource dataSource,
 }) {
-  return showModalBottomSheet<FrozenDayOutcome>(
+  return showAppSheet<FrozenDayOutcome>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => _FrozenDaySheet(
       request: request,
       allProfiles: allProfiles,
@@ -205,94 +203,128 @@ class _FrozenDaySheetState extends State<_FrozenDaySheet> {
       return OutlinedButton(onPressed: _acting ? null : onPressed, child: child);
     }
 
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 8,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Text(headerIcon, style: const TextStyle(fontSize: 24)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                        l[isRevert ? K.frozenRevertTitle : K.frozenSwapTitle],
-                        style: Theme.of(context).textTheme.titleMedium),
-                  ),
-                ],
+    final urgencyTone = tag == SwapPriorityTag.overdue
+        ? context.tokens.danger
+        : context.tokens.warning;
+
+    return AppSheetFrame(
+      // The emoji rides in the title string, which is where this app keeps
+      // emoji: inside the sentences it writes, never as structural chrome.
+      title: '$headerIcon '
+          '${l[isRevert ? K.frozenRevertTitle : K.frozenSwapTitle]}',
+      // U-28 QA: the urgency line is CENTRED and BOLD, as the web has it. It is
+      // the one sentence on the sheet that changes what the reader should do
+      // next, and it was rendering as a left-aligned run of body text.
+      pinnedNotice: tag == SwapPriorityTag.none
+          ? null
+          : Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: Spacing.md, vertical: Spacing.sm),
+              decoration: BoxDecoration(
+                color: urgencyTone.container,
+                border: Border.all(color: urgencyTone.border),
+                borderRadius: BorderRadius.circular(Radii.md),
               ),
-              if (tag != SwapPriorityTag.none) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: (tag == SwapPriorityTag.overdue
-                            ? context.tokens.danger
-                            : context.tokens.warning)
-                        .container,
-                    borderRadius: BorderRadius.circular(Radii.md),
-                  ),
-                  child: Text(
-                    l[tag == SwapPriorityTag.overdue
-                        ? K.frozenOverdue
-                        : K.frozenUrgent],
-                    style: TextStyle(
-                        color: (tag == SwapPriorityTag.overdue
-                                ? context.tokens.danger
-                                : context.tokens.warning)
-                            .onContainer),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 8),
+              child: Text(
+                l[tag == SwapPriorityTag.overdue
+                    ? K.frozenOverdue
+                    : K.frozenUrgent],
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: urgencyTone.onContainer,
+                    fontWeight: FontWeight.w700),
+              ),
+            ),
+      extraAction: _actionRow(context, l,
+          request: request,
+          isRevert: isRevert,
+          iAmTarget: iAmTarget,
+          iAmRequester: iAmRequester,
+          targetName: targetName,
+          actionButton: actionButton),
+      children: [
               Text(
                   l.format(
                       K.frozenDay, [l.formatDate(request.scheduleDate)]),
                   style: Theme.of(context).textTheme.bodyMedium),
-              const SizedBox(height: 8),
-              infoRow(K.frozenRequester, requesterName ?? '—'),
-              infoRow(isRevert ? K.frozenRevertTo : K.frozenProposedParent,
-                  proposedName ?? '—'),
-              if (handoff != null)
-                infoRow(
-                    K.frozenProposedTime,
-                    '${handoff.hour.toString().padLeft(2, '0')}:'
-                    '${handoff.minute.toString().padLeft(2, '0')}'),
-              // F-44: the requester's message travels with the request.
-              if ((request.requestMessage ?? '').isNotEmpty)
-                infoRow(K.frozenRequesterMessage, request.requestMessage!,
-                    isMessage: true),
-              if (createdAtLocal != null)
-                infoRow(K.frozenRequestedAt, l.formatDateTime(createdAtLocal)),
+              const SizedBox(height: Spacing.sm),
+              // U-28 QA: the request's facts in their own panel. Loose on the
+              // sheet, a label on the left and its value on the right had
+              // nothing holding the pair together.
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    infoRow(K.frozenRequester, requesterName ?? '—'),
+                    infoRow(
+                        isRevert ? K.frozenRevertTo : K.frozenProposedParent,
+                        proposedName ?? '—'),
+                    if (handoff != null)
+                      infoRow(
+                          K.frozenProposedTime,
+                          '${handoff.hour.toString().padLeft(2, '0')}:'
+                          '${handoff.minute.toString().padLeft(2, '0')}'),
+                    // F-44: the requester's message travels with the request.
+                    if ((request.requestMessage ?? '').isNotEmpty)
+                      infoRow(
+                          K.frozenRequesterMessage, request.requestMessage!,
+                          isMessage: true),
+                    if (createdAtLocal != null)
+                      infoRow(K.frozenRequestedAt,
+                          l.formatDateTime(createdAtLocal)),
+                  ],
+                ),
+              ),
               if (_error != null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: Spacing.sm),
                 Text('⚠️ $_error',
                     style: TextStyle(
                         color: context.tokens.danger.onContainer)),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: Spacing.sm),
               if (iAmTarget) ...[
                 // U-27: the label used to float above the field as its own
                 // Text; folded into the field, it is the accessible name too.
-                AppTextField(
-                  label: l[K.frozenNoteLabel],
-                  helper: l[K.frozenNoteHint],
-                  hint: l[K.frozenNotePlaceholder],
-                  controller: _approverNote,
-                  maxLength: 200,
-                  enabled: !_acting,
-                ),
-                const SizedBox(height: 12),
                 Row(
+                  children: [
+                    Expanded(
+                      child: AppTextField(
+                        label: l[K.frozenNoteLabel],
+                        hint: l[K.frozenNotePlaceholder],
+                        controller: _approverNote,
+                        maxLength: 200,
+                        enabled: !_acting,
+                      ),
+                    ),
+                    AppInfoTip(message: l[K.frozenNoteHint]),
+                  ],
+                ),
+              ],
+            ],
+          );
+  }
+
+  /// The sheet's answer, pinned by the frame instead of riding at the end of
+  /// the scroll — which is where the owner found it missing.
+  Widget _actionRow(
+    BuildContext context,
+    Localization l, {
+    required SwapRequest request,
+    required bool isRevert,
+    required bool iAmTarget,
+    required bool iAmRequester,
+    required String? targetName,
+    required Widget Function({
+      required String actionKey,
+      required String labelKey,
+      required VoidCallback onPressed,
+      bool filled,
+      bool destructive,
+    }) actionButton,
+  }) {
+    if (iAmTarget) {
+      return Row(
                   children: [
                     Expanded(
                       child: isRevert
@@ -353,9 +385,10 @@ class _FrozenDaySheetState extends State<_FrozenDaySheet> {
                       ),
                     ),
                   ],
-                ),
-              ] else if (iAmRequester)
-                actionButton(
+                );
+    }
+    if (iAmRequester) {
+      return actionButton(
                   actionKey: 'cancel',
                   labelKey:
                       isRevert ? K.frozenCancelRevert : K.frozenCancelRequest,
@@ -373,17 +406,12 @@ class _FrozenDaySheetState extends State<_FrozenDaySheet> {
                             allProfiles: widget.allProfiles);
                         return FrozenDayOutcome.cancelled;
                       }),
-                )
-              else
-                Text(
-                  l.format(K.frozenObserver,
-                      [targetName ?? l[K.calOtherCaregiver]]),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-            ],
-          ),
-        ),
-      ),
+      );
+    }
+    return Text(
+      l.format(K.frozenObserver, [targetName ?? l[K.calOtherCaregiver]]),
+      textAlign: TextAlign.center,
+      style: Theme.of(context).textTheme.bodySmall,
     );
   }
 }

@@ -15,10 +15,8 @@ Future<bool> showSudoSheet({
   required BuildContext context,
   required SudoService sudo,
 }) async {
-  final granted = await showModalBottomSheet<bool>(
+  final granted = await showAppSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => Padding(
       padding: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom),

@@ -7,6 +7,7 @@ import '../models/care_schedule.dart';
 import '../models/member.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
+import '../theme/tokens.dart';
 import '../widgets/app_l10n.dart';
 
 /// The Rotation Wizard — mirror of `ScheduleWizard.razor` over the pure rules
@@ -25,10 +26,8 @@ Future<bool?> showWizardSheet({
   required bool isFreeTier,
   AnalyticsService? analytics,
 }) {
-  return showModalBottomSheet<bool>(
+  return showAppSheet<bool>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => _WizardSheet(
       activeMembers: activeMembers,
       today: today,
@@ -196,36 +195,25 @@ class _WizardSheetState extends State<_WizardSheet> {
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context).l;
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 8,
-          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppSheetHeader(
-                  title: l[K.wizTitle], subtitle: l[K.wizSubtitle]),
-              if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text('⚠️ $_errorMessage',
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error)),
-                ),
-              if (_completed)
-                ..._successView(l)
-              else
-                ..._form(l),
-            ],
-          ),
-        ),
-      ),
+    // U-28 QA: the wizard was the worst offender — full screen, nothing to tap
+    // to dismiss, and "Gerar"/"Cancelar" below the fold at the end of a long
+    // form. The frame pins them, and `showAppSheet` keeps a strip of calendar
+    // visible above.
+    return AppSheetFrame(
+      title: l[K.wizTitle],
+      subtitle: l[K.wizSubtitle],
+      pinnedNotice: _errorMessage == null
+          ? null
+          : Text('⚠️ $_errorMessage',
+              style: TextStyle(color: Theme.of(context).colorScheme.error)),
+      primaryLabel: _completed ? l[K.wizClose] : l[K.wizGenerate],
+      onPrimary: _completed
+          ? () => Navigator.of(context).pop(true)
+          : (_generating ? null : _generate),
+      secondaryLabel: _completed ? null : l[K.commonCancel],
+      onSecondary: () => Navigator.of(context).pop(),
+      busy: _generating,
+      children: _completed ? _successView(l) : _form(l),
     );
   }
 
@@ -237,11 +225,6 @@ class _WizardSheetState extends State<_WizardSheet> {
             Expanded(child: Text(_successMessage ?? '')),
           ],
         ),
-        const SizedBox(height: 12),
-        FilledButton(
-          onPressed: () => Navigator.of(context).pop(true),
-          child: Text(l[K.wizClose]),
-        ),
       ];
 
   List<Widget> _form(Localization l) {
@@ -252,12 +235,24 @@ class _WizardSheetState extends State<_WizardSheet> {
     );
     return [
       // ── Preset shortcuts (the VALUES are pattern ids, never localized) ──
-      Text('${l[K.wizPreset]} ${l[K.editorOptional]}',
-          style: Theme.of(context).textTheme.labelLarge),
-      DropdownButton<String>(
+      //
+      // U-28 QA: every control on this sheet was a bare `DropdownButton` — an
+      // underline where the rest of the app has a bordered field with the label
+      // folded into it. `DropdownButtonFormField` is the same control wearing
+      // the app's own decoration, which is what the owner asked for: use the
+      // integrated label wherever it is possible.
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+      DropdownButtonFormField<String>(
         key: const Key('wizPreset'),
         isExpanded: true,
-        value: _preset,
+        decoration: InputDecoration(
+          labelText: l[K.wizPreset],
+          suffixText: l[K.commonOptional],
+        ),
+        initialValue: _preset,
         items: [
           DropdownMenuItem(value: '', child: Text(l[K.wizPresetCustom])),
           DropdownMenuItem(value: '7-7', child: Text(l[K.wizPreset77])),
@@ -274,21 +269,32 @@ class _WizardSheetState extends State<_WizardSheet> {
                   if (_preset.isNotEmpty) _applyPreset(_preset);
                 }),
       ),
-      const SizedBox(height: 8),
+          ],
+        ),
+      ),
+      const SizedBox(height: Spacing.sm),
 
       // ── Cycle blocks ──
-      Text(l[K.wizCycleBlocks],
-          style: Theme.of(context).textTheme.labelLarge),
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+      AppFieldLabel(l[K.wizCycleBlocks]),
       for (final (index, block) in _blocks.indexed)
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${index + 1}.'),
-            const SizedBox(width: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 20, right: Spacing.sm),
+              child: Text('${index + 1}.'),
+            ),
             Expanded(
-              child: DropdownButton<int>(
+              child: DropdownButtonFormField<int>(
                 key: Key('wizBlockParent$index'),
                 isExpanded: true,
-                value: block.profileId,
+                decoration:
+                    InputDecoration(labelText: l[K.wizBlockParentLabel]),
+                initialValue: block.profileId,
                 items: [
                   DropdownMenuItem(
                       value: 0, child: Text(l[K.wizBlockParent])),
@@ -305,9 +311,13 @@ class _WizardSheetState extends State<_WizardSheet> {
                         }),
               ),
             ),
-            const Text(' × '),
+            const Padding(
+              padding: EdgeInsets.symmetric(
+                  horizontal: Spacing.xs, vertical: 20),
+              child: Text('×'),
+            ),
             SizedBox(
-              width: 48,
+              width: 88,
               child: TextFormField(
                 key: Key('wizBlockDays$index'),
                 initialValue: '${block.days}',
@@ -315,25 +325,32 @@ class _WizardSheetState extends State<_WizardSheet> {
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 textAlign: TextAlign.center,
                 enabled: !_generating,
+                decoration: InputDecoration(labelText: l[K.wizDays]),
                 onChanged: (v) => setState(() {
                   block.days = clampBlockDays(int.tryParse(v) ?? 1);
                   _preset = '';
                 }),
               ),
             ),
-            Text(' ${l[K.wizDays]}'),
             // F-28: any non-empty cycle is valid — only the last block stays.
             if (_blocks.length > 1)
-              IconButton(
-                tooltip: l[K.wizRemoveBlock],
-                icon: const Icon(Icons.delete_outline, size: 18),
-                onPressed: _generating
-                    ? null
-                    : () => setState(() => _blocks.removeAt(index)),
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: IconButton(
+                  tooltip: l[K.wizRemoveBlock],
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  onPressed: _generating
+                      ? null
+                      : () => setState(() => _blocks.removeAt(index)),
+                ),
               ),
           ],
         ),
-      TextButton(
+      const SizedBox(height: Spacing.xs),
+      // U-28 QA: a full-width outlined action, as the web draws it. A bare
+      // TextButton read as a caption under the last row rather than as the way
+      // to add another one.
+      OutlinedButton.icon(
         onPressed: _generating
             ? null
             : () => setState(() {
@@ -342,15 +359,24 @@ class _WizardSheetState extends State<_WizardSheet> {
                       ids.isEmpty ? 0 : ids[_blocks.length % ids.length], 1));
                   _preset = '';
                 }),
-        child: Text(l[K.wizAddBlock]),
+        icon: const Icon(Icons.add),
+        label: Text(l[K.wizAddBlock]),
       ),
-      const SizedBox(height: 8),
+          ],
+        ),
+      ),
+      const SizedBox(height: Spacing.sm),
 
       // ── Start date and duration ──
-      Text(l[K.wizStartDate],
-          style: Theme.of(context).textTheme.labelLarge),
-      OutlinedButton(
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+      AppFieldLabel(l[K.wizStartDate]),
+      OutlinedButton.icon(
         key: const Key('wizStartDate'),
+        icon: const Icon(Icons.event_outlined),
+        label: Text(l.formatDate(_startDate)),
         onPressed: _generating
             ? null
             : () async {
@@ -364,13 +390,13 @@ class _WizardSheetState extends State<_WizardSheet> {
                   setState(() => _startDate = dateOnly(picked));
                 }
               },
-        child: Text(l.formatDate(_startDate)),
       ),
-      const SizedBox(height: 8),
-      Text(l[K.wizDuration], style: Theme.of(context).textTheme.labelLarge),
-      DropdownButton<int>(
+      const SizedBox(height: Spacing.md),
+      DropdownButtonFormField<int>(
         key: const Key('wizDuration'),
-        value: _durationMonths,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: l[K.wizDuration]),
+        initialValue: _durationMonths,
         items: [
           for (final months in const [1, 2, 3, 6, 12])
             DropdownMenuItem(
@@ -383,81 +409,73 @@ class _WizardSheetState extends State<_WizardSheet> {
             ? null
             : (v) => setState(() => _durationMonths = v ?? 3),
       ),
-      const SizedBox(height: 8),
+      const SizedBox(height: Spacing.md),
 
       // ── Handoff time (transitions only — T-27) ──
-      Text('${l[K.wizHandoffTime]} ${l[K.wizHandoffHint]}',
-          style: Theme.of(context).textTheme.labelLarge),
+      AppFieldLabel(l[K.wizHandoffTime],
+          info: l[K.wizHandoffHint], optionalLabel: l[K.commonOptional]),
       Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          DropdownButton<int>(
-            key: const Key('wizHandoffHour'),
-            value: _handoffHour,
-            items: [
-              const DropdownMenuItem(value: -1, child: Text('--')),
-              for (var h = 0; h < 24; h++)
-                DropdownMenuItem(
-                    value: h, child: Text(h.toString().padLeft(2, '0'))),
-            ],
-            onChanged: _generating
-                ? null
-                : (v) => setState(() => _handoffHour = v ?? -1),
+          Expanded(
+            child: DropdownButtonFormField<int>(
+              key: const Key('wizHandoffHour'),
+              decoration: InputDecoration(labelText: l[K.editorHourLabel]),
+              initialValue: _handoffHour,
+              items: [
+                const DropdownMenuItem(value: -1, child: Text('--')),
+                for (var h = 0; h < 24; h++)
+                  DropdownMenuItem(
+                      value: h, child: Text(h.toString().padLeft(2, '0'))),
+              ],
+              onChanged: _generating
+                  ? null
+                  : (v) => setState(() => _handoffHour = v ?? -1),
+            ),
           ),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 16),
             child: Text(':'),
           ),
-          DropdownButton<int>(
-            key: const Key('wizHandoffMinute'),
-            value: _handoffMinute,
-            items: [
-              for (var m = 0; m < 60; m++)
-                DropdownMenuItem(
-                    value: m, child: Text(m.toString().padLeft(2, '0'))),
-            ],
-            onChanged: _generating || _handoffHour < 0
-                ? null
-                : (v) => setState(() => _handoffMinute = v ?? 0),
+          Expanded(
+            child: DropdownButtonFormField<int>(
+              key: const Key('wizHandoffMinute'),
+              decoration: InputDecoration(labelText: l[K.editorMinuteLabel]),
+              initialValue: _handoffMinute,
+              items: [
+                for (var m = 0; m < 60; m++)
+                  DropdownMenuItem(
+                      value: m, child: Text(m.toString().padLeft(2, '0'))),
+              ],
+              onChanged: _generating || _handoffHour < 0
+                  ? null
+                  : (v) => setState(() => _handoffMinute = v ?? 0),
+            ),
           ),
         ],
       ),
-      const SizedBox(height: 8),
+          ],
+        ),
+      ),
+      const SizedBox(height: Spacing.sm),
 
       // ── Preview ──
-      Text(l[K.wizCyclePreview],
-          style: Theme.of(context).textTheme.labelLarge),
-      Text(
-        l.format(K.wizCycleSummary,
-            [summary.cycleDays, summary.repetitions, summary.totalDays]),
-        style: Theme.of(context).textTheme.bodySmall,
+      //
+      // U-28 QA: the cycle summary is the sheet's answer to "what will this
+      // actually do", and it was a loose grey sentence at the end of the form.
+      AppCard(
+        title: l[K.wizCyclePreview],
+        child: Text(
+          l.format(K.wizCycleSummary,
+              [summary.cycleDays, summary.repetitions, summary.totalDays]),
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
       ),
-      const SizedBox(height: 16),
 
       if (_generating) ...[
+        const SizedBox(height: Spacing.sm),
         LinearProgressIndicator(value: _progress),
-        const SizedBox(height: 8),
       ],
-
-      // ── Actions ──
-      Row(
-        children: [
-          FilledButton(
-            onPressed: _generating ? null : _generate,
-            child: _generating
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(l[K.wizGenerate]),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed:
-                _generating ? null : () => Navigator.of(context).pop(),
-            child: Text(l[K.commonCancel]),
-          ),
-        ],
-      ),
     ];
   }
 }

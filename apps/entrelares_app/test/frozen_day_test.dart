@@ -74,7 +74,9 @@ void main() {
     await tester.pumpAndSettle();
     await openDay(tester, day);
 
-    expect(find.text(l[K.frozenSwapTitle]), findsOneWidget);
+    // U-28 QA: the urgency emoji rides in the sheet title now, so the title is
+    // "⚠️ Solicitação de troca pendente" and not the bare sentence.
+    expect(find.textContaining(l[K.frozenSwapTitle]), findsOneWidget);
     // The editor's save button must NOT be there.
     expect(find.text(l[K.commonSave]), findsNothing);
     // F-44: the requester's message shows on the panel.
@@ -172,7 +174,7 @@ void main() {
     await tester.pumpAndSettle();
     await openDay(tester, day);
 
-    expect(find.text(l[K.frozenRevertTitle]), findsOneWidget);
+    expect(find.textContaining(l[K.frozenRevertTitle]), findsOneWidget);
     expect(find.text(l[K.frozenConfirmRevert]), findsOneWidget);
 
     await tester.tap(find.text(l[K.frozenConfirmRevert]));

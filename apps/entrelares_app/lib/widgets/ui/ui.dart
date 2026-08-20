@@ -5,8 +5,9 @@
 /// three hand-built bulleted lists, two danger zones that had decayed into
 /// loose paragraphs, and two event logs that had lost their rail.
 ///
-/// * [AppSectionHeader], [AppCard], [AppListRow], [AppSheetHeader],
-///   [AppBulletList], [AppTimelineEntry] — structure
+/// * [AppSectionHeader], [AppCard], [AppListRow], [AppBulletList],
+///   [AppTimelineEntry] — structure
+/// * [showAppSheet], [AppSheetFrame], [AppFieldLabel], [AppInfoTip] — sheets
 /// * [AppBanner], [AppBadge], [AppEmptyState], [AppDangerZone] — state
 /// * [AppTextField], [AppSegmented], [AppActionPair], [AppAvatar] — action
 library;
@@ -14,4 +15,5 @@ library;
 export 'controls.dart';
 export 'signals.dart';
 export 'surfaces.dart';
+export 'sheets.dart';
 export 'skeleton.dart';
