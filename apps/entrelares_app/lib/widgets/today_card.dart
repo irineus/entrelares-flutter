@@ -51,6 +51,11 @@ class TodayCard extends StatelessWidget {
     required this.onInvite,
   });
 
+  /// A heading starts with a capital; the date formatters lowercase because
+  /// their output usually sits inside a sentence.
+  String _capitalize(String text) =>
+      text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+
   /// The greeting's name. The web prints the full legal name; on a phone that
   /// is three lines of card spent on something the reader already knows.
   String get _firstName {
@@ -85,7 +90,7 @@ class TodayCard extends StatelessWidget {
           children: [
             Container(
               color: user.tone.container,
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -108,16 +113,23 @@ class TodayCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: Spacing.sm),
+                      // U-28 QA: the date must arrive WHOLE — "quinta-feira,
+                      // 20 de ag…" is worse than no date at all. It is not
+                      // rigid either, or a long month name would overflow the
+                      // row on a narrow phone: `scaleDown` gives up a couple of
+                      // percent of type size instead of the last five letters.
                       Flexible(
-                        child: Text(
-                          l.formatTodayHeading(today),
-                          textAlign: TextAlign.end,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(color: user.tone.onContainer),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            _capitalize(l.formatTodayHeading(today)),
+                            maxLines: 1,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: user.tone.onContainer),
+                          ),
                         ),
                       ),
                     ],
@@ -163,7 +175,7 @@ class TodayCard extends StatelessWidget {
               // child today" without reading a word.
               Container(
                 color: responsible.tone.container,
-                padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
                 child: _responsibleRow(context, l, responsible),
               ),
           ],

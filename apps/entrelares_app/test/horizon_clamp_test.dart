@@ -20,7 +20,7 @@ const tightSettings = {'calendar_months_free': '1'};
 final _pt = Localization(AppLanguage.ptBr);
 
 String monthTitle(DateTime month) =>
-    _pt.formatMonthYear(month.year, month.month);
+    monthHeading(_pt, month);
 
 DateTime monthsAhead(int n) => DateTime(today.year, today.month + n, 1);
 

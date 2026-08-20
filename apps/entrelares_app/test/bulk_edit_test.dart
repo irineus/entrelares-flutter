@@ -213,7 +213,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(pt.format(K.selectionEdit, [1])), findsOneWidget);
     expect(
-        find.text(pt.formatMonthYear(today.year, today.month)), findsOneWidget);
+        find.text(monthHeading(pt, today)), findsOneWidget);
 
     // Same swipe, "Sim, continuar": month advances, selection discarded.
     await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
@@ -221,7 +221,7 @@ void main() {
     await tester.tap(find.text(pt[K.navGuardYes]));
     await tester.pumpAndSettle();
     final next = DateTime(today.year, today.month + 1, 1);
-    expect(find.text(pt.formatMonthYear(next.year, next.month)),
+    expect(find.text(monthHeading(pt, next)),
         findsOneWidget);
     expect(find.textContaining('✏️'), findsNothing);
   });
