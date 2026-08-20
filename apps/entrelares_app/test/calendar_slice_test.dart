@@ -15,6 +15,7 @@ import 'package:entrelares_app/models/family_invitation.dart';
 import 'package:entrelares_app/models/invite_info.dart';
 import 'package:entrelares_app/models/member.dart';
 import 'package:entrelares_app/models/role.dart';
+import 'package:entrelares_app/models/subscription.dart';
 import 'package:entrelares_app/models/swap_request.dart';
 import 'package:entrelares_app/screens/calendar_screen.dart';
 import 'package:entrelares_app/services/admin_mode.dart';
@@ -68,6 +69,34 @@ class FakeCustodyDataSource implements CustodyDataSource {
 
   @override
   Future<Map<String, String>> fetchPublicSettings() async => publicSettings;
+
+  // ── Lote 5: billing reads. Default to the shape of a family that never
+  // started a checkout — the state every screen outside the Premium section
+  // is written against.
+  Subscription? subscription;
+  Object? throwOnSubscription;
+  List<BillingHistoryEntry> billingHistory = const [];
+  Object? throwOnBillingHistory;
+  bool premiumInterest = false;
+  int billingHistoryFetches = 0;
+
+  @override
+  Future<Subscription?> fetchSubscription() async {
+    // Mirrors the real source's fail-closed contract: the failure becomes
+    // "no subscription", it does not escape to the screen.
+    if (throwOnSubscription != null) return null;
+    return subscription;
+  }
+
+  @override
+  Future<List<BillingHistoryEntry>> fetchBillingHistory() async {
+    billingHistoryFetches++;
+    if (throwOnBillingHistory != null) throw throwOnBillingHistory!;
+    return billingHistory;
+  }
+
+  @override
+  Future<bool> hasRegisteredPremiumInterest() async => premiumInterest;
 
   @override
   Future<void> updateOwnLanguage(int profileId, String languageCode) async {}
