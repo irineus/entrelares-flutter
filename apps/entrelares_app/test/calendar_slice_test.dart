@@ -98,6 +98,30 @@ class FakeCustodyDataSource implements CustodyDataSource {
   @override
   Future<bool> hasRegisteredPremiumInterest() async => premiumInterest;
 
+  final List<String?> registeredInterest = [];
+  int cancelCalls = 0;
+  int reactivateCalls = 0;
+  Object? throwOnBillingAction;
+
+  @override
+  Future<void> registerPremiumInterest({String? feature}) async {
+    if (throwOnBillingAction != null) throw throwOnBillingAction!;
+    registeredInterest.add(feature);
+    premiumInterest = true;
+  }
+
+  @override
+  Future<void> cancelSubscription() async {
+    if (throwOnBillingAction != null) throw throwOnBillingAction!;
+    cancelCalls++;
+  }
+
+  @override
+  Future<void> reactivateSubscription() async {
+    if (throwOnBillingAction != null) throw throwOnBillingAction!;
+    reactivateCalls++;
+  }
+
   @override
   Future<void> updateOwnLanguage(int profileId, String languageCode) async {}
 
