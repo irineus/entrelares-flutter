@@ -797,6 +797,8 @@ abstract final class StringsEn {
     K.auditLoadingMore: 'Loading…',
     K.auditLoadMore: 'Load more',
     K.auditErrLoad: 'Error loading the history: {0}',
+    K.sumHeading: '📊 Period summary',
+    K.auditHeading: '⏱️ Adjustment history',
     K.repTabSummary: 'Summary',
     K.repTabHistory: 'History',
     K.repTabPdf: 'PDF',

@@ -214,17 +214,19 @@ void main() {
       ));
       await tester.pumpAndSettle();
 
-      expect(find.text('📋 ${l[K.repTabSummary]}'), findsOne);
-      expect(find.text('⏱️ ${l[K.repTabHistory]}'), findsOne);
-      expect(find.text('📄 ${l[K.repTabPdf]}'), findsOne);
+      // U-28: the tab labels dropped their emoji for the app's own icons.
+      expect(find.text(l[K.repTabSummary]), findsOne);
+      expect(find.text(l[K.repTabHistory]), findsOne);
+      expect(find.text(l[K.repTabPdf]), findsOne);
+      expect(find.byIcon(Icons.picture_as_pdf_outlined), findsOne);
       // The Resumo is the landing tab, as `/reports` redirects in the web.
       expect(find.text(l[K.sumSubtitle]), findsOne);
 
-      await tester.tap(find.text('⏱️ ${l[K.repTabHistory]}'));
+      await tester.tap(find.text(l[K.repTabHistory]));
       await tester.pumpAndSettle();
       expect(find.text(l[K.auditSubtitle]), findsOne);
 
-      await tester.tap(find.text('📄 ${l[K.repTabPdf]}'));
+      await tester.tap(find.text(l[K.repTabPdf]));
       await tester.pumpAndSettle();
       expect(find.text(l[K.pdfHeading]), findsOne);
     });

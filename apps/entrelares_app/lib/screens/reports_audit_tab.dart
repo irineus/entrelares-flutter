@@ -203,6 +203,12 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
+          // U-28: the tab names itself, the way the PDF tab already did. With
+          // only "Relatórios" on the app bar, a description scrolled halfway
+          // up read as an orphan sentence under the tab strip.
+          Text(l[K.auditHeading],
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: Spacing.xs),
           Text(l[K.auditSubtitle],
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
@@ -354,11 +360,10 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
         RichLabel.of(l, K.auditScheduleChange,
             args: [actor, scheduleActionLabel(log.action, l)]),
         if (origin != null) _originBlock(origin, l),
-        for (final change in changes) _diffRow(change.label, change.from, change.to),
-        const SizedBox(height: 4),
-        Text(l.formatDateTime(view.createdAtLocal),
-            style: Theme.of(context).textTheme.labelSmall),
+        for (final change in changes)
+          _diffRow(change.label, change.from, change.to),
       ],
+      timestamp: l.formatDateTime(view.createdAtLocal),
     );
   }
 
@@ -461,10 +466,8 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
         ),
         if (log.oldValue != null || log.newValue != null)
           _diffRow(null, display(log.oldValue), display(log.newValue)),
-        const SizedBox(height: 4),
-        Text(l.formatDateTime(log.createdAt.toLocal()),
-            style: Theme.of(context).textTheme.labelSmall),
       ],
+      timestamp: l.formatDateTime(log.createdAt.toLocal()),
     );
   }
 
@@ -481,10 +484,8 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
             ]),
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 4),
-          Text(l.formatDateTime(endedAtUtc.toLocal()),
-              style: Theme.of(context).textTheme.labelSmall),
         ],
+        timestamp: l.formatDateTime(endedAtUtc.toLocal()),
       );
 
   // ── Shared timeline chrome ────────────────────────────────────────────────
@@ -493,39 +494,27 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
     required AuditBadge badge,
     required String icon,
     required List<Widget> children,
+    String timestamp = '',
+    bool isLast = false,
   }) {
-    final color = switch (badge) {
-      AuditBadge.created => context.tokens.success.solid,
-      AuditBadge.deleted => context.tokens.danger.solid,
-      AuditBadge.updated => context.tokens.info.solid,
+    // U-28: an audit log is read for SEQUENCE and it is read in bulk. As
+    // stacked cards it showed four entries per screen where the web shows
+    // eleven, and nothing joined one entry to the next. The rail carries the
+    // order; the density comes back from dropping the card around every row.
+    final tone = switch (badge) {
+      AuditBadge.created => context.tokens.success,
+      AuditBadge.deleted => context.tokens.danger,
+      AuditBadge.updated => context.tokens.neutral,
     };
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Text(icon, style: TextStyle(fontSize: 13, color: color)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: children,
-              ),
-            ),
-          ],
-        ),
+    return AppTimelineEntry(
+      tone: tone,
+      marker: icon,
+      isLast: isLast,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
       ),
+      timestamp: timestamp,
     );
   }
 
@@ -534,27 +523,46 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
   /// never as a fresh one (F-58 QA 4).
   Widget _diffRow(String? label, String? from, String? to) => Padding(
         padding: const EdgeInsets.only(top: 2),
-        child: Text.rich(
-          TextSpan(children: [
+        child: Wrap(
+          spacing: Spacing.xs,
+          runSpacing: Spacing.xs,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
             if (label != null)
-              TextSpan(
-                  text: '$label: ',
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text('$label:',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
             if (from != null)
-              TextSpan(
-                text: from,
-                style: TextStyle(
-                    color: context.tokens.danger.onContainer,
-                    decoration: TextDecoration.lineThrough),
+              _valueChip(from, context.tokens.danger, struck: true),
+            if (from != null && to != null)
+              Icon(Icons.arrow_forward,
+                  size: TypeScale.label, color: context.tokens.textMuted),
+            if (to != null) _valueChip(to, context.tokens.success),
+          ],
+        ),
+      );
+
+  /// U-28 — the value that changed, as a chip.
+  ///
+  /// The web highlights both sides with a background; the port left them as
+  /// coloured runs inside a sentence, which a reader has to scan for. A chip is
+  /// found, not read.
+  Widget _valueChip(String text, ToneColors tone, {bool struck = false}) =>
+      Container(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Spacing.xs + 2, vertical: 1),
+        decoration: BoxDecoration(
+          color: tone.container,
+          borderRadius: BorderRadius.circular(Radii.sm),
+        ),
+        child: Text(
+          text,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: tone.onContainer,
+                decoration: struck ? TextDecoration.lineThrough : null,
               ),
-            if (from != null && to != null) const TextSpan(text: ' → '),
-            if (to != null)
-              TextSpan(
-                  text: to,
-                  style: TextStyle(
-                      color: context.tokens.success.onContainer)),
-          ]),
-          style: Theme.of(context).textTheme.bodySmall,
         ),
       );
 

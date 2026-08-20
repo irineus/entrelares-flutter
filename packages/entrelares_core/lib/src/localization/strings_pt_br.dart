@@ -797,6 +797,8 @@ abstract final class StringsPtBr {
     K.auditLoadingMore: 'A carregar…',
     K.auditLoadMore: 'Carregar mais',
     K.auditErrLoad: 'Erro ao carregar histórico: {0}',
+    K.sumHeading: '📊 Resumo do período',
+    K.auditHeading: '⏱️ Histórico de ajustes',
     K.repTabSummary: 'Resumo',
     K.repTabHistory: 'Histórico',
     K.repTabPdf: 'PDF',

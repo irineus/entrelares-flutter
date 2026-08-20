@@ -127,6 +127,12 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
         children: [
+          // U-28: the tab names itself, the way the PDF tab already did. With
+          // only "Relatórios" on the app bar, a description scrolled halfway
+          // up read as an orphan sentence under the tab strip.
+          Text(l[K.sumHeading],
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: Spacing.xs),
           Text(l[K.sumSubtitle],
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
@@ -139,8 +145,23 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
           else if (!hasSummaryData(stats))
             _emptyState(l)
           else ...[
-            for (final stat in stats) _statCard(stat, l),
-            const SizedBox(height: 8),
+            // U-28: two columns, as the web has them. One card per row pushed
+            // the second carer below the fold on a phone, and the comparison
+            // between the two is the entire point of this tab.
+            LayoutBuilder(builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 640 ? 3 : 2;
+              final width =
+                  (constraints.maxWidth - Spacing.sm * (columns - 1)) / columns;
+              return Wrap(
+                spacing: Spacing.sm,
+                runSpacing: Spacing.sm,
+                children: [
+                  for (final stat in stats)
+                    SizedBox(width: width, child: _statCard(stat, l)),
+                ],
+              );
+            }),
+            const SizedBox(height: Spacing.md),
             Center(
               child: RichLabel.of(
                 l,
@@ -261,15 +282,20 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
   }
 
   Widget _statCard(CaregiverStat stat, Localization l) {
-    final color =
-        context.tokens.slot(profileSlotIndex(stat.profileId, _views)).tone.solid;
+    final slot = context.tokens.slot(profileSlotIndex(stat.profileId, _views));
     final firstName = stat.name.split(' ').first;
 
+    // U-28: the card is TINTED, not striped. The web fills each carer's card
+    // with their own colour and prints the name in it, which is what lets a
+    // reader tell the two columns apart at a glance; the port had reduced that
+    // to a 4 px rule down the left edge with everything else neutral.
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.zero,
+      color: slot.tone.container,
       child: Container(
         decoration: BoxDecoration(
-          border: Border(left: BorderSide(color: color, width: 4)),
+          border: Border.all(color: slot.tone.border),
+          borderRadius: BorderRadius.circular(Radii.md),
         ),
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -277,20 +303,27 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
           children: [
             Text(
               stat.role.isEmpty ? firstName : '$firstName (${stat.role})',
-              style: Theme.of(context).textTheme.titleSmall,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: slot.tone.onContainer),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 6),
-            _statRow(l[K.sumPlanned], _daysLabel(stat.plannedDays, l)),
+            const SizedBox(height: Spacing.sm),
+            _statRow(l[K.sumPlanned], _daysLabel(stat.plannedDays, l),
+                tone: slot.tone),
             _statRow(l[K.sumActual], _daysLabel(stat.actualDays, l),
-                highlight: true),
+                highlight: true, tone: slot.tone),
             if (_includeFutureSwaps)
               _statRow(l[K.sumProjected], _daysLabel(stat.projectedDays, l),
-                  highlight: true),
+                  highlight: true, tone: slot.tone),
             // U-07: who gave days away and who received them.
             _statRow(
               l[K.sumSwaps],
               l.format(
                   K.sumSwapSplit, [stat.swapsGiven, stat.swapsReceived]),
+              tone: slot.tone,
             ),
           ],
         ),
@@ -303,18 +336,31 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
   String _daysLabel(int count, Localization l) =>
       l.format(count == 1 ? K.sumDaysOne : K.sumDaysMany, [count]);
 
-  Widget _statRow(String label, String value, {bool highlight = false}) =>
+  /// U-28: a `Wrap`, not a `Row`. At half the screen width "Programado" and
+  /// "161 dias" no longer fit on one line for every language, and a `Row` would
+  /// have overflowed rather than moved the value down.
+  Widget _statRow(String label, String value,
+          {bool highlight = false, ToneColors? tone}) =>
       Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: Spacing.sm,
           children: [
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
+            Text(label,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: tone?.onContainer)),
             Text(
               value,
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: highlight ? Theme.of(context).colorScheme.primary : null,
+                color: highlight
+                    ? (tone?.onContainer ??
+                        Theme.of(context).colorScheme.primary)
+                    : tone?.onContainer,
               ),
             ),
           ],

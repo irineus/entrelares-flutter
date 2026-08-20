@@ -832,6 +832,12 @@ abstract final class K {
   static const String auditLoadingMore = 'rep.audit.loadingMore';
   static const String auditLoadMore = 'rep.audit.loadMore';
   static const String auditErrLoad = 'rep.audit.errLoad';
+  /// U-28: the Resumo and Histórico tabs name themselves the way the PDF tab
+  /// already did (`pdfHeading`). Without a heading, a description scrolled
+  /// halfway up read as an orphan sentence under the tab strip.
+  static const String sumHeading = 'sum.heading';
+  static const String auditHeading = 'audit.heading';
+
   static const String repTabSummary = 'rep.tab.summary';
   static const String repTabHistory = 'rep.tab.history';
   static const String repTabPdf = 'rep.tab.pdf';
@@ -1823,6 +1829,8 @@ abstract final class K {
     auditLoadingMore,
     auditLoadMore,
     auditErrLoad,
+    sumHeading,
+    auditHeading,
     repTabSummary,
     repTabHistory,
     repTabPdf,

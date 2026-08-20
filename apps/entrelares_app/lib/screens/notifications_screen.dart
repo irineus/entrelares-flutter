@@ -554,43 +554,36 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final createdLocal = notif.createdAt == null
         ? null
         : DateTime.tryParse(notif.createdAt!)?.toLocal();
+    // U-28: an entry on a rail, not a free-floating stack of three greys.
+    //
+    // Title, body and timestamp all had nearly the same weight and colour, and
+    // nothing connected one entry to the next — the tab read as a wall of text
+    // where the web reads as a sequence. [AppTimelineEntry] restores the rail
+    // and gives the timestamp its own (quieter, right-aligned) place.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(notifIcon(notif.type), style: const TextStyle(fontSize: 20)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // U-13: the row was written in the LANGUAGE OF WHOEVER ACTED,
-                // so the stored sentence is only correct by accident. Rebuild
-                // from type + params in THIS reader's language; rows written
-                // before the item carry no params and render as stored.
-                Text(
-                  NotificationRenderer.title(
-                      notif.type, notif.paramsJson, notif.title, l),
-                  style: TextStyle(
-                      fontWeight:
-                          notif.isRead ? FontWeight.normal : FontWeight.w600),
-                ),
-                Text(
-                  NotificationRenderer.message(
-                      notif.type, notif.paramsJson, notif.message, l),
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                if (createdLocal != null)
-                  Text(l.formatDateTime(createdLocal),
-                      style: Theme.of(context)
-                          .textTheme
-                          .labelSmall
-                          ?.copyWith(color: Theme.of(context).hintColor)),
-              ],
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+      child: AppTimelineEntry(
+        tone: notif.isRead ? context.tokens.neutral : context.tokens.accent,
+        marker: notifIcon(notif.type),
+        isLast: identical(notif, _history.last),
+        // U-13: the row was written in the LANGUAGE OF WHOEVER ACTED, so the
+        // stored sentence is only correct by accident. Rebuild from type +
+        // params in THIS reader's language; rows written before the item carry
+        // no params and render as stored.
+        title: Text(
+          NotificationRenderer.title(
+              notif.type, notif.paramsJson, notif.title, l),
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight:
+                  notif.isRead ? FontWeight.w600 : FontWeight.w700),
+        ),
+        body: Text(
+          NotificationRenderer.message(
+              notif.type, notif.paramsJson, notif.message, l),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        timestamp:
+            createdLocal == null ? '' : l.formatDateTime(createdLocal),
       ),
     );
   }
