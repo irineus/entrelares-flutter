@@ -211,10 +211,7 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
           if (_errorRaw != null)
             _banner(l[K.repErrorTitle], _message(l, K.auditErrLoad, _errorRaw!))
           else if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(child: CircularProgressIndicator()),
-            )
+            AppSkeletonList(rows: 4, semanticsLabel: l[K.famLoading])
           else ...[
             ..._timeline(l),
             if (_moreErrorRaw != null) ...[

@@ -443,7 +443,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
     if (_loading) {
       return Scaffold(
         appBar: AppBar(title: Text(l[K.famHeading])),
-        body: Center(child: Text(l[K.famLoading])),
+        // U-27: the word "Carregando" said nothing about what was coming; the
+        // skeleton outlines the carer cards that are.
+        body: AppSkeletonList(semanticsLabel: l[K.famLoading]),
       );
     }
     if (_loadErrorKey != null) {
@@ -1762,7 +1764,8 @@ class _FamilyScreenState extends State<FamilyScreen> {
       ),
       if (_historyOpen)
         if (_historyLoading)
-          Text(l[K.premHistoryLoading])
+          AppSkeletonCards(
+              count: 2, height: 40, semanticsLabel: l[K.premHistoryLoading])
         else if (_history.isEmpty)
           Text(l[K.premHistoryEmpty])
         else

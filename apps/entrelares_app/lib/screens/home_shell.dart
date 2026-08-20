@@ -63,36 +63,45 @@ class HomeShell extends StatelessWidget {
           children: [
             // F-14: the persistent, explicit banner while admin mode is on —
             // mirror of the web's MainLayout strip (shown on every tab).
-            if (adminMode.isActive)
-              Material(
-                color: context.tokens.dangerBar,
-                child: SafeArea(
-                  bottom: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            '🛡️ ${l[K.layoutAdminActive]} — '
-                            '${l[K.layoutAdminHint]}',
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 13),
+            // U-27: the banner slides in over 400 ms instead of appearing
+            // between two frames — a red strip that materialises silently over
+            // the whole app reads as a glitch, not as a mode.
+            AnimatedSize(
+              duration: Motion.page,
+              curve: Motion.pageCurve,
+              alignment: Alignment.bottomCenter,
+              child: !adminMode.isActive
+                  ? const SizedBox(width: double.infinity)
+                  : Material(
+                      color: context.tokens.dangerBar,
+                      child: SafeArea(
+                        bottom: false,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '🛡️ ${l[K.layoutAdminActive]} — '
+                                  '${l[K.layoutAdminHint]}',
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 13),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: adminMode.deactivate,
+                                style: TextButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    visualDensity: VisualDensity.compact),
+                                child: Text(l[K.layoutAdminExit]),
+                              ),
+                            ],
                           ),
                         ),
-                        TextButton(
-                          onPressed: adminMode.deactivate,
-                          style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              visualDensity: VisualDensity.compact),
-                          child: Text(l[K.layoutAdminExit]),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-              ),
+            ),
             if (deletionBanner != null) _deletionBanner(context, l),
             Expanded(child: shell),
           ],

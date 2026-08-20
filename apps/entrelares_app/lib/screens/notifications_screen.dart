@@ -210,7 +210,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 await widget.badge.refresh();
               },
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? AppSkeletonList(rows: 3, semanticsLabel: l[K.famLoading])
                   : _loadError != null
                       ? ListView(children: [
                           Padding(

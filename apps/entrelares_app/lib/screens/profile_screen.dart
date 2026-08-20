@@ -415,7 +415,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_loading) {
       return Scaffold(
         appBar: AppBar(title: Text(l[K.profPageTitle])),
-        body: Center(child: Text(l[K.famLoading])),
+        body: AppSkeletonCards(count: 2, semanticsLabel: l[K.famLoading]),
       );
     }
     if (target == null) {

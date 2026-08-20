@@ -254,6 +254,12 @@ regras e ~0% do visual — por um sistema de tokens. O que ela estabelece:
   põe a confirmação PRIMEIRO** (ordem do Blazor — quem chega no cutover tem essa memória
   muscular) e **todo campo tem rótulo permanente**, que é como a WCAG 1.4.11 é satisfeita
   sem engrossar a borda.
+- **Skeletons no lugar dos spinners** onde a forma do que vem é conhecida: o grid do mês, as
+  listas de Notificações e de auditoria, os cartões do resumo, Família, Perfil, papéis
+  personalizados e o histórico premium. Ficam spinner de propósito: botão em ação (o giro é
+  sobre AQUELE toque), barra determinada (o lote e o assistente sabem o progresso — trocar
+  por shimmer jogaria informação fora) e espera sem forma conhecida (splash, retorno do
+  pagamento). O shimmer é translação horizontal pura, 1500 ms `easeInOutSine`.
 - **Tipografia Inter** (SIL OFL, de `google/fonts`), instanciada nos quatro pesos estáticos
   da escala e subsetada para o range `latin` — 438 glifos, ~57 KB cada, ~96 KB gzip no
   conjunto. Regenerável por `tool/subset_inter.py`. O PDF continua com Roboto: relatório é
@@ -263,13 +269,14 @@ regras e ~0% do visual — por um sistema de tokens. O que ela estabelece:
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.2.30+32` (U-27 PR2 — os onze componentes compartilhados) |
+| `apps/entrelares_app` | `0.2.31+33` (U-27 PR3 — skeletons e movimento; **U-27 fechado**) |
 
 Trilha do estágio 3: `0.2.0+2` abertura de flavors → `0.2.1+3` T-55 → `0.2.2+4`…`0.2.4+6`
 lote 1 → `0.2.5+7`…`0.2.8+10` lote 2 → `0.2.9+11`…`0.2.13+15` lote 3 →
 `0.2.14+16`…`0.2.19+21` lote 4 → `0.2.20+22`…`0.2.24+26` lote 6 →
 `0.2.25+27`…`0.2.28+30` lote 5. **Os seis lotes estão entregues** — o app está
-funcionalmente completo. Depois deles, a fundação visual do cutover: `0.2.29+31`…`0.2.30+32` U-27.
+funcionalmente completo. Depois deles, a fundação visual do cutover: `0.2.29+31`…`0.2.31+33` U-27, **fechado em
+20/08/2026**.
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 
