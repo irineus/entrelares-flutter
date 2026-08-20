@@ -162,6 +162,21 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
       _invokeBillingForUrl({'action': 'avulso', 'cycle': cycle});
 
   @override
+  Future<void> verifyStorePurchase({
+    required String productId,
+    required String purchaseToken,
+  }) async {
+    try {
+      await _client.functions.invoke('billing-store-verify', body: {
+        'product_id': productId,
+        'purchase_token': purchaseToken,
+      });
+    } on FunctionException catch (e) {
+      throw BillingRefused(_functionErrorText(e));
+    }
+  }
+
+  @override
   Future<void> cancelSubscription() => _invokeBilling({'action': 'cancel'});
 
   @override

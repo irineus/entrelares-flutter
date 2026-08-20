@@ -93,6 +93,18 @@ abstract final class KApp {
   static const String shellUnderConstructionBody =
       'app.shell.underConstructionBody';
 
+  // ── Play Billing (lote 5, T-48) — the store rail has no web counterpart by
+  //    construction: the web catalog was written for a checkout that redirects
+  //    to a payment page, and Play's flow is a system sheet the app only asks
+  //    for. The PRICE never appears here: it comes from the Play product and
+  //    is passed into K.premSubscribe* as an argument ──
+  static const String storeManage = 'app.store.manage';
+  static const String storeRestore = 'app.store.restore';
+  static const String storeUnavailable = 'app.store.unavailable';
+  static const String storePending = 'app.store.pending';
+  static const String storeErrPurchase = 'app.store.errPurchase';
+  static const String storeToastActive = 'app.store.toastActive';
+
   /// See `K.allKeys`.
   static const List<String> allKeys = [
     sessionRestoredExpired,
@@ -130,6 +142,12 @@ abstract final class KApp {
     inviteErrRoleRequired,
     shellUnderConstructionTitle,
     shellUnderConstructionBody,
+    storeManage,
+    storeRestore,
+    storeUnavailable,
+    storePending,
+    storeErrPurchase,
+    storeToastActive,
   ];
 }
 
@@ -181,6 +199,18 @@ abstract final class StringsAppPtBr {
     KApp.shellUnderConstructionTitle: 'Em construção',
     KApp.shellUnderConstructionBody:
         'Esta tela chega em uma próxima atualização.',
+    KApp.storeManage: 'Gerenciar assinatura no Google Play',
+    KApp.storeRestore: 'Já assinei — restaurar compra',
+    KApp.storeUnavailable:
+        'A loja não respondeu agora. Tente de novo em instantes — se você já '
+            'assinou, seu Premium continua valendo.',
+    KApp.storePending:
+        'Estamos confirmando sua compra com o Google. Isso costuma levar '
+            'alguns segundos.',
+    KApp.storeErrPurchase:
+        'Não foi possível concluir a compra. Nada foi cobrado sem confirmação '
+            'do Google.',
+    KApp.storeToastActive: 'Premium ativo!',
   };
 }
 
@@ -231,5 +261,17 @@ abstract final class StringsAppEn {
     KApp.shellUnderConstructionTitle: 'Under construction',
     KApp.shellUnderConstructionBody:
         'This screen arrives in an upcoming update.',
+    KApp.storeManage: 'Manage subscription on Google Play',
+    KApp.storeRestore: 'Already subscribed — restore purchase',
+    KApp.storeUnavailable:
+        'The store did not answer just now. Try again in a moment — if you '
+            'already subscribed, your Premium is still valid.',
+    KApp.storePending:
+        'We are confirming your purchase with Google. This usually takes a few '
+            'seconds.',
+    KApp.storeErrPurchase:
+        'Could not complete the purchase. Nothing is charged without Google '
+            'confirming it.',
+    KApp.storeToastActive: 'Premium active!',
   };
 }

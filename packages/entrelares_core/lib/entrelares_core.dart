@@ -39,6 +39,7 @@ export 'src/role_catalog.dart';
 export 'src/route_rules.dart';
 export 'src/save_errors.dart';
 export 'src/settings_rules.dart';
+export 'src/store_billing_rules.dart';
 export 'src/sudo_rules.dart';
 export 'src/swap_notifications.dart';
 export 'src/swap_rules.dart';

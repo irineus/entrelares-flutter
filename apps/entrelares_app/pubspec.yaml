@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionName / versionCode. Bump on every functional change handed to the
 # owner, same rule as the product repos.
-version: 0.2.27+29
+version: 0.2.28+30
 
 environment:
   sdk: ^3.12.2
@@ -66,6 +66,12 @@ dependencies:
   # hands it to the system share sheet or the native print dialog.
   pdf: ^3.13.0
   printing: ^5.15.0
+  # T-48 (lote 5): Play Billing. A native app may NOT sell a digital
+  # subscription through an external checkout — Play requires its own billing,
+  # and the Digital Goods API the original T-48 described was a Chrome/TWA
+  # mechanism that does not exist here. The plugin is wrapped behind an
+  # interface so the Premium section is testable without a store.
+  in_app_purchase: ^3.2.3
   # Pure client mirrors of the server rules, tested with `dart test`.
   entrelares_core:
     path: ../../packages/entrelares_core

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -13,7 +15,9 @@ import '../models/role.dart';
 import '../models/subscription.dart';
 import '../services/admin_mode.dart';
 import '../services/analytics_service.dart';
+import '../env.dart';
 import '../services/custody_data_source.dart';
+import '../services/store_billing.dart';
 import '../services/sudo_service.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
@@ -61,6 +65,11 @@ class FamilyScreen extends StatefulWidget {
   /// nothing at runtime ever passes it.
   final bool isStoreChannel;
 
+  /// T-48: the store rail. Null means "no store on this build" — the section
+  /// then keeps the T-38 neutral note, which is also what the switch-off state
+  /// shows, so a missing service can never become a broken offer.
+  final StoreBilling? storeBilling;
+
   /// Hands a URL to the system browser. Injectable for the same reason: WHERE
   /// the family is sent to pay is a money-critical fact worth asserting, and
   /// the plugin channel does not exist in a widget test.
@@ -77,6 +86,7 @@ class FamilyScreen extends StatefulWidget {
     this.onFamilyDeleted,
     this.isStoreChannel = !kIsWeb,
     this.openExternal,
+    this.storeBilling,
   });
 
   @override
@@ -119,6 +129,13 @@ class _FamilyScreenState extends State<FamilyScreen> {
   /// gate CTAs scroll to is the native way to keep the same promise.
   final _premiumSectionKey = GlobalKey();
 
+  // T-48 store rail. `_storeProducts` empty (for any reason: no store, the
+  // query failed, the ids are not published yet) means the neutral note.
+  bool _storeAvailable = false;
+  List<StoreProduct> _storeProducts = const [];
+  bool _storePurchasePending = false;
+  StreamSubscription<StorePurchase>? _storeSubscription;
+
   // F-43: payment history — lazy on first expand, cached afterwards.
   bool _historyOpen = false;
   bool _historyLoading = false;
@@ -135,10 +152,13 @@ class _FamilyScreenState extends State<FamilyScreen> {
   void initState() {
     super.initState();
     _load();
+    final store = widget.storeBilling;
+    if (store != null) _storeSubscription = store.purchases.listen(_onPurchase);
   }
 
   @override
   void dispose() {
+    _storeSubscription?.cancel();
     _nameDraft.dispose();
     _inviteEmail.dispose();
     super.dispose();
@@ -240,6 +260,12 @@ class _FamilyScreenState extends State<FamilyScreen> {
       final interest = plan.isPremium && !plan.onTrial
           ? false
           : await widget.dataSource.hasRegisteredPremiumInterest();
+
+      // T-48: only ask the store when the rail is on AND this build is the
+      // store channel. On the web target there is no store to ask.
+      if (widget.isStoreChannel && settings.storeBillingEnabled) {
+        await _loadStore();
+      }
 
       if (!mounted) return;
       // F-48: first funnel step — the offer became VISIBLE. Guarded so a
@@ -1184,6 +1210,80 @@ class _FamilyScreenState extends State<FamilyScreen> {
     );
   }
 
+  Future<void> _loadStore() async {
+    final store = widget.storeBilling;
+    if (store == null) return;
+    try {
+      final available = await store.isAvailable();
+      final products =
+          available ? await store.loadProducts() : const <StoreProduct>[];
+      if (!mounted) return;
+      setState(() {
+        _storeAvailable = available;
+        _storeProducts = products;
+      });
+    } catch (_) {
+      // Fail closed to the neutral note: a store that will not answer must
+      // not leave a half-drawn offer on a Play-distributed build.
+      if (!mounted) return;
+      setState(() {
+        _storeAvailable = false;
+        _storeProducts = const [];
+      });
+    }
+  }
+
+  /// A purchase update arrived. The client NEVER grants premium here: it hands
+  /// the token to the server, and only the reload that follows can show the
+  /// new plan.
+  Future<void> _onPurchase(StorePurchase purchase) async {
+    final l = AppL10n.of(context).l;
+    if (purchase.status == StorePurchaseStatus.pending) {
+      setState(() => _storePurchasePending = true);
+      return;
+    }
+    if (!purchase.isOwned) {
+      setState(() => _storePurchasePending = false);
+      if (purchase.status == StorePurchaseStatus.failed) {
+        showAppSnack(context, purchase.errorMessage ?? l[KApp.storeErrPurchase],
+            type: AppSnackType.error);
+      }
+      return;
+    }
+
+    setState(() => _storePurchasePending = true);
+    try {
+      await widget.dataSource.verifyStorePurchase(
+        productId: purchase.productId,
+        purchaseToken: purchase.verificationToken ?? '',
+      );
+      // Acknowledge ONLY after the server accepted it — Play refunds an
+      // unacknowledged purchase after three days, and acknowledging one the
+      // server refused would strand the family without the entitlement.
+      await widget.storeBilling?.complete(purchase);
+      widget.analytics?.trackEvent('premium-checkout-outcome',
+          props: analyticsFunnelProps(
+              channel: _channel,
+              cycle: cycleForStoreProduct(purchase.productId),
+              mode: 'store',
+              outcome: 'confirmed'));
+      if (!mounted) return;
+      showAppSnack(context, l[KApp.storeToastActive]);
+      setState(() => _storePurchasePending = false);
+      await _load();
+    } on BillingRefused catch (e) {
+      if (!mounted) return;
+      setState(() => _storePurchasePending = false);
+      showAppSnack(context, e.serverMessage ?? l[KApp.storeErrPurchase],
+          type: AppSnackType.error);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _storePurchasePending = false);
+      showAppSnack(context, l[KApp.storeErrPurchase],
+          type: AppSnackType.error);
+    }
+  }
+
   /// A gate CTA was tapped: record the intent signal (T-37, one event family
   /// distinguished by `gate`) and take the admin to the section. Never a price
   /// and never an external link — what may be OFFERED is the section's call,
@@ -1387,9 +1487,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
     final trialEnd = _family?.trialEndsAt;
 
     if (_isStoreChannel) {
-      // T-38: no price, no checkout link, no steering verb. The informational
-      // status lines survive without the "renew below" tails.
-      return [
+      // The informational status lines are the same whichever way the store
+      // branch goes — they say what the family already has, never what is for
+      // sale.
+      final status = [
         if (stillPaid != null)
           RichLabel.of(
             l,
@@ -1402,8 +1503,8 @@ class _FamilyScreenState extends State<FamilyScreen> {
           RichLabel.of(l, K.premStoreTrialUntil,
               args: [l.formatDate(trialEnd.toLocal())]),
         const SizedBox(height: 4),
-        RichLabel.of(l, K.premStoreNote),
       ];
+      return [...status, ..._storeBranch(l)];
     }
 
     return [
@@ -1444,6 +1545,96 @@ class _FamilyScreenState extends State<FamilyScreen> {
         ..._checkoutControls(l),
       ],
     ];
+  }
+
+  /// T-48: what the STORE channel may offer. With the rail off — or with a
+  /// store that cannot answer — this is the T-38 neutral note, which is what
+  /// Play always accepts and what the app shipped with until now.
+  List<Widget> _storeBranch(Localization l) {
+    final state = computeStoreOffer(
+      storeBillingEnabled: _settings.storeBillingEnabled,
+      storeAvailable: _storeAvailable,
+      hasProducts: _storeProducts.isNotEmpty,
+      purchasePending: _storePurchasePending,
+      premiumThroughStore: isStoreGateway(_subscription?.gateway),
+    );
+    return switch (state) {
+      StoreOffer.neutralNote => [RichLabel.of(l, K.premStoreNote)],
+      StoreOffer.pendingVerification => [Text(l[KApp.storePending])],
+      StoreOffer.managed => [
+          RichLabel.of(l, K.premStoreNote),
+          _manageOnPlay(l),
+        ],
+      StoreOffer.offer => _storeOffer(l),
+    };
+  }
+
+  List<Widget> _storeOffer(Localization l) => [
+        if (!_isAdmin)
+          RichLabel.of(l, K.premAdminOnly)
+        else ...[
+          for (final product in _storeProducts)
+            FilledButton(
+              onPressed: _billingBusy ? null : () => _buyFromStore(l, product),
+              child: Text(l.format(
+                  product.cycle == 'annual'
+                      ? K.premSubscribeAnnual
+                      : K.premSubscribeMonthly,
+                  // The price is PLAY's, formatted by the store for this
+                  // buyer's country — never a number from app_settings, which
+                  // rules the web rail only.
+                  [product.price])),
+            ),
+          TextButton(
+            onPressed: _billingBusy ? null : () => _restoreFromStore(l),
+            child: Text(l[KApp.storeRestore]),
+          ),
+        ],
+      ];
+
+  Widget _manageOnPlay(Localization l) => Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          onPressed: () => (widget.openExternal ?? _openExternal)(
+            playManageSubscriptionUrl(
+              packageName: Env.current.androidPackage,
+              productId: storeProductForCycle(_subscription?.cycle),
+            ),
+          ),
+          child: Text(l[KApp.storeManage]),
+        ),
+      );
+
+  Future<void> _buyFromStore(Localization l, StoreProduct product) async {
+    final store = widget.storeBilling;
+    if (store == null) return;
+    setState(() => _billingBusy = true);
+    try {
+      widget.analytics?.trackEvent('premium-checkout-start',
+          props: analyticsFunnelProps(
+              channel: _channel, cycle: product.cycle, mode: 'store'));
+      await store.buy(product);
+    } catch (_) {
+      if (!mounted) return;
+      showAppSnack(context, l[KApp.storeErrPurchase],
+          type: AppSnackType.error);
+    } finally {
+      if (mounted) setState(() => _billingBusy = false);
+    }
+  }
+
+  Future<void> _restoreFromStore(Localization l) async {
+    final store = widget.storeBilling;
+    if (store == null) return;
+    try {
+      // The answer arrives on the purchase stream, like a new purchase — a
+      // restored one is verified by the server exactly the same way.
+      await store.restore();
+    } catch (_) {
+      if (!mounted) return;
+      showAppSnack(context, l[KApp.storeUnavailable],
+          type: AppSnackType.error);
+    }
   }
 
   List<Widget> _checkoutControls(Localization l) {

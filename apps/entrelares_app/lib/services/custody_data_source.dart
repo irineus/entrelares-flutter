@@ -82,6 +82,16 @@ abstract class CustodyDataSource {
   /// the same no-retry rule as [startCheckout].
   Future<String> startAvulso(String cycle);
 
+  /// T-48: hands a Play purchase token to the server, which verifies it with
+  /// the Play Developer API and applies the effect through the SAME
+  /// `set_family_plan` + `billing_events` the Asaas webhook uses (idempotent
+  /// by purchase token). The client never grants anything on its own — this
+  /// call is the whole entitlement path for the store rail.
+  Future<void> verifyStorePurchase({
+    required String productId,
+    required String purchaseToken,
+  });
+
   /// T-39: cancels the subscription. No further charges; paid time is honored
   /// SERVER-side — the client never computes what the family keeps. Throws
   /// [BillingRefused] carrying the function's own text when it refuses.
