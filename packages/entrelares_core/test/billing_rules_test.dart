@@ -401,7 +401,7 @@ void main() {
             nowUtc: now,
           ),
           isFalse,
-          reason: '${method}',
+          reason: method ?? 'null',
         );
       }
     });
@@ -441,7 +441,7 @@ void main() {
             nowUtc: now,
           ),
           isFalse,
-          reason: '${customer}',
+          reason: customer ?? 'null',
         );
       }
     });
@@ -457,7 +457,7 @@ void main() {
             nowUtc: now,
           ),
           isFalse,
-          reason: '${status}',
+          reason: status ?? 'null',
         );
       }
     });
