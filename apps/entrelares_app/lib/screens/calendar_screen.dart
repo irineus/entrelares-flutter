@@ -31,7 +31,7 @@ import 'wizard_sheet.dart';
 /// U-28 — what one day of the grid is tall enough to hold: the day number, the
 /// carer's initial, and the handoff mark under it. The width follows from the
 /// screen; only the height is a design decision, so only the height is here.
-const double _dayCellHeight = 58;
+const double _dayCellHeight = 54;
 
 /// U-27 — the F-27 slot palette now lives in [AppTokens.slots], with a
 /// [SlotPattern] alongside each hue and a dark set that did not exist before.
@@ -688,6 +688,13 @@ class _CalendarScreenState extends State<CalendarScreen>
     );
   }
 
+  /// U-18 parity (QA round): the swap key appears only on a month that has a
+  /// swapped day. The web hides it for exactly this reason — on a month with no
+  /// swap it is a legend entry explaining something that is not on screen, and
+  /// it costs the grid the width of its own label.
+  bool get _visibleMonthHasSwap => _daysByIso.values.any((d) =>
+      d.actualParentId != null && d.actualParentId != d.scheduledParentId);
+
   /// U-28 — how a member's role reads for this reader, or null when the family
   /// never set one. Built-ins translate, custom roles pass through — the
   /// composition lives in [Role.displayLabel], same as the family screen's.
@@ -715,63 +722,67 @@ class _CalendarScreenState extends State<CalendarScreen>
   /// that silently removed the web's explicit `<` `>`, leaving no visible way
   /// to change month at all. The swipe stays; the arrows come back.
   Widget _monthBar(BuildContext context, Localization l) {
-    final tokens = context.tokens;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(Spacing.sm, Spacing.xs, Spacing.sm, 0),
-      child: Row(
-        children: [
-          IconButton(
-            tooltip: l[K.calPrevMonth],
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () => _stepMonth(-1),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        IconButton(
+          tooltip: l[K.calPrevMonth],
+          icon: const Icon(Icons.chevron_left),
+          onPressed: () => _stepMonth(-1),
+        ),
+        Flexible(
+          child: Text(
+            l.formatMonthYear(_visibleMonth.year, _visibleMonth.month),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          Expanded(
-            child: Text(
-              l.formatMonthYear(_visibleMonth.year, _visibleMonth.month),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ),
-          IconButton(
-            tooltip: l[K.calNextMonth],
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () => _stepMonth(1),
-          ),
-          // U-11: the accessible entry point to bulk selection (mirrors the
-          // long-press). Once armed, tapping a day toggles its selection.
-          if (!_isSelectionMode)
-            IconButton(
-              tooltip: l[K.calSelectDays],
-              icon: const Icon(Icons.check_box_outlined),
-              onPressed: () => setState(() => _selectionArmed = true),
-            ),
-          IconButton(
-            key: widget.tourKeys?.keyFor(TourTarget.wizardButton),
-            tooltip: l[K.calWizard],
-            icon: const Icon(Icons.event_repeat),
-            onPressed: _openWizard,
-          ),
-          // F-14: the explicit admin-mode toggle — mirror of the web's NavMenu
-          // button. Only a real admin sees it; the shell shows the persistent
-          // banner while it is on. It stays with the calendar and not in the
-          // account menu because what it unlocks is a day on THIS grid.
-          if (_ownProfile?.isAdmin == true)
-            IconButton(
-              tooltip: l[widget.adminMode.isActive
-                  ? K.navAdminExit
-                  : K.navAdminEnter],
-              icon: Icon(
-                widget.adminMode.isActive ? Icons.shield : Icons.shield_outlined,
-                color: widget.adminMode.isActive ? tokens.dangerBar : null,
-              ),
-              onPressed: widget.adminMode.toggle,
-            ),
-        ],
-      ),
+        ),
+        IconButton(
+          tooltip: l[K.calNextMonth],
+          icon: const Icon(Icons.chevron_right),
+          onPressed: () => _stepMonth(1),
+        ),
+      ],
     );
   }
+
+  /// The calendar's OWN actions. They live in the app bar and not in the month
+  /// bar: sharing that row with the month name is what truncated it to
+  /// "agosto de 20…", and the app bar has room now that language and sign-out
+  /// moved into the account menu.
+  List<Widget> _calendarActions(BuildContext context, Localization l) => [
+        // U-11: the accessible entry point to bulk selection (mirrors the
+        // long-press). Once armed, tapping a day toggles its selection.
+        if (!_isSelectionMode)
+          IconButton(
+            tooltip: l[K.calSelectDays],
+            icon: const Icon(Icons.check_box_outlined),
+            onPressed: () => setState(() => _selectionArmed = true),
+          ),
+        IconButton(
+          key: widget.tourKeys?.keyFor(TourTarget.wizardButton),
+          tooltip: l[K.calWizard],
+          icon: const Icon(Icons.event_repeat),
+          onPressed: _openWizard,
+        ),
+        // F-14: the explicit admin-mode toggle — mirror of the web's NavMenu
+        // button. Only a real admin sees it; the shell shows the persistent
+        // banner while it is on. It stays with the calendar and not in the
+        // account menu because what it unlocks is a day on THIS grid.
+        if (_ownProfile?.isAdmin == true)
+          IconButton(
+            tooltip:
+                l[widget.adminMode.isActive ? K.navAdminExit : K.navAdminEnter],
+            icon: Icon(
+              widget.adminMode.isActive ? Icons.shield : Icons.shield_outlined,
+              color:
+                  widget.adminMode.isActive ? context.tokens.dangerBar : null,
+            ),
+            onPressed: widget.adminMode.toggle,
+          ),
+      ];
 
   /// One month forward or back, on the same controller the swipe drives — so
   /// the arrows and the gesture cannot disagree about where the calendar is.
@@ -791,8 +802,17 @@ class _CalendarScreenState extends State<CalendarScreen>
       // moved down to sit against the grid it labels — up here, competing with
       // five icon buttons, it truncated to "agosto de…" for any admin.
       appBar: AppBar(
-        title: Text(l[K.navCalendar]),
-        actions: const [AppAccountButton()],
+        // U-28 QA: 48 instead of 56, and the title one step down the scale. The
+        // calendar is the one screen whose content is a fixed grid — every
+        // point spent on chrome is a point the month does not get, and the grid
+        // was scrolling.
+        toolbarHeight: 48,
+        title: Text(l[K.navCalendar],
+            style: Theme.of(context).textTheme.titleMedium),
+        actions: [
+          ..._calendarActions(context, l),
+          const AppAccountButton(),
+        ],
       ),
       body: Column(
         children: [
@@ -822,6 +842,7 @@ class _CalendarScreenState extends State<CalendarScreen>
                 members: _members,
                 views: views,
                 roleOf: (id) => _roleLabelFor(id, l.current),
+                showSwapKey: _visibleMonthHasSwap,
               ),
             ),
           const Divider(height: 1),
@@ -956,18 +977,16 @@ class _LegendSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: 40,
+        height: _Legend.height,
         child: ListView(
           scrollDirection: Axis.horizontal,
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(
               horizontal: Spacing.sm, vertical: Spacing.xs),
           children: const [
-            AppSkeleton(width: 96, height: 32, radius: Radii.lg),
-            SizedBox(width: Spacing.sm),
-            AppSkeleton(width: 110, height: 32, radius: Radii.lg),
-            SizedBox(width: Spacing.sm),
-            AppSkeleton(width: 88, height: 32, radius: Radii.lg),
+            AppSkeleton(width: 88, height: 14, radius: Radii.sm),
+            SizedBox(width: Spacing.md),
+            AppSkeleton(width: 100, height: 14, radius: Radii.sm),
           ],
         ),
       );
@@ -984,6 +1003,18 @@ class _LegendSkeleton extends StatelessWidget {
 ///
 /// It is one line that scrolls now: the calendar keeps its height no matter how
 /// many carers a family has.
+/// U-28 — the legend: one compact line that a four-carer family still fits on.
+///
+/// The QA round found two problems with the first version. `Chip` carries a
+/// border, a 32 dp minimum height and generous padding, so four carers plus
+/// "Trocado" ran off the right edge of a phone; and "Trocado" was drawn on every
+/// month, including the ones with no swap in them — which is the web's **U-18**,
+/// delivered there and never ported. Both cost the grid height it did not have.
+///
+/// So: no `Chip` chrome, `labelSmall` type, and the swap key only when the month
+/// actually contains a swapped day. Four carers plus the key now measure about
+/// 330 dp against a 360 dp phone; past that it still scrolls sideways rather
+/// than wrapping, because a second legend row costs a week of calendar.
 class _Legend extends StatelessWidget {
   final List<Member> members;
   final List<MemberView> views;
@@ -991,8 +1022,17 @@ class _Legend extends StatelessWidget {
   /// Resolves a member's role for the current reader; null keeps the bare name.
   final String? Function(int memberId) roleOf;
 
-  const _Legend(
-      {required this.members, required this.views, required this.roleOf});
+  /// U-18 parity: whether the month on screen has any swapped day at all.
+  final bool showSwapKey;
+
+  const _Legend({
+    required this.members,
+    required this.views,
+    required this.roleOf,
+    required this.showSwapKey,
+  });
+
+  static const height = 30.0;
 
   @override
   Widget build(BuildContext context) {
@@ -1000,7 +1040,7 @@ class _Legend extends StatelessWidget {
     final active = members.where((m) => m.isActiveMember).toList()
       ..sort((a, b) => (a.colorSlot ?? 9).compareTo(b.colorSlot ?? 9));
     return SizedBox(
-      height: 40,
+      height: height,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
@@ -1010,24 +1050,33 @@ class _Legend extends StatelessWidget {
               final slot = context.tokens.slot(profileSlotIndex(m.id, views));
               final role = roleOf(m.id);
               final first = m.fullName.split(' ').first;
-              return Padding(
-                padding: const EdgeInsets.only(right: Spacing.sm),
-                child: Chip(
-                  visualDensity: VisualDensity.compact,
-                  avatar: SlotSwatch(slot: slot),
-                  label: Text(role == null ? first : '$first ($role)'),
-                ),
-              );
+              return _key(context,
+                  slot: slot, label: role == null ? first : '$first ($role)');
             }),
-          Chip(
-            visualDensity: VisualDensity.compact,
-            avatar: SlotSwatch(slot: context.tokens.swapped, dashedBorder: true),
-            label: Text(AppL10n.of(context).l[K.calSwapped]),
-          ),
+          if (showSwapKey)
+            _key(context,
+                slot: context.tokens.swapped,
+                label: AppL10n.of(context).l[K.calSwapped],
+                dashed: true),
         ],
       ),
     );
   }
+
+  Widget _key(BuildContext context,
+          {required SlotColors slot,
+          required String label,
+          bool dashed = false}) =>
+      Padding(
+        padding: const EdgeInsets.only(right: Spacing.md),
+        child: Row(
+          children: [
+            SlotSwatch(slot: slot, dashedBorder: dashed),
+            const SizedBox(width: Spacing.xs + 2),
+            Text(label, style: Theme.of(context).textTheme.labelSmall),
+          ],
+        ),
+      );
 }
 
 class _MonthGrid extends StatelessWidget {
@@ -1253,15 +1302,17 @@ class _DayCell extends StatelessWidget {
                 children: [
                   Text('${date.day}',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          height: 1,
                           color: assigned ? slot.tone.onContainer : null)),
                   const SizedBox(height: 2),
                   CircleAvatar(
-                    radius: 10,
+                    radius: 9,
                     backgroundColor:
                         assigned ? slot.tone.solid : Colors.transparent,
                     child: Text(initial,
                         style: TextStyle(
                             fontSize: 9,
+                            height: 1,
                             color: assigned
                                 ? slot.tone.onSolid
                                 : Theme.of(context).hintColor)),
@@ -1297,6 +1348,7 @@ class _DayCell extends StatelessWidget {
                           .formatTimeString(day!.handoffTime!),
                       style: TextStyle(
                           fontSize: 9,
+                          height: 1.2,
                           color: assigned
                               ? slot.tone.onContainer
                               : Theme.of(context).hintColor),

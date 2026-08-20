@@ -61,11 +61,21 @@ class TodayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context).l;
-    final topColor = context.tokens.slot(glance.userSlot).tone.solid;
     final responsible = context.tokens.slot(glance.responsibleSlot);
 
+    final user = context.tokens.slot(glance.userSlot);
+    // U-28 QA: the card carries TWO identities, as the web's does. The top band
+    // is the reader's own colour ("this is you asking") and the band under it is
+    // whoever has the child today. The first version tinted only the second, so
+    // the card said who is responsible but never said who is looking — and on a
+    // day the reader IS responsible, the two bands agreeing is itself the
+    // answer. Between them runs a short gradient: a hard seam between two
+    // saturated tints reads as two stacked cards, not as one.
+    final bandsDiffer = glance.hasSchedule &&
+        !showInviteNudge &&
+        glance.userSlot != glance.responsibleSlot;
     return Card(
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      margin: const EdgeInsets.fromLTRB(12, 8, 12, 4),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         // Web: the card is clickable only when NOT viewing the current month.
@@ -73,15 +83,22 @@ class TodayCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _AccentStrip(
-              color: topColor,
+            Container(
+              color: user.tone.container,
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(l.format(K.cardGreeting, [_firstName]),
-                      style: Theme.of(context).textTheme.titleMedium),
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(color: user.tone.onContainer)),
                   Text(l.formatTodayHeading(today),
-                      style: Theme.of(context).textTheme.bodySmall),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: user.tone.onContainer)),
                   if (!viewingCurrentMonth)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -90,27 +107,40 @@ class TodayCard extends StatelessWidget {
                               .textTheme
                               .labelSmall
                               ?.copyWith(
-                                  color:
-                                      Theme.of(context).colorScheme.primary)),
+                                  color: user.tone.onContainer,
+                                  fontWeight: FontWeight.w700)),
                     ),
                 ],
               ),
             ),
-            const Divider(height: 1),
+            // The transition zone. Only drawn when the two bands are actually
+            // different colours — between two identical tints it would be a
+            // gradient from a colour to itself, i.e. eight wasted pixels.
+            if (bandsDiffer)
+              Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [user.tone.container, responsible.tone.container],
+                  ),
+                ),
+              ),
             if (showInviteNudge || !glance.hasSchedule)
-              _AccentStrip(
-                color: topColor,
+              Container(
+                color: user.tone.container,
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
                 child: showInviteNudge
                     ? _inviteNudge(context, l)
                     : _noResponsibleRow(context, l),
               )
             else
-              // U-28: the whole band takes the carer's colour. This is the one
-              // place in the app where a reader answers "who has the child
-              // today" without reading a word.
+              // The one place in the app where a reader answers "who has the
+              // child today" without reading a word.
               Container(
                 color: responsible.tone.container,
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                 child: _responsibleRow(context, l, responsible),
               ),
           ],
@@ -243,35 +273,37 @@ class TodayCard extends StatelessWidget {
       HandoffUrgency.near => context.tokens.warning.solid,
       HandoffUrgency.none => Theme.of(context).hintColor,
     };
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Text(l[K.cardNextHandoff],
-            style: Theme.of(context).textTheme.labelSmall),
-        Text(formatHandoffDate(date, l),
-            style: Theme.of(context).textTheme.bodyMedium),
-        Text(daysUntilLabel(date, today, l),
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: urgencyColor, fontWeight: FontWeight.w600)),
-      ],
+    // U-28 QA: its own box, as the web has it. Loose on the tinted band the
+    // three lines read as a continuation of the responsible's name; framed,
+    // they read as what they are — a different fact, about a different day.
+    final tokens = context.tokens;
+    return Container(
+      margin: const EdgeInsets.only(left: Spacing.sm),
+      padding: const EdgeInsets.symmetric(
+          horizontal: Spacing.sm, vertical: Spacing.xs),
+      decoration: BoxDecoration(
+        color: tokens.surfaceAlt,
+        border: Border.all(color: tokens.outline),
+        borderRadius: BorderRadius.circular(Radii.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(l[K.cardNextHandoff],
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: tokens.textMuted)),
+          Text(formatHandoffDate(date, l),
+              style: Theme.of(context).textTheme.bodyMedium),
+          Text(daysUntilLabel(date, today, l),
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: urgencyColor, fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
-}
-
-class _AccentStrip extends StatelessWidget {
-  final Color color;
-  final Widget child;
-
-  const _AccentStrip({required this.color, required this.child});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          border: Border(left: BorderSide(color: color, width: 4)),
-        ),
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        child: child,
-      );
 }

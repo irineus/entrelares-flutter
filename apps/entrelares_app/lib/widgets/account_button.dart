@@ -70,12 +70,23 @@ class AppAccountButton extends StatelessWidget {
         final slot = scope.identity.colorSlot;
         return PopupMenuButton<_AccountAction>(
           tooltip: l[K.navAccount],
-          // The avatar wears the reader's own calendar colour, so the button
-          // says WHOSE account as well as "account".
-          icon: AppAvatar(
-            initials: scope.identity.initial,
-            slot: slot == null ? null : context.tokens.slot(slot),
-            radius: 16,
+          // U-28 QA: the avatar alone was not a discoverable affordance — the
+          // owner could not find sign-out at all, and sign-out lives in here.
+          // A bare circle reads as a decoration; a circle with a caret reads as
+          // a menu, which is the convention every account menu uses.
+          icon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // The avatar wears the reader's own calendar colour, so the
+              // button says WHOSE account as well as "account".
+              AppAvatar(
+                initials: scope.identity.initial,
+                slot: slot == null ? null : context.tokens.slot(slot),
+                radius: 14,
+              ),
+              Icon(Icons.arrow_drop_down,
+                  size: TypeScale.title, color: context.tokens.textMuted),
+            ],
           ),
           onSelected: (action) => switch (action) {
             _AccountAction.profile => scope.onOpenProfile(),
