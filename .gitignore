@@ -30,3 +30,8 @@ packages/*/pubspec.lock
 **/ios/.symlinks/
 **/ios/Flutter/ephemeral/
 **/ios/Flutter/flutter_export_environment.sh
+
+# --- Claude Code ---
+# Scratch worktrees created per session (.claude/worktrees/<branch>); the rest
+# of .claude/ (project settings, skills, hooks) stays versionable on purpose.
+.claude/worktrees/

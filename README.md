@@ -6,9 +6,10 @@ PWA) em **Flutter/Dart**. Nasceu como spike do **estágio 1**; com o GO do owner
 construído lote a lote pelo mapa de paridade (`entrelares-app/docs/flutter-paridade.md`,
 ordem 1→2→3→4→6→5).
 
-**Estado:** lotes 1, 2, 3, 4 e **6 entregues**; falta o **lote 5** (premium/billing com o
-redesenho T-48 de Play Billing). O Blazor segue congelado e em produção até o cutover do
-estágio 4 — enquanto ele não acontece, rollback é não fazer nada.
+**Estado:** os **seis lotes estão entregues** (20/08/2026, com o lote 5 — premium/billing e
+o redesenho T-48 de Play Billing). O estágio 3 está funcionalmente completo; o que vem é o
+**cutover do estágio 4**. O Blazor segue congelado e em produção até lá — enquanto o cutover
+não acontece, rollback é não fazer nada.
 
 ## Estrutura (molde `irineus/desmalha`)
 
@@ -113,9 +114,11 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
   PT-BR é byte-idêntico ao que os triggers gravam (tabela de ~35 casos em
   `notification_renderer_test.dart`).
 - **Gate cobrado no fechamento do lote 6:** `catalog_call_sites_test.dart` prova que toda
-  chave declarada ou tem call site, ou está classificada (billing do lote 5 · web-only ·
-  o app tem frase própria em `k_app` · dívida anotada). As listas falham nos DOIS sentidos
-  — uma chave órfã nova quebra o teste, e uma entrada que ganhou call site também.
+  chave declarada ou tem call site, ou está classificada (web-only · o app tem frase própria
+  em `k_app` · dívida anotada). As listas falham nos DOIS sentidos — uma chave órfã nova
+  quebra o teste, e uma entrada que ganhou call site também. **O lote 5 fez a lista de
+  billing zerar**: as 82 chaves ganharam call site e a lista foi REMOVIDA, que era
+  exatamente o que o gate existia para forçar.
 
 ## Casco e deep links (lote 1 — PR2)
 
@@ -175,7 +178,7 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
   nunca derruba a timeline.
 - **Relatório em PDF (F-33) — o redesign:** o `print()` do navegador não existe, então o
   documento é montado no aparelho (`pdf`) e entregue pelo sistema (`printing`: share sheet
-  ou impressão nativa). Gate F-32 com falha fechada e **upsell neutro** (T-38) até o lote 5.
+  ou impressão nativa). Gate F-32 com falha fechada e **upsell neutro** (T-38).
   **Roboto embarcado**: a Helvetica embutida do dart_pdf não tem Unicode e derruba os
   acentos.
 - **Analytics T-37:** POST direto na Events API do Umami (`text/plain`, sem preflight),
@@ -183,21 +186,54 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
   contrato no-PII é espelho puro (`sanitizeAnalyticsPath`): query e fragmento caem sempre,
   GUID e id numérico viram `:id`. Eventos portados: `signup_started`, `family_created`,
   `invitee_joined`, `invite_sent`, `wizard_completed`, `swap_requested`. Os
-  `premium-gate-click` chegam com o lote 5, junto das CTAs que ainda não existem.
+  `premium-gate-click` chegaram no lote 5, junto das CTAs que eles medem.
 - **Alvo web:** habilitado (tensão 1 — Flutter Web substitui o PWA). `flutter build web`
   entra no `verify.yml` e o run imprime o peso gzip do first-load; a medição de aceite do
   canal (Android mediano/4G) é do owner.
+
+## Premium e billing (lote 5)
+
+- **A seção Premium na Família** roda a máquina de estados do `BillingService` da web
+  (`computeBillingUi`): waitlist, oferta, ativa, em atraso, agendada (F-42) e premium sem
+  assinatura. O cancelamento pede confirmação e a frase **promete o tempo já pago**; o
+  caminho de volta F-42 só aparece para método faturável com cliente no gateway — cartão
+  nunca, porque retomar débito automático exige um token que o fluxo hospedado não guarda e
+  o servidor recusaria o clique.
+- **Dois trilhos, decididos pelo BUILD.** O alvo web usa o rail Asaas (checkout T-39 e Pix
+  avulso F-48, abertos no navegador, com `/premium/retorno` fazendo poll até o webhook virar
+  o plano). O Android é o canal loja: a política de pagamentos da Play proíbe direcionar
+  para compra externa, então ali a oferta é **Play Billing** ou a **nota neutra T-38** —
+  nunca um link de checkout.
+- **O preço do canal loja é o da Play**, formatado pela loja para o país do comprador. O
+  `app_settings` (`billing.price_*`) rege só o rail web. Não existe aritmética de preço no
+  trilho da loja de propósito.
+- **A nota neutra é o padrão de FALHA, não só o estado desligado**: com
+  `billing.store_enabled=false`, sem loja no aparelho, com a consulta de produtos estourando
+  ou sem produto publicado, o ramo de loja cai nela. Oferta que a loja não honra é pior que
+  oferta nenhuma.
+- **O cliente não concede nada.** A compra é alegação: o token vai ao
+  `billing-store-verify`, que pergunta à Play Developer API se ela é real e até quando paga.
+  O acknowledge à Play só acontece **depois** que o servidor aceita — a Play estorna compra
+  não reconhecida em três dias, e reconhecer uma que o servidor recusou deixaria a família
+  paga e sem direito.
+- **Histórico F-43** preguiçoso na primeira abertura e cacheado depois; some para quem não é
+  admin (o RPC recusaria) e para família sem assinatura.
+- **Funil T-37 completo** com a dimensão `channel` derivada do mesmo fato de build que
+  escolhe o trilho — é ela que separa a coorte da loja da coorte web no Umami.
+- **Falta configuração de console (do owner)** para o trilho da loja vender:
+  `entrelares-app/supabase/README.md` §9-bis.
 
 ## Versionamento
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.2.24+26` (T-53 lote 6 PR5 — analytics T-37, alvo web e fecho do lote) |
+| `apps/entrelares_app` | `0.2.28+30` (T-53 lote 5 PR4 — Play Billing no cliente) |
 
 Trilha do estágio 3: `0.2.0+2` abertura de flavors → `0.2.1+3` T-55 → `0.2.2+4`…`0.2.4+6`
 lote 1 → `0.2.5+7`…`0.2.8+10` lote 2 → `0.2.9+11`…`0.2.13+15` lote 3 →
-`0.2.14+16`…`0.2.19+21` lote 4 → `0.2.20+22`…`0.2.24+26` lote 6. **Falta o lote 5**
-(premium/billing, T-48) para o app ficar funcionalmente completo.
+`0.2.14+16`…`0.2.19+21` lote 4 → `0.2.20+22`…`0.2.24+26` lote 6 →
+`0.2.25+27`…`0.2.28+30` lote 5. **Os seis lotes estão entregues** — o app está
+funcionalmente completo e o próximo passo é o cutover do estágio 4.
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 
