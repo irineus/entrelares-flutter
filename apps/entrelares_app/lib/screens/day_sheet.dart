@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import '../theme/tokens.dart';
 
 import '../models/care_schedule.dart';
@@ -456,12 +457,12 @@ class _DaySheetState extends State<_DaySheet> {
     final slot =
         context.tokens.slot(profileSlotIndex(id, widget.memberViews));
     return ChoiceChip(
-      avatar: CircleAvatar(
-        backgroundColor: slot.tone.solid,
-        child: Text(
-          displayInitials(id, widget.memberViews),
-          style: TextStyle(fontSize: 10, color: slot.tone.onSolid),
-        ),
+      // The carer wears the same identity here as on the grid — same fill, so
+      // the chip and the day they own are recognisably the same person.
+      avatar: AppAvatar(
+        initials: displayInitials(id, widget.memberViews),
+        slot: slot,
+        radius: 14,
       ),
       label: Text(label),
       selected: selected,
@@ -505,12 +506,10 @@ class _DaySheetState extends State<_DaySheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${formatHandoffDate(widget.date, l)} · '
-                '${daysUntilLabel(widget.date, widget.today, l)}',
-                style: Theme.of(context).textTheme.titleMedium,
+              AppSheetHeader(
+                title: '${formatHandoffDate(widget.date, l)} · '
+                    '${daysUntilLabel(widget.date, widget.today, l)}',
               ),
-              const SizedBox(height: 4),
               _readView(l, day, assignment),
               const SizedBox(height: 12),
               ..._guardBanners(l, assignment),
@@ -652,16 +651,12 @@ class _DaySheetState extends State<_DaySheet> {
       const SizedBox(height: 16),
 
       // ── Day note ──
-      TextField(
+      AppTextField(
+        label: l[K.editorDayNote],
+        helper: l[K.editorDayNoteHint],
+        hint: l[K.editorDayNotePlaceholder],
         controller: _notes,
         maxLength: 100,
-        decoration: InputDecoration(
-          labelText: l[K.editorDayNote],
-          helperText: l[K.editorDayNoteHint],
-          hintText: l[K.editorDayNotePlaceholder],
-          border: const OutlineInputBorder(),
-          counterText: '',
-        ),
       ),
       const SizedBox(height: 16),
 
@@ -720,15 +715,11 @@ class _DaySheetState extends State<_DaySheet> {
       // ── F-44: only shown when saving will actually open a swap/revert
       //    request — keeps it apart from the day-scoped "Observação do dia" ──
       if (_willOpenWorkflow) ...[
-        TextField(
+        AppTextField(
+          label: '${l[K.editorMessageLabel]} ${l[K.editorOptional]}',
+          hint: l[K.editorMessagePlaceholder],
           controller: _swapMessage,
           maxLength: 200,
-          decoration: InputDecoration(
-            labelText: '${l[K.editorMessageLabel]} ${l[K.editorOptional]}',
-            hintText: l[K.editorMessagePlaceholder],
-            border: const OutlineInputBorder(),
-            counterText: '',
-          ),
         ),
         Padding(
           padding: const EdgeInsets.only(top: 4),
@@ -755,29 +746,20 @@ class _DaySheetState extends State<_DaySheet> {
                   style: TextStyle(
                       fontSize: 13,
                       color: context.tokens.danger.onContainer)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  FilledButton(
-                    onPressed: _saving
-                        ? null
-                        : () {
-                            setState(() {
-                              _showAdminConfirm = false;
-                              _adminConfirmed = true;
-                            });
-                            _save();
-                          },
-                    child: Text(l[K.editorYesChange]),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: _saving
-                        ? null
-                        : () => setState(() => _showAdminConfirm = false),
-                    child: Text(l[K.editorNoGoBack]),
-                  ),
-                ],
+              const SizedBox(height: Spacing.sm),
+              AppActionPair(
+                primaryLabel: l[K.editorYesChange],
+                destructive: true,
+                busy: _saving,
+                onPrimary: () {
+                  setState(() {
+                    _showAdminConfirm = false;
+                    _adminConfirmed = true;
+                  });
+                  _save();
+                },
+                secondaryLabel: l[K.editorNoGoBack],
+                onSecondary: () => setState(() => _showAdminConfirm = false),
               ),
             ],
           ),

@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import '../theme/tokens.dart';
 
 import '../models/member.dart';
@@ -280,23 +281,15 @@ class _FrozenDaySheetState extends State<_FrozenDaySheet> {
               ],
               const SizedBox(height: 12),
               if (iAmTarget) ...[
-                Text.rich(TextSpan(children: [
-                  TextSpan(text: l[K.frozenNoteLabel]),
-                  TextSpan(
-                      text: ' ${l[K.frozenNoteHint]}',
-                      style: Theme.of(context).textTheme.bodySmall),
-                ])),
-                const SizedBox(height: 4),
-                TextField(
+                // U-27: the label used to float above the field as its own
+                // Text; folded into the field, it is the accessible name too.
+                AppTextField(
+                  label: l[K.frozenNoteLabel],
+                  helper: l[K.frozenNoteHint],
+                  hint: l[K.frozenNotePlaceholder],
                   controller: _approverNote,
                   maxLength: 200,
                   enabled: !_acting,
-                  decoration: InputDecoration(
-                    hintText: l[K.frozenNotePlaceholder],
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                    counterText: '',
-                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(

@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import '../theme/tokens.dart';
 
 import '../models/care_schedule.dart';
@@ -323,20 +324,10 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
         ),
       );
 
-  Widget _emptyState(Localization l) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Column(
-          children: [
-            const Text('📅', style: TextStyle(fontSize: 40)),
-            const SizedBox(height: 8),
-            Text(l[K.sumEmptyTitle],
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(l[K.sumEmptyBody],
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall),
-          ],
-        ),
+  Widget _emptyState(Localization l) => AppEmptyState(
+        icon: '📅',
+        title: l[K.sumEmptyTitle],
+        body: l[K.sumEmptyBody],
       );
 
   /// The central mappings the whole app shares: a dead session says so, and a
@@ -345,24 +336,10 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
       ? sessionExpiredMessage(l)
       : l.format(K.sumErrProcess, [_errorRaw!]);
 
-  Widget _errorBanner(Localization l) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: context.tokens.danger.container,
-          borderRadius: BorderRadius.circular(Radii.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('⚠️ ${l[K.repErrorTitle]}',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: context.tokens.danger.onContainer)),
-            const SizedBox(height: 4),
-            Text(_errorMessage(l),
-                style:
-                    TextStyle(color: context.tokens.danger.onContainer)),
-          ],
-        ),
+  Widget _errorBanner(Localization l) => AppBanner(
+        tone: context.tokens.danger,
+        leading: '⚠️',
+        title: l[K.repErrorTitle],
+        message: _errorMessage(l),
       );
 }

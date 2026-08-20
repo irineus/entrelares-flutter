@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -162,18 +163,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           color: Theme.of(context).colorScheme.error)),
                   const SizedBox(height: 12),
                 ],
-                TextField(
+                AppTextField(
+                  label: l[K.commonEmail],
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
-                  decoration: InputDecoration(labelText: l[K.commonEmail]),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                AppTextField(
+                  label: l[K.commonPassword],
                   controller: _password,
                   obscureText: true,
                   autofillHints: const [AutofillHints.password],
-                  decoration: InputDecoration(labelText: l[K.commonPassword]),
                   onSubmitted: (_) => _busy || _lockedOut ? null : _submit(),
                 ),
                 const SizedBox(height: 20),

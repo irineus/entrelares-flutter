@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 
 import '../widgets/app_l10n.dart';
 
@@ -72,11 +73,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall),
                   const SizedBox(height: 24),
-                  TextField(
+                  AppTextField(
+                    label: l[K.commonEmail],
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     autofillHints: const [AutofillHints.email],
-                    decoration: InputDecoration(labelText: l[K.commonEmail]),
                     onSubmitted: (_) => _submit(),
                   ),
                   const SizedBox(height: 20),

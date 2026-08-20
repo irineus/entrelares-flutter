@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 
 import '../widgets/app_l10n.dart';
 
@@ -112,20 +113,18 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
                             style:
                                 TextStyle(color: theme.colorScheme.error))
                       else ...[
-                        TextField(
+                        AppTextField(
+                          label: l[K.updatePwdNewPassword],
                           controller: _password,
                           obscureText: true,
                           autofillHints: const [AutofillHints.newPassword],
-                          decoration: InputDecoration(
-                              labelText: l[K.updatePwdNewPassword]),
                         ),
                         const SizedBox(height: 12),
-                        TextField(
+                        AppTextField(
+                          label: l[K.commonConfirmPassword],
                           controller: _confirm,
                           obscureText: true,
                           autofillHints: const [AutofillHints.newPassword],
-                          decoration: InputDecoration(
-                              labelText: l[K.commonConfirmPassword]),
                           onSubmitted: (_) => _submit(),
                         ),
                         const SizedBox(height: 20),

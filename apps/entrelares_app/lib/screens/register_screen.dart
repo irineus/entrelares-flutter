@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
@@ -379,41 +380,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
               style: Theme.of(context).textTheme.bodySmall),
         ],
         const SizedBox(height: 24),
-        TextField(
+        AppTextField(
+          label: l[K.registerFullName],
+          hint: l[K.registerFullNamePlaceholder],
           controller: _fullName,
           maxLength: RegisterRules.maxNameLength,
           textCapitalization: TextCapitalization.words,
           autofillHints: const [AutofillHints.name],
-          decoration: InputDecoration(
-            labelText: l[K.registerFullName],
-            hintText: l[K.registerFullNamePlaceholder],
-            counterText: '',
-          ),
         ),
         const SizedBox(height: 12),
-        TextField(
+        AppTextField(
+          label: l[K.commonEmail],
+          hint: l[K.commonEmailPlaceholder],
           controller: _email,
           // The invitation names the address — the trigger refuses any other.
           readOnly: invite != null,
           keyboardType: TextInputType.emailAddress,
           autofillHints: const [AutofillHints.email],
-          decoration: InputDecoration(
-            labelText: l[K.commonEmail],
-            hintText: l[K.commonEmailPlaceholder],
-          ),
         ),
         if (invite == null) ...[
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
+            label: l[K.registerFamilyName],
+            hint: l[K.registerFamilyNamePlaceholder],
+            helper: l[K.registerFamilyNameHint],
             controller: _familyName,
             maxLength: RegisterRules.maxNameLength,
-            decoration: InputDecoration(
-              labelText: l[K.registerFamilyName],
-              hintText: l[K.registerFamilyNamePlaceholder],
-              helperText: l[K.registerFamilyNameHint],
-              helperMaxLines: 3,
-              counterText: '',
-            ),
           ),
           const SizedBox(height: 16),
           Align(
@@ -437,27 +429,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ],
         const SizedBox(height: 16),
-        TextField(
+        AppTextField(
+          label: l[K.commonPassword],
+          hint: l[K.registerPasswordPlaceholder],
           controller: _password,
           obscureText: _obscured,
           autofillHints: const [AutofillHints.newPassword],
-          decoration: InputDecoration(
-            labelText: l[K.commonPassword],
-            hintText: l[K.registerPasswordPlaceholder],
-            suffixIcon: IconButton(
-              icon: Icon(_obscured ? Icons.visibility : Icons.visibility_off),
-              onPressed: () => setState(() => _obscured = !_obscured),
-            ),
+          suffixIcon: IconButton(
+            icon: Icon(_obscured ? Icons.visibility : Icons.visibility_off),
+            onPressed: () => setState(() => _obscured = !_obscured),
           ),
         ),
         const SizedBox(height: 12),
-        TextField(
+        AppTextField(
+          label: l[K.commonConfirmPassword],
+          hint: l[K.registerConfirmPasswordPlaceholder],
           controller: _confirmPassword,
           obscureText: _obscured,
-          decoration: InputDecoration(
-            labelText: l[K.commonConfirmPassword],
-            hintText: l[K.registerConfirmPasswordPlaceholder],
-          ),
         ),
         const SizedBox(height: 20),
         _consentBlock(l, isInvited: invite != null),

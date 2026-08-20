@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -473,14 +474,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           _sectionTitle(l[K.profSectionData]),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
+            label: l[K.registerFullName],
             controller: _nameDraft,
             maxLength: RegisterRules.maxNameLength,
-            decoration: InputDecoration(
-              labelText: l[K.registerFullName],
-              counterText: '',
-              errorText: _dataError,
-            ),
+            errorText: _dataError,
           ),
           if (_iAmAdmin) ...[
             const SizedBox(height: 12),
@@ -539,14 +537,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text('${l[K.profCurrentEmail]} ${target.email ?? ''}',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
+            label: l[K.profNewEmail],
+            hint: l[K.profNewEmailPlaceholder],
             controller: _newEmail,
             keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: l[K.profNewEmail],
-              hintText: l[K.profNewEmailPlaceholder],
-              errorText: _emailError,
-            ),
+            errorText: _emailError,
           ),
           if (_emailLinkSent) ...[
             const SizedBox(height: 8),

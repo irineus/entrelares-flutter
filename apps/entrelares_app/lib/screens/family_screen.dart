@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -471,7 +472,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
             _familyNameBlock(l),
             const SizedBox(height: 24),
             _sectionTitle(l[K.famCaregivers]),
-            const SizedBox(height: 8),
             ..._members.map((m) => _memberCard(m, l)),
             const SizedBox(height: 24),
             _inviteSection(l),
@@ -489,8 +489,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
     );
   }
 
-  Widget _sectionTitle(String text) => Text(text,
-      style: Theme.of(context).textTheme.titleMedium);
+  // The 8px that used to follow every call site now lives in the component,
+  // which is the point: a section's spacing is not each screen's decision.
+  Widget _sectionTitle(String text) =>
+      AppSectionHeader(title: text, topSpacing: 0);
 
   Widget _familyNameBlock(Localization l) {
     if (!_editingName) {
@@ -515,13 +517,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
     return Row(
       children: [
         Expanded(
-          child: TextField(
+          child: AppTextField(
+            label: l[K.registerFamilyName],
             controller: _nameDraft,
             maxLength: RegisterRules.maxNameLength,
-            decoration: InputDecoration(
-              labelText: l[K.registerFamilyName],
-              counterText: '',
-            ),
           ),
         ),
         IconButton(
@@ -549,7 +548,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
         onTap: canOpen ? () => widget.onOpenProfile!(member, isOwn) : null,
         // The label the web puts on the clickable card, for screen readers.
         subtitleTextStyle: theme.textTheme.bodyMedium,
-        leading: CircleAvatar(child: Text(member.initial)),
+        leading: AppAvatar(initials: member.initial),
         title: Row(
           children: [
             Flexible(child: Text(member.fullName)),
@@ -594,7 +593,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionTitle(l[K.famInviteSection]),
-        const SizedBox(height: 8),
         if (!_isAdmin)
           Text(l[K.famOnlyAdminsInvite],
               style: Theme.of(context).textTheme.bodySmall)
@@ -702,13 +700,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
         Text(l.format(K.famInviteWhoHelps, [_settings.maxCaregivers]),
             style: theme.textTheme.bodySmall),
         const SizedBox(height: 12),
-        TextField(
+        AppTextField(
+          label: l[K.commonEmail],
+          hint: l[K.famInviteEmailPlaceholder],
           controller: _inviteEmail,
           keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(
-            labelText: l[K.commonEmail],
-            hintText: l[K.famInviteEmailPlaceholder],
-          ),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<int>(
@@ -847,7 +843,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionTitle(l[K.famDelReqTitle]),
-        const SizedBox(height: 8),
         Text(l[K.famDelReqIntro], style: theme.textTheme.bodySmall),
         const SizedBox(height: 8),
         for (final consequence in [
@@ -914,7 +909,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionTitle(l[K.famDelTitle]),
-        const SizedBox(height: 8),
         if (allAgreed) ...[
           Text(l.format(K.famDelAllAgreed,
               [l.formatDate(request.scheduledFor.toLocal())])),
@@ -1305,7 +1299,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionTitle(l[K.premTitle]),
-        const SizedBox(height: 8),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -1828,7 +1821,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _sectionTitle(l[K.famAdminSection]),
-          const SizedBox(height: 8),
           Text(
               widget.adminMode.isActive
                   ? l[K.famAdminActiveNote]

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import '../theme/tokens.dart';
 import 'package:printing/printing.dart';
 
@@ -291,21 +292,15 @@ class _ReportsPdfTabState extends State<ReportsPdfTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Semantics(
-                label: l[K.pdfPeriodAria],
-                child: SegmentedButton<_PeriodKind>(
-                  showSelectedIcon: false,
-                  segments: [
-                    ButtonSegment(
-                        value: _PeriodKind.month, label: Text(l[K.pdfByMonth])),
-                    ButtonSegment(
-                        value: _PeriodKind.year, label: Text(l[K.pdfByYear])),
-                    ButtonSegment(
-                        value: _PeriodKind.custom, label: Text(l[K.pdfCustom])),
-                  ],
-                  selected: {_kind},
-                  onSelectionChanged: (s) => setState(() => _kind = s.first),
-                ),
+              AppSegmented<_PeriodKind>(
+                semantics: l[K.pdfPeriodAria],
+                options: [
+                  (value: _PeriodKind.month, label: l[K.pdfByMonth]),
+                  (value: _PeriodKind.year, label: l[K.pdfByYear]),
+                  (value: _PeriodKind.custom, label: l[K.pdfCustom]),
+                ],
+                selected: _kind,
+                onChanged: (v) => setState(() => _kind = v),
               ),
               const SizedBox(height: 8),
               if (_kind == _PeriodKind.custom)
@@ -349,14 +344,11 @@ class _ReportsPdfTabState extends State<ReportsPdfTab> {
                   ],
                 ),
               const SizedBox(height: 8),
-              TextField(
+              AppTextField(
+                label: '${l[K.pdfChildName]} ${l[K.pdfChildOptional]}',
+                hint: l[K.pdfChildPlaceholder],
                 controller: _childName,
                 maxLength: 80,
-                decoration: InputDecoration(
-                  labelText:
-                      '${l[K.pdfChildName]} ${l[K.pdfChildOptional]}',
-                  hintText: l[K.pdfChildPlaceholder],
-                ),
               ),
               // U-20: the same option as the on-screen Resumo — the numbers of
               // the two must agree.
@@ -462,13 +454,9 @@ class _ReportsPdfTabState extends State<ReportsPdfTab> {
     );
   }
 
-  Widget _banner(String message) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: context.tokens.danger.container,
-          borderRadius: BorderRadius.circular(Radii.md),
-        ),
-        child: Text('⚠️ $message',
-            style: TextStyle(color: context.tokens.danger.onContainer)),
+  Widget _banner(String message) => AppBanner(
+        tone: context.tokens.danger,
+        leading: '⚠️',
+        message: message,
       );
 }
