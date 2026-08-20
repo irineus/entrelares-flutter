@@ -9,6 +9,7 @@ import '../models/family_invitation.dart';
 import '../models/member.dart';
 import '../models/role.dart';
 import '../services/admin_mode.dart';
+import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../services/sudo_service.dart';
 import '../widgets/app_l10n.dart';
@@ -32,6 +33,9 @@ import '../widgets/sudo_sheet.dart';
 /// refusal ends the request outright.
 class FamilyScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
+
+  /// T-37 — optional: the viral-loop signal never gates an invitation.
+  final AnalyticsService? analytics;
   final AdminMode adminMode;
   final SudoService sudo;
 
@@ -50,6 +54,7 @@ class FamilyScreen extends StatefulWidget {
     required this.dataSource,
     required this.adminMode,
     required this.sudo,
+    this.analytics,
     this.onOpenCustomRoles,
     this.onOpenProfile,
     this.onFamilyDeleted,
@@ -230,6 +235,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
         _inviteRoleId = 0;
         _sendingInvite = false;
       });
+      // T-37: viral loop initiated — whether the e-mail went out or the
+      // family will have to share the link themselves.
+      widget.analytics?.trackEvent('invite_sent',
+          props: {'email': mailed ? 'sent' : 'link_only'});
       showAppSnack(
           context, l[mailed ? K.famInviteEmailSent : K.famInviteEmailFailed],
           type: mailed ? AppSnackType.success : AppSnackType.info);

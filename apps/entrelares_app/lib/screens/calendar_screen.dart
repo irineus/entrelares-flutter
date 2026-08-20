@@ -10,6 +10,7 @@ import '../models/family.dart';
 import '../models/member.dart';
 import '../models/swap_request.dart';
 import '../services/admin_mode.dart';
+import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
@@ -35,6 +36,9 @@ const swappedColor = Color(0xFFE11D48);
 
 class CalendarScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
+
+  /// T-37 — optional, and only passed through to the wizard.
+  final AnalyticsService? analytics;
   final AdminMode adminMode;
   final Future<void> Function() onSignOut;
 
@@ -53,6 +57,7 @@ class CalendarScreen extends StatefulWidget {
       required this.onSignOut,
       this.onboarding,
       this.tourKeys,
+      this.analytics,
       this.onOpenFamily});
 
   @override
@@ -554,6 +559,7 @@ class _CalendarScreenState extends State<CalendarScreen>
       // F-39: the wizard clamps to the same horizon as the paging.
       maxScheduleDate: _horizonDate,
       isFreeTier: !_isPremiumForPaging,
+      analytics: widget.analytics,
     );
     if (generated == true) _load(silent: true);
   }

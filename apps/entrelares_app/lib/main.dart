@@ -25,6 +25,7 @@ import 'screens/reports_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'screens/update_password_screen.dart';
 import 'services/admin_mode.dart';
+import 'services/analytics_service.dart';
 import 'services/custody_data_source.dart';
 import 'services/notification_badge.dart';
 import 'services/onboarding_service.dart';
@@ -80,6 +81,8 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   late final SessionGate _gate;
   late final CustodyDataSource _dataSource;
   late final NotificationBadge _badge;
+  /// T-37 — one per process; a no-op unless the flavor carries a website id.
+  late final AnalyticsService _analytics;
   // S-10: session-scoped like admin mode, and for a stronger reason — an
   // elevation window must never outlive the session that earned it.
   late final SudoService _sudo;
@@ -129,6 +132,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
         path: '/register',
         builder: (_, state) => RegisterScreen(
           dataSource: _dataSource,
+          analytics: _analytics,
           inviteToken: InviteFormRules.inviteTokenFrom(state.uri),
           onSignIn: _signIn,
           onBackToLogin: () => _router.go('/login'),
@@ -194,6 +198,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
               builder: (_, _) => CalendarScreen(
                   dataSource: _dataSource,
                   adminMode: _adminMode,
+                  analytics: _analytics,
                   onSignOut: _signOut,
                   onboarding: _onboarding,
                   tourKeys: _tourKeys,
@@ -206,6 +211,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
               builder: (_, _) => FamilyScreen(
                 dataSource: _dataSource,
                 adminMode: _adminMode,
+                analytics: _analytics,
                 sudo: _sudo,
                 onFamilyDeleted: _signOut,
                 onOpenCustomRoles: () => _router.go('/family/custom-roles'),
@@ -345,10 +351,16 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _gate = SessionGate(_client.auth);
+    _analytics = AnalyticsService(language: widget.initialLanguage.code);
     _dataSource = SupabaseCustodyDataSource(_client,
         environmentPrefix:
-            environmentTitlePrefix(isProduction: Env.current.isProduction));
+            environmentTitlePrefix(isProduction: Env.current.isProduction),
+        analytics: _analytics);
     _badge = NotificationBadge(_dataSource);
+    // T-37: a pageview per navigation, the app's answer to the web's
+    // `OnLocationChanged`. The URL is sanitized by the pure mirror, so no
+    // invite token or profile id can travel with it.
+    _router.routeInformationProvider.addListener(_trackPageView);
     _sudo = SudoService(_dataSource);
     _onboarding = OnboardingService(_dataSource);
     _l = Localization(widget.initialLanguage);
@@ -386,6 +398,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _authSub?.cancel();
+    _router.routeInformationProvider.removeListener(_trackPageView);
     _inactivityTimer?.cancel();
     _adminMode.dispose();
     _sudo.dispose();
@@ -397,6 +410,13 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) _checkInactivity();
+  }
+
+  void _trackPageView() {
+    final location = _router.routeInformationProvider.value.uri.toString();
+    // The splash is a gate, not a screen someone visited.
+    if (location.startsWith('/splash')) return;
+    _analytics.trackPageView(location);
   }
 
   void _setPhase(_AuthPhase phase) {

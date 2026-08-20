@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 
 import '../models/care_schedule.dart';
 import '../models/member.dart';
+import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 
@@ -21,6 +22,7 @@ Future<bool?> showWizardSheet({
   required CustodyDataSource dataSource,
   DateTime? maxScheduleDate,
   required bool isFreeTier,
+  AnalyticsService? analytics,
 }) {
   return showModalBottomSheet<bool>(
     context: context,
@@ -32,6 +34,7 @@ Future<bool?> showWizardSheet({
       dataSource: dataSource,
       maxScheduleDate: maxScheduleDate,
       isFreeTier: isFreeTier,
+      analytics: analytics,
     ),
   );
 }
@@ -43,12 +46,16 @@ class _WizardSheet extends StatefulWidget {
   final DateTime? maxScheduleDate;
   final bool isFreeTier;
 
+  /// T-37 — optional: the activation signal never gates the generation.
+  final AnalyticsService? analytics;
+
   const _WizardSheet({
     required this.activeMembers,
     required this.today,
     required this.dataSource,
     required this.maxScheduleDate,
     required this.isFreeTier,
+    this.analytics,
   });
 
   @override
@@ -164,6 +171,9 @@ class _WizardSheetState extends State<_WizardSheet> {
         message += l[
             widget.isFreeTier ? K.wizDoneClampedFree : K.wizDoneClampedMax];
       }
+      // T-37: the key activation moment — a family generated its base plan.
+      widget.analytics?.trackEvent('wizard_completed',
+          props: {'created': created > 0 ? 'yes' : 'none'});
       setState(() {
         _generating = false;
         _completed = true;

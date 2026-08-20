@@ -6,6 +6,7 @@
 library;
 
 export 'src/account_rules.dart';
+export 'src/analytics_rules.dart';
 export 'src/audit_rules.dart';
 export 'src/auth_rules.dart';
 export 'src/bulk_rules.dart';

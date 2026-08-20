@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
 import '../models/invite_info.dart';
+import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 
@@ -33,12 +34,16 @@ class RegisterScreen extends StatefulWidget {
 
   final CustodyDataSource dataSource;
 
+  /// T-37 — optional: the sign-up funnel is instrumentation, never a step.
+  final AnalyticsService? analytics;
+
   /// Signs the freshly created invitee in — the founder never reaches it.
   final Future<void> Function(String email, String password) onSignIn;
 
   final VoidCallback onBackToLogin;
 
   const RegisterScreen({
+    this.analytics,
     super.key,
     required this.dataSource,
     required this.onSignIn,
@@ -145,6 +150,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _errorText = null;
     });
 
+    // T-37: funnel entry — the sign-up TYPE and nothing else.
+    widget.analytics?.trackEvent('signup_started',
+        props: {'type': _isInvited ? 'invitee' : 'founder'});
+
     if (_isInvited) {
       await _submitInvite(confirmMigration: false, l: l);
     } else {
@@ -163,6 +172,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         languageCode: l.current.code,
       );
       if (!mounted) return;
+      // T-37: a founder created a new family (activation funnel).
+      widget.analytics?.trackEvent('family_created');
       // The account exists but is unusable until the e-mail is confirmed —
       // this screen is the end of the founder's flow, not a step in it.
       setState(() {
@@ -190,6 +201,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     switch (result) {
       case InviteeRegistered():
+        // T-37: viral loop closed — an invited caregiver joined a family.
+        widget.analytics?.trackEvent('invitee_joined');
         // U-17: already confirmed — sign in and let the router land them.
         try {
           await widget.onSignIn(_email.text.trim(), _password.text);
