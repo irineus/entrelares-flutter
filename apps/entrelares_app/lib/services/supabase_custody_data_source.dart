@@ -14,6 +14,7 @@ import '../models/family_invitation.dart';
 import '../models/invite_info.dart';
 import '../models/member.dart';
 import '../models/role.dart';
+import '../models/subscription.dart';
 import '../models/swap_request.dart';
 import 'analytics_service.dart';
 import 'custody_data_source.dart';
@@ -111,6 +112,38 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
       for (final row in rows)
         (row['key'] as String): (row['value'] as String? ?? ''),
     };
+  }
+
+  @override
+  Future<Subscription?> fetchSubscription() async {
+    // Fail closed like the web's GetSubscriptionAsync: a read that blows up
+    // (RLS, offline, a shape we do not know) becomes "no subscription", which
+    // sends the Premium section to the waitlist/offer — never to a management
+    // panel for a row we could not confirm.
+    try {
+      final rows = await _client.from('subscriptions').select().limit(1);
+      return rows.isEmpty ? null : Subscription.fromJson(rows.first);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Future<List<BillingHistoryEntry>> fetchBillingHistory() async {
+    // Admin-only by DB rule; a non-admin never reaches here because the UI
+    // does not offer the panel, and if it did the RPC would refuse.
+    final data = await _client.rpc('get_billing_history');
+    final rows = (data as List?) ?? const [];
+    return rows
+        .map((row) =>
+            BillingHistoryEntry.fromJson(row as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<bool> hasRegisteredPremiumInterest() async {
+    final rows = await _client.from('premium_interest').select('id').limit(1);
+    return rows.isNotEmpty;
   }
 
   @override

@@ -11,6 +11,7 @@ import '../models/family_invitation.dart';
 import '../models/invite_info.dart';
 import '../models/member.dart';
 import '../models/role.dart';
+import '../models/subscription.dart';
 import '../models/swap_request.dart';
 
 /// What the calendar slice needs from the backend — an interface so widget
@@ -48,6 +49,22 @@ abstract class CustodyDataSource {
   /// public ones). Callers cache load-once and fall back to the seeded
   /// defaults on failure, as the web does.
   Future<Map<String, String>> fetchPublicSettings();
+
+  /// T-39: the family's subscription row (RLS scopes the read), or null when
+  /// the family never started a checkout. Bookkeeping only — entitlement stays
+  /// on `families.plan` (F-32). Mirror of `BillingService.GetSubscriptionAsync`
+  /// including its fail-closed contract: a failed read reaches the caller as
+  /// null, i.e. "no subscription", never as premium.
+  Future<Subscription?> fetchSubscription();
+
+  /// F-43: the family's sanitized billing timeline, newest first. The RPC is
+  /// admin-only and the DATABASE enforces it — a non-admin simply never gets
+  /// the panel offered.
+  Future<List<BillingHistoryEntry>> fetchBillingHistory();
+
+  /// F-32: whether this family already registered interest in Premium (the
+  /// waitlist row exists). RLS scopes the read to the caller's family.
+  Future<bool> hasRegisteredPremiumInterest();
 
   /// One day's row, or null when unassigned — mirror of the web's
   /// `GetScheduleForDateAsync` (the T-27 transition check on the 1st of the
