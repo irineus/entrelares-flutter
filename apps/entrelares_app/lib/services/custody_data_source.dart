@@ -66,6 +66,23 @@ abstract class CustodyDataSource {
   /// waitlist row exists). RLS scopes the read to the caller's family.
   Future<bool> hasRegisteredPremiumInterest();
 
+  /// F-32: records this family's interest in Premium through the SECURITY
+  /// DEFINER RPC. Idempotent per family — re-registering just refreshes the
+  /// row. [feature] is a coarse tag for which previewed feature drew them
+  /// (optional, no PII).
+  Future<void> registerPremiumInterest({String? feature});
+
+  /// T-39: cancels the subscription. No further charges; paid time is honored
+  /// SERVER-side — the client never computes what the family keeps. Throws
+  /// [BillingRefused] carrying the function's own text when it refuses.
+  Future<void> cancelSubscription();
+
+  /// F-42: comes back with NO charge today — the server recreates the gateway
+  /// subscription with the first invoice due at the end of the already-paid
+  /// period. The refusals are user-facing text (e.g. the card guidance), so
+  /// they travel verbatim in [BillingRefused].
+  Future<void> reactivateSubscription();
+
   /// One day's row, or null when unassigned — mirror of the web's
   /// `GetScheduleForDateAsync` (the T-27 transition check on the 1st of the
   /// month needs the previous month's last day).
@@ -500,4 +517,19 @@ class ElevationRefused implements Exception {
 
   @override
   String toString() => 'ElevationRefused(${serverMessage ?? 'no message'})';
+}
+
+/// T-39: the `billing-checkout` Edge Function refused.
+///
+/// [serverMessage] is the function's OWN text and is preferred over any
+/// client-side guess (pilot lesson 4: never collapse the server's error into a
+/// generic one) — its refusals are written to be read by the payer, e.g. why
+/// a card subscription cannot be resumed without paying today.
+class BillingRefused implements Exception {
+  final String? serverMessage;
+
+  const BillingRefused([this.serverMessage]);
+
+  @override
+  String toString() => 'BillingRefused(${serverMessage ?? 'no message'})';
 }

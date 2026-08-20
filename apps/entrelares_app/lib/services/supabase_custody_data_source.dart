@@ -147,6 +147,32 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   }
 
   @override
+  Future<void> registerPremiumInterest({String? feature}) async {
+    final tag = feature?.trim();
+    await _client.rpc('register_premium_interest',
+        params: tag == null || tag.isEmpty ? null : {'p_feature': tag});
+  }
+
+  @override
+  Future<void> cancelSubscription() => _invokeBilling({'action': 'cancel'});
+
+  @override
+  Future<void> reactivateSubscription() =>
+      _invokeBilling({'action': 'reactivate'});
+
+  /// The `billing-checkout` function, which owns every money action. Calls
+  /// stay OUTSIDE any retry by construction (the web says it plainly: starting
+  /// a checkout twice on a retry would create two payment links, and a retried
+  /// reactivate would schedule two subscriptions).
+  Future<void> _invokeBilling(Map<String, dynamic> body) async {
+    try {
+      await _client.functions.invoke('billing-checkout', body: body);
+    } on FunctionException catch (e) {
+      throw BillingRefused(_functionErrorText(e));
+    }
+  }
+
+  @override
   Future<CareSchedule?> fetchDay(DateTime date) async {
     final row = await _client
         .from('care_schedules')
