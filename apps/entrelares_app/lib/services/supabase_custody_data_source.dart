@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -13,6 +15,7 @@ import '../models/invite_info.dart';
 import '../models/member.dart';
 import '../models/role.dart';
 import '../models/swap_request.dart';
+import 'analytics_service.dart';
 import 'custody_data_source.dart';
 
 /// The real data source. Mirrors `CustodyService.cs`/`ProfileService.cs` reads
@@ -27,7 +30,12 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   /// title (deploy marker, deliberately absent from `params`).
   final String environmentPrefix;
 
-  SupabaseCustodyDataSource(this._client, {this.environmentPrefix = ''});
+  /// T-37: optional by construction — the workflow must work with analytics
+  /// off (dev flavor, tests), and an event may never change what is written.
+  final AnalyticsService? analytics;
+
+  SupabaseCustodyDataSource(this._client,
+      {this.environmentPrefix = '', this.analytics});
 
   @override
   Future<List<Member>> fetchMembers() async {
@@ -440,6 +448,14 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
     );
     await _insertNotifications(drafts, requestId);
     await _sendSwapEmail(requestId, 'swap_requested');
+
+    // T-37: core-engagement signal (no PII — only the scenario). Fired AFTER
+    // the workflow completed, and never awaited: analytics can neither delay
+    // nor break a swap.
+    unawaited(analytics?.trackEvent('swap_requested', props: {
+          'scenario': approverId == proposedActualParentId ? 'A' : 'B',
+        }) ??
+        Future<void>.value());
   }
 
   @override

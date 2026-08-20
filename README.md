@@ -1,13 +1,14 @@
 # Entrelares — Flutter (T-53, aposta de plataforma)
 
-Spike do **estágio 1** do T-53: a reescrita do [Entrelares](https://github.com/irineus/entrelares-app)
-(hoje Blazor WASM PWA) em **Flutter/Dart**. Este repositório nasce como o laboratório da
-fatia vertical — calendário mensal + sheet do dia contra o projeto **dev** real, com Realtime
-nativo e leitura/escrita sob RLS — e, se a aposta vingar (veredito com números, estágio 1),
-vira o repositório do app de produto.
+A reescrita do [Entrelares](https://github.com/irineus/entrelares-app) (hoje Blazor WASM
+PWA) em **Flutter/Dart**. Nasceu como spike do **estágio 1**; com o GO do owner
+(19/08/2026) e o **estágio 3 aberto**, este repositório é o app de produto sendo
+construído lote a lote pelo mapa de paridade (`entrelares-app/docs/flutter-paridade.md`,
+ordem 1→2→3→4→6→5).
 
-**Reversível por construção:** se o veredito for "fica Blazor", este repositório morre sem
-tocar em nada do app atual. Nada aqui é dependência de produção.
+**Estado:** lotes 1, 2, 3, 4 e **6 entregues**; falta o **lote 5** (premium/billing com o
+redesenho T-48 de Play Billing). O Blazor segue congelado e em produção até o cutover do
+estágio 4 — enquanto ele não acontece, rollback é não fazer nada.
 
 ## Estrutura (molde `irineus/desmalha`)
 
@@ -111,14 +112,16 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
   no idioma do leitor; linhas legadas/payloads desconhecidos caem para o texto armazenado.
   PT-BR é byte-idêntico ao que os triggers gravam (tabela de ~35 casos em
   `notification_renderer_test.dart`).
-- **Gate adiado de propósito:** o teste "toda chave declarada tem call site" (lição U-23)
-  só faz sentido com as telas todas portadas — entra no fechamento do lote 6.
+- **Gate cobrado no fechamento do lote 6:** `catalog_call_sites_test.dart` prova que toda
+  chave declarada ou tem call site, ou está classificada (billing do lote 5 · web-only ·
+  o app tem frase própria em `k_app` · dívida anotada). As listas falham nos DOIS sentidos
+  — uma chave órfã nova quebra o teste, e uma entrada que ganhou call site também.
 
 ## Casco e deep links (lote 1 — PR2)
 
 - **Navegação:** `go_router` com `StatefulShellRoute` — os mesmos 4 destinos do NavMenu
-  web (Calendário, Família, Avisos, Relatórios); telas não portadas mostram placeholder
-  localizado e cada lote só troca o miolo. Guard estilo S-02 no `redirect`: tudo é
+  web (Calendário, Família, Avisos, Relatórios); cada lote trocou um placeholder pelo
+  miolo real, e com Relatórios (lote 6) não sobrou nenhum. Guard estilo S-02 no `redirect`: tudo é
   protegido exceto `/login`, `/reset-password` e `/update-password`.
 - **Deep links (App Links):** host `web.entrelares.app` (a origem do PWA — o apex é a
   landing), path `/update-password`, `autoVerify`. O `assetlinks.json` de produção já
@@ -157,11 +160,44 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
   nunca com literal" (port do `NoToast_CarriesALiteralString`) entrou junto, como o
   registro do PR1 prometia.
 
+## Relatórios, analytics e plataforma (lote 6)
+
+- **Hub de Relatórios** com 3 abas (`ReportsScreen`): Resumo · Histórico · PDF. Melhoria
+  nativa sobre o web, que navega entre três rotas — cada aba guarda o próprio filtro.
+- **Resumo do Período:** cards por membro com Programado/Realizado/Previsto (U-20) e o
+  split U-07 (`cedeu · recebeu`). A contagem é UMA função em core (`caregiverStats`),
+  chamada também pelo documento F-33 — no web isso era um comentário pedindo que dois
+  trechos não divergissem.
+- **Histórico de Ajustes:** quatro abas sobre dois registros (`activity_logs` e os
+  `account_logs` do S-10), diff campo-a-campo, "carregar mais" incremental e a entrada
+  sintética de fim de trial (F-58 QA 2). **F-45** entra aqui: a alteração vinda de um
+  workflow nomeia a origem e carrega as duas mensagens F-44; a busca é enriquecimento e
+  nunca derruba a timeline.
+- **Relatório em PDF (F-33) — o redesign:** o `print()` do navegador não existe, então o
+  documento é montado no aparelho (`pdf`) e entregue pelo sistema (`printing`: share sheet
+  ou impressão nativa). Gate F-32 com falha fechada e **upsell neutro** (T-38) até o lote 5.
+  **Roboto embarcado**: a Helvetica embutida do dart_pdf não tem Unicode e derruba os
+  acentos.
+- **Analytics T-37:** POST direto na Events API do Umami (`text/plain`, sem preflight),
+  desligado enquanto não houver website id — o flavor **dev vem vazio de propósito**. O
+  contrato no-PII é espelho puro (`sanitizeAnalyticsPath`): query e fragmento caem sempre,
+  GUID e id numérico viram `:id`. Eventos portados: `signup_started`, `family_created`,
+  `invitee_joined`, `invite_sent`, `wizard_completed`, `swap_requested`. Os
+  `premium-gate-click` chegam com o lote 5, junto das CTAs que ainda não existem.
+- **Alvo web:** habilitado (tensão 1 — Flutter Web substitui o PWA). `flutter build web`
+  entra no `verify.yml` e o run imprime o peso gzip do first-load; a medição de aceite do
+  canal (Android mediano/4G) é do owner.
+
 ## Versionamento
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.2.4+6` (T-53 lote 1 PR3 — card Today at a Glance, espelhos T-41/F-32, SnackBar + banner âmbar) |
+| `apps/entrelares_app` | `0.2.24+26` (T-53 lote 6 PR5 — analytics T-37, alvo web e fecho do lote) |
+
+Trilha do estágio 3: `0.2.0+2` abertura de flavors → `0.2.1+3` T-55 → `0.2.2+4`…`0.2.4+6`
+lote 1 → `0.2.5+7`…`0.2.8+10` lote 2 → `0.2.9+11`…`0.2.13+15` lote 3 →
+`0.2.14+16`…`0.2.19+21` lote 4 → `0.2.20+22`…`0.2.24+26` lote 6. **Falta o lote 5**
+(premium/billing, T-48) para o app ficar funcionalmente completo.
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 

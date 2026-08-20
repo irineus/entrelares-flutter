@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionName / versionCode. Bump on every functional change handed to the
 # owner, same rule as the product repos.
-version: 0.2.23+25
+version: 0.2.24+26
 
 environment:
   sdk: ^3.12.2
@@ -69,6 +69,7 @@ dependencies:
   # Pure client mirrors of the server rules, tested with `dart test`.
   entrelares_core:
     path: ../../packages/entrelares_core
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
@@ -80,8 +81,6 @@ dev_dependencies:
   # one the web suite pays for (`E2E-<runId>`, `@resend.dev`, purge_e2e_family).
   integration_test:
     sdk: flutter
-  http: ^1.2.2
-
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your

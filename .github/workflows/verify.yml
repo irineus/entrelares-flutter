@@ -69,6 +69,26 @@ jobs:
           flutter analyze
           flutter test
 
+      # T-53 lote 6, tension 1 (owner, 19/08/2026): Flutter Web REPLACES the
+      # PWA, so the web target is part of the gate — a build that only compiles
+      # for Android would let the web channel rot silently. It is a compile, not
+      # an emulator: ~1,5 min, cheap enough for every push.
+      - name: Web — release build + first-load weight
+        working-directory: apps/entrelares_app
+        run: |
+          flutter build web --release
+          echo "### Web first-load weight (gzip)" >> "$GITHUB_STEP_SUMMARY"
+          for f in build/web/flutter_bootstrap.js build/web/main.dart.js build/web/canvaskit/canvaskit.wasm; do
+            if [ -f "$f" ]; then
+              kb=$(( $(gzip -c "$f" | wc -c) / 1024 ))
+              echo "- $(basename "$f"): ${kb} KB" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          # The channel-acceptance number the cutover plan asks for is NOT this
+          # one: the owner still has to measure a REAL first load on a mid-range
+          # Android over 4G. This keeps the weight that drives it visible on
+          # every push, so a regression is noticed the day it lands.
+
   # T-54's E2E lane (opened by lote 3, the first two-user flow). It drives the
   # REAL app on an emulator against the DEV project, with the throwaway-family
   # pattern the web suite already pays for (`E2E-<runId>`, `@resend.dev`,
