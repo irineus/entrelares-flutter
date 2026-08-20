@@ -174,6 +174,10 @@ abstract final class K {
   static const String homeBackToLogin = 'home.backToLogin';
   static const String homeNotDefined = 'home.notDefined';
   static const String homeTapToDefine = 'home.tapToDefine';
+  /// U-28 QA — the chip in the month bar that goes back to the current month.
+  /// whole sentence would push them off centre.
+  static const String calToday = 'cal.today';
+
   static const String calPrevMonth = 'cal.prevMonth';
   static const String calNextMonth = 'cal.nextMonth';
   static const String calSelectDays = 'cal.selectDays';
@@ -208,7 +212,6 @@ abstract final class K {
 
   // ── Today card ──
   static const String cardBackToCurrentMonth = 'card.backToCurrentMonth';
-  static const String cardBackToToday = 'card.backToToday';
   static const String cardGreeting = 'card.greeting';
   static const String cardInviteTitle = 'card.inviteTitle';
   static const String cardInviteHint = 'card.inviteHint';
@@ -1216,6 +1219,7 @@ abstract final class K {
     homeBackToLogin,
     homeNotDefined,
     homeTapToDefine,
+    calToday,
     calPrevMonth,
     calNextMonth,
     calSelectDays,
@@ -1248,7 +1252,6 @@ abstract final class K {
     navGuardYes,
     navGuardNo,
     cardBackToCurrentMonth,
-    cardBackToToday,
     cardGreeting,
     cardInviteTitle,
     cardInviteHint,

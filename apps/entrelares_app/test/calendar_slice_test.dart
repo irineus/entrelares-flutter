@@ -1144,4 +1144,41 @@ void main() {
     expect(rendered.size.width, greaterThan(120),
         reason: 'the month owns the middle of its own bar now');
   });
+
+  testWidgets('U-28 QA: legend keys are pills that sit side by side',
+      (tester) async {
+    // The regression this pins: a Container WITH an `alignment` expands to fill
+    // whatever it is offered, so every key took a full row of the Wrap and the
+    // legend became a stack of banners.
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    final first = tester.getRect(find.text('Ana'));
+    final second = tester.getRect(find.text('Bruno'));
+    expect(first.top, second.top,
+        reason: 'two carers must share a row, not stack');
+    expect(second.left, greaterThan(first.right),
+        reason: 'and the second sits beside the first');
+  });
+
+  testWidgets('U-28 QA: the way back to today is a chip in the month bar',
+      (tester) async {
+    final l = Localization(AppLanguage.ptBr);
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    // On the current month there is nothing to go back from.
+    expect(find.text(l[K.calToday]), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pumpAndSettle();
+    expect(find.text(l[K.calToday]), findsOneWidget);
+
+    await tester.tap(find.text(l[K.calToday]));
+    await tester.pumpAndSettle();
+    expect(find.text(monthHeading(l, today)), findsOneWidget);
+    expect(find.text(l[K.calToday]), findsNothing);
+  });
 }

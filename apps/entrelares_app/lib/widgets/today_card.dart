@@ -118,7 +118,11 @@ class TodayCard extends StatelessWidget {
                       // rigid either, or a long month name would overflow the
                       // row on a narrow phone: `scaleDown` gives up a couple of
                       // percent of type size instead of the last five letters.
-                      Flexible(
+                      // Expanded, not Flexible: the date takes whatever the
+                      // greeting leaves and sits at the END of it. As a
+                      // Flexible it shrank to its own width and ended up glued
+                      // to the name.
+                      Expanded(
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerRight,
@@ -134,17 +138,10 @@ class TodayCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  if (!viewingCurrentMonth)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(l[K.cardBackToToday],
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(
-                                  color: user.tone.onContainer,
-                                  fontWeight: FontWeight.w700)),
-                    ),
+                  // U-28 QA: "Voltar para hoje" used to sit here as a line of
+                  // link text and read as an orphan sentence inside a coloured
+                  // band. It is a chip in the month bar now, beside the month
+                  // it takes you away from. The card itself stays tappable.
                 ],
               ),
             ),

@@ -123,7 +123,7 @@ void main() {
     expect(invited, isTrue);
   });
 
-  testWidgets('viewing another month: hint shows and the tap goes to today',
+  testWidgets('viewing another month: the card itself goes back to today',
       (tester) async {
     var wentToToday = false;
     await tester.pumpWidget(wrap(card(
@@ -131,7 +131,10 @@ void main() {
       onGoToToday: () => wentToToday = true,
     )));
 
-    expect(find.text('↩ Voltar para hoje'), findsOneWidget);
+    // U-28 QA: the "Voltar para hoje" LINE left the card — as link text inside
+    // a coloured band it read as an orphan sentence. It is a chip in the month
+    // bar now (calendar_slice_test covers it); the card stays tappable.
+    expect(find.textContaining('Voltar para hoje'), findsNothing);
     await tester.tap(find.byType(InkWell).first);
     expect(wentToToday, isTrue);
   });

@@ -146,6 +146,7 @@ abstract final class StringsPtBr {
     K.homeBackToLogin: 'Voltar para o Login',
     K.homeNotDefined: 'Não definido',
     K.homeTapToDefine: 'Toque no calendário para definir',
+    K.calToday: 'Hoje',
     K.calPrevMonth: 'Mês anterior',
     K.calNextMonth: 'Próximo mês',
     K.calSelectDays: 'Selecionar vários dias',
@@ -179,7 +180,6 @@ abstract final class StringsPtBr {
     K.navGuardNo: 'Não, ficar aqui',
     // ── Today card ──
     K.cardBackToCurrentMonth: 'Voltar para o mês atual',
-    K.cardBackToToday: '↩ Voltar para hoje',
     K.cardGreeting: 'Olá, {0}!',
     K.cardInviteTitle: 'Convide o outro responsável',
     K.cardInviteHint: 'O app fica completo quando os dois usam.',

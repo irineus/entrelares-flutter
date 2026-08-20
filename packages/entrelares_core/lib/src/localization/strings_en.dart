@@ -146,6 +146,7 @@ abstract final class StringsEn {
     K.homeBackToLogin: 'Back to sign in',
     K.homeNotDefined: 'Not set',
     K.homeTapToDefine: 'Tap the calendar to set it',
+    K.calToday: 'Today',
     K.calPrevMonth: 'Previous month',
     K.calNextMonth: 'Next month',
     K.calSelectDays: 'Select several days',
@@ -179,7 +180,6 @@ abstract final class StringsEn {
     K.navGuardNo: 'No, stay here',
     // ── Today card ──
     K.cardBackToCurrentMonth: 'Back to the current month',
-    K.cardBackToToday: '↩ Back to today',
     K.cardGreeting: 'Hi, {0}!',
     K.cardInviteTitle: 'Invite the other caregiver',
     K.cardInviteHint: 'The app works best when both of you use it.',
