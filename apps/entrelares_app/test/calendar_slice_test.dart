@@ -1065,7 +1065,12 @@ void main() {
 
   testWidgets('U-28: the legend names the role and stays on one line',
       (tester) async {
-    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    final day = futureDay;
+    if (day == null) return;
+    final ds = FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(1, dayOfMonth(day), 1, actual: 2)],
+    );
     await tester.pumpWidget(app(ds));
     await tester.pumpAndSettle();
 
@@ -1075,5 +1080,53 @@ void main() {
         of: find.text(Localization(AppLanguage.ptBr)[K.calSwapped]),
         matching: find.byType(ListView));
     expect(legend, findsWidgets);
+  });
+
+  // U-18 parity, in two tests and not one: pumping a second CalendarScreen of
+  // the same type reuses the State, so the second data source would never be
+  // read and the assertion would pass for the wrong reason.
+  testWidgets('U-18 parity: a month with no swap has no swap key',
+      (tester) async {
+    final day = futureDay;
+    if (day == null) return;
+    // The key would be explaining something that is not on screen, and it costs
+    // the grid the width of its own label.
+    await tester.pumpWidget(app(FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(1, dayOfMonth(day), 1)],
+    )));
+    await tester.pumpAndSettle();
+    expect(find.text(Localization(AppLanguage.ptBr)[K.calSwapped]), findsNothing);
+  });
+
+  testWidgets('U-18 parity: one swapped day brings the key back',
+      (tester) async {
+    final day = futureDay;
+    if (day == null) return;
+    await tester.pumpWidget(app(FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(1, dayOfMonth(day), 1, actual: 2)],
+    )));
+    await tester.pumpAndSettle();
+    expect(
+        find.text(Localization(AppLanguage.ptBr)[K.calSwapped]), findsOneWidget);
+  });
+
+  testWidgets('U-28 QA: the month name is not truncated by the actions',
+      (tester) async {
+    final l = Localization(AppLanguage.ptBr);
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    // The calendar's actions moved up to the app bar; sharing the month row
+    // with them is what put "agosto de 20…" on screen.
+    final month = find.text(l.formatMonthYear(today.year, today.month));
+    expect(month, findsOneWidget);
+    final text = tester.widget<Text>(month);
+    expect(text.overflow, TextOverflow.ellipsis);
+    final rendered = tester.renderObject<RenderBox>(month);
+    expect(rendered.size.width, greaterThan(120),
+        reason: 'the month owns the middle of its own bar now');
   });
 }

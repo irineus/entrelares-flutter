@@ -85,6 +85,11 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         indicatorColor: t.accent.container,
         elevation: Elevations.bottomNav,
+        // U-28 QA: 64 instead of Material's 80. The calendar is a fixed grid
+        // that has to fit above this bar, and 16 dp of bottom chrome is a
+        // quarter of a week of calendar. The labels stay — a bar of unlabelled
+        // icons is not a saving, it is a guessing game.
+        height: 64,
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
               ? IconThemeData(color: t.accent.onContainer)
