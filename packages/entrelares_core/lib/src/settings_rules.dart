@@ -72,4 +72,13 @@ class PublicSettings {
   int get priceAnnualCents => _int('billing.price_annual_cents', 5490);
   // U-22: public so the overdue panel can show the real grace deadline.
   int get graceDays => _int('billing.grace_days', 7);
+
+  /// T-48: the STORE rail's own master switch, independent of
+  /// [billingEnabled] (which keeps ruling the web rail). It defaults to FALSE
+  /// and stays false until the Play Console side exists — products created,
+  /// RTDN wired, service account in place — because an offer the store cannot
+  /// honor is worse than no offer: the app falls back to the T-38 neutral
+  /// note, which Play always accepts.
+  bool get storeBillingEnabled =>
+      parseBoolSetting(values, 'billing.store_enabled', false);
 }

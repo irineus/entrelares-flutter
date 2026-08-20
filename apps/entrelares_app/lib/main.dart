@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:entrelares_core/entrelares_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
@@ -31,6 +32,7 @@ import 'services/custody_data_source.dart';
 import 'services/notification_badge.dart';
 import 'services/onboarding_service.dart';
 import 'services/session_gate.dart';
+import 'services/store_billing.dart';
 import 'services/sudo_service.dart';
 import 'services/supabase_custody_data_source.dart';
 import 'widgets/app_l10n.dart';
@@ -87,6 +89,12 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   // S-10: session-scoped like admin mode, and for a stronger reason — an
   // elevation window must never outlive the session that earned it.
   late final SudoService _sudo;
+  // T-48: the store rail exists only where there IS a store. On the web target
+  // it is null and the Premium section keeps its neutral note — the same state
+  // the master switch off produces, so one missing piece never yields a
+  // half-drawn offer.
+  final StoreBilling? _storeBilling = kIsWeb ? null : PlayStoreBilling();
+
   // F-14: session-scoped, like the web's scoped AdminModeService — never
   // persisted; leaving the authenticated phase always deactivates it.
   final _adminMode = AdminMode();
@@ -226,6 +234,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
                 adminMode: _adminMode,
                 analytics: _analytics,
                 sudo: _sudo,
+                storeBilling: _storeBilling,
                 onFamilyDeleted: _signOut,
                 onOpenCustomRoles: () => _router.go('/family/custom-roles'),
                 // F-16: own card opens my profile; another member's opens
@@ -417,6 +426,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     _router.routeInformationProvider.removeListener(_trackPageView);
     _inactivityTimer?.cancel();
     _adminMode.dispose();
+    _storeBilling?.dispose();
     _sudo.dispose();
     _badge.dispose();
     _refresh.dispose();

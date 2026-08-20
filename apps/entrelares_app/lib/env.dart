@@ -17,6 +17,7 @@ class Env {
     required this.supabaseKey,
     this.umamiWebsiteId = '',
     required this.analyticsHostname,
+    required this.androidPackage,
   });
 
   final String name;
@@ -40,6 +41,13 @@ class Env {
   /// dashboard — a device has no `location.hostname` to read.
   final String analyticsHostname;
 
+  /// T-48: the Android `applicationId` of THIS variant. Only the Play
+  /// "manage subscription" deep link reads it, and pointing it at the wrong
+  /// package sends the subscriber to a page about an app they do not have —
+  /// hence a per-flavor value rather than a constant (dev deliberately keeps
+  /// its own package so the QA build coexists with the store one).
+  final String androidPackage;
+
   /// Dev/QA — the spike's original target. Still runs the legacy anon JWT
   /// until S-17 (app repo) retires it.
   static const dev = Env._(
@@ -50,6 +58,7 @@ class Env {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1cm9hbm90ZmpjZ3ZiZm1hY3VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTIwNDcsImV4cCI6MjA5NjU4ODA0N30.hRU5jhn1pJQeUVpvnAp4IGBJ5Is_pCwlIfR5hdK9Mi0',
     // No website id: analytics is OFF on dev, by decision.
     analyticsHostname: 'dev.app.entrelares.app',
+    androidPackage: 'com.entrelares.flutter',
   );
 
   /// Production — the exact public values `web.entrelares.app` serves every
@@ -63,6 +72,7 @@ class Env {
     // the two clients share a dashboard and the `channel` prop separates them.
     umamiWebsiteId: '6fdd6c5a-4bce-449f-8188-3b7399a859d8',
     analyticsHostname: 'app.entrelares.app',
+    androidPackage: 'com.entrelares.app',
   );
 
   /// Anything that is not the `prod` flavor falls back to dev: `flutter test`
@@ -72,5 +82,5 @@ class Env {
   /// Mirrors `pubspec.yaml`'s `version:` — the web's `AppVersion.Display`.
   /// Only the F-17 export reads it, and a stale value there would misdate an
   /// LGPD record, so `env_version_test.dart` fails the build if the two drift.
-  static const String appVersion = '0.2.27+29';
+  static const String appVersion = '0.2.28+30';
 }

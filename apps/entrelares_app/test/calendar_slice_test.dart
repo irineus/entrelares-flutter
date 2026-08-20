@@ -127,6 +127,18 @@ class FakeCustodyDataSource implements CustodyDataSource {
     return checkoutUrl;
   }
 
+  final List<({String productId, String token})> verifiedPurchases = [];
+  Object? throwOnVerify;
+
+  @override
+  Future<void> verifyStorePurchase({
+    required String productId,
+    required String purchaseToken,
+  }) async {
+    if (throwOnVerify != null) throw throwOnVerify!;
+    verifiedPurchases.add((productId: productId, token: purchaseToken));
+  }
+
   @override
   Future<void> cancelSubscription() async {
     if (throwOnBillingAction != null) throw throwOnBillingAction!;
