@@ -750,8 +750,13 @@ class _CalendarScreenState extends State<CalendarScreen>
   Widget _monthBar(BuildContext context, Localization l) {
     // U-28 QA: `visualDensity.compact` on the arrows. A default IconButton is
     // 48 dp tall around a 24 dp glyph, and this row exists to name the month.
+    //
+    // The "today" chip sits INSIDE the centred group, never next to an arrow:
+    // a chip that lands a thumb's width from "next month" is a mis-tap waiting
+    // to happen, and the two do opposite things.
+    final visible = _visibleMonth.year * 12 + _visibleMonth.month;
+    final current = _today.year * 12 + _today.month;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
           visualDensity: VisualDensity.compact,
@@ -759,16 +764,31 @@ class _CalendarScreenState extends State<CalendarScreen>
           icon: const Icon(Icons.chevron_left),
           onPressed: () => _stepMonth(-1),
         ),
-        Flexible(
-          child: Text(
-            // U-28 QA: "Agosto de 2026". The formatter lowercases because a
-            // month reads that way INSIDE a sentence; this is a heading.
-            _capitalize(
-                l.formatMonthYear(_visibleMonth.year, _visibleMonth.month)),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleMedium,
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Viewing the FUTURE: today is behind the reader, so the chip
+              // stands to the left of the month and its arrow points back.
+              _todayChip(context, l,
+                  visible: visible > current, forward: false),
+              Flexible(
+                child: Text(
+                  // U-28 QA: "Agosto de 2026". The formatter lowercases because
+                  // a month reads that way INSIDE a sentence; this is a heading.
+                  _capitalize(l.formatMonthYear(
+                      _visibleMonth.year, _visibleMonth.month)),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              // Viewing the PAST: today is ahead, so the chip stands to the
+              // right and its arrow points forward.
+              _todayChip(context, l,
+                  visible: visible < current, forward: true),
+            ],
           ),
         ),
         IconButton(
@@ -777,37 +797,50 @@ class _CalendarScreenState extends State<CalendarScreen>
           icon: const Icon(Icons.chevron_right),
           onPressed: () => _stepMonth(1),
         ),
-        // U-28 QA: the way back to today lives HERE, not in the today card.
-        //
-        // As a line of link text under the greeting it read as an orphan
-        // sentence in the middle of a coloured band. It is a navigation
-        // action, and this row is where navigation lives — so it appears
-        // beside the month it would take you away from, and it animates in
-        // rather than shoving the arrows sideways between two frames.
-        AnimatedSize(
-          duration: Motion.micro,
-          curve: Motion.microCurve,
-          child: isCurrentMonth(_visibleMonth, _today)
-              ? const SizedBox(height: 32)
-              : Padding(
-                  padding: const EdgeInsets.only(left: Spacing.xs),
-                  child: ActionChip(
-                    visualDensity: VisualDensity.compact,
-                    avatar: Icon(Icons.today_outlined,
-                        size: TypeScale.subtitle,
-                        color: context.tokens.accent.onContainer),
-                    label: Text(l[K.calToday]),
-                    labelStyle: Theme.of(context)
-                        .textTheme
-                        .labelSmall
-                        ?.copyWith(color: context.tokens.accent.onContainer),
-                    backgroundColor: context.tokens.accent.container,
-                    side: BorderSide(color: context.tokens.accent.border),
-                    onPressed: _goToToday,
-                  ),
-                ),
-        ),
       ],
+    );
+  }
+
+  /// U-28 QA — the way back to today, as a chip that says which WAY it goes.
+  ///
+  /// It used to be a line of link text under the greeting, where it read as an
+  /// orphan sentence in the middle of a coloured band. Going back to today is
+  /// navigation, so it belongs in the row that navigates — and the arrow points
+  /// the direction the calendar will actually travel, from the reader's own
+  /// position: forward when they are looking at the past, back when they are
+  /// looking at the future.
+  ///
+  /// Both sides are always built and collapse to nothing when they do not
+  /// apply, so the month name never jumps sideways as the chip swaps ends.
+  Widget _todayChip(BuildContext context, Localization l,
+      {required bool visible, required bool forward}) {
+    final tokens = context.tokens;
+    return AnimatedSize(
+      duration: Motion.micro,
+      curve: Motion.microCurve,
+      child: !visible
+          ? const SizedBox(height: 32)
+          : Padding(
+              padding: EdgeInsets.only(
+                left: forward ? Spacing.sm : 0,
+                right: forward ? 0 : Spacing.sm,
+              ),
+              child: ActionChip(
+                visualDensity: VisualDensity.compact,
+                avatar: Icon(
+                    forward ? Icons.arrow_forward : Icons.arrow_back,
+                    size: TypeScale.subtitle,
+                    color: tokens.accent.onContainer),
+                label: Text(l[K.calToday]),
+                labelStyle: Theme.of(context)
+                    .textTheme
+                    .labelSmall
+                    ?.copyWith(color: tokens.accent.onContainer),
+                backgroundColor: tokens.accent.container,
+                side: BorderSide(color: tokens.accent.border),
+                onPressed: _goToToday,
+              ),
+            ),
     );
   }
 

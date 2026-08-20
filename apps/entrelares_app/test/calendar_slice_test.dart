@@ -829,6 +829,9 @@ String monthHeading(Localization l, DateTime month) {
   return text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 }
 
+DateTime _monthAfter(DateTime d) => DateTime(d.year, d.month + 1, 1);
+DateTime _monthBefore(DateTime d) => DateTime(d.year, d.month - 1, 1);
+
 void main() {
   testWidgets('legend shows active members and the grid paints initials',
       (tester) async {
@@ -1172,13 +1175,44 @@ void main() {
     // On the current month there is nothing to go back from.
     expect(find.text(l[K.calToday]), findsNothing);
 
+    // Looking at the FUTURE: today is behind, so the chip stands to the LEFT
+    // of the month and its arrow points back.
     await tester.tap(find.byIcon(Icons.chevron_right));
     await tester.pumpAndSettle();
     expect(find.text(l[K.calToday]), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+    expect(tester.getRect(find.text(l[K.calToday])).right,
+        lessThan(tester.getRect(find.text(monthHeading(l, _monthAfter(today)))).left));
 
     await tester.tap(find.text(l[K.calToday]));
     await tester.pumpAndSettle();
     expect(find.text(monthHeading(l, today)), findsOneWidget);
     expect(find.text(l[K.calToday]), findsNothing);
+
+    // Looking at the PAST: today is ahead, so the chip crosses to the RIGHT
+    // and its arrow turns around.
+    await tester.tap(find.byIcon(Icons.chevron_left));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.arrow_forward), findsOneWidget);
+    expect(tester.getRect(find.text(l[K.calToday])).left,
+        greaterThan(
+            tester.getRect(find.text(monthHeading(l, _monthBefore(today)))).right));
+  });
+
+  testWidgets('U-28 QA: the today chip keeps its distance from the arrows',
+      (tester) async {
+    // A chip a thumb's width from "next month" is a mis-tap waiting to happen,
+    // and the two do opposite things.
+    final l = Localization(AppLanguage.ptBr);
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.chevron_left));
+    await tester.pumpAndSettle();
+
+    final chip = tester.getRect(find.text(l[K.calToday]));
+    final nextArrow = tester.getRect(find.byIcon(Icons.chevron_right));
+    expect(nextArrow.left - chip.right, greaterThan(16),
+        reason: 'the chip must not sit against the month arrow');
   });
 }
