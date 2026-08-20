@@ -5,10 +5,10 @@ The **T-53 rewrite** of Entrelares (Blazor WASM PWA, repo `entrelares-app`) in
 **Flutter/Dart**. Born as the stage-1 spike (GO verdict, 19/08/2026); **stage 3 is open**:
 this repo is becoming the product app, built batch by batch per the parity map
 (`entrelares-app/docs/flutter-paridade.md`, order 1→2→3→4→6→5) behind the cutover plan
-(`entrelares-app/docs/flutter-cutover.md`). **Batches 1, 2, 3, 4 and 6 are delivered
-(19/08/2026); only batch 5 — premium/billing with the T-48 Play Billing redesign —
-is left.** The Blazor app is frozen (owner policy, 19/08/2026) and stays in production
-until the stage-4 cutover.
+(`entrelares-app/docs/flutter-cutover.md`). **All six batches are delivered — batch 5
+(premium/billing with the T-48 Play Billing redesign) closed on 20/08/2026**, so stage 3
+is functionally complete and the next step is the stage-4 cutover. The Blazor app is
+frozen (owner policy, 19/08/2026) and stays in production until that cutover.
 
 Authority chain: `entrelares-app/CLAUDE.md` holds the product invariants (language rules,
 backlog trailer convention, working agreement) — they all apply here. This file only adds
@@ -25,6 +25,7 @@ carries its own backlog.
 | Structure | Monorepo: `apps/entrelares_app` (Flutter) + `packages/entrelares_core` (pure Dart) |
 | Environment | Build flavors (stage 3): `dev` → project `buroanotfjcgvbfmacuh`, `prod` → production — both PUBLIC configs hardcoded in `env.dart`, selected at compile time via `appFlavor`. Every Android build requires `--flavor`; flavor-less targets (`flutter test`) fall back to dev by construction. The Supabase singleton initializes once per process, so environments are per build variant, NEVER a runtime switcher. |
 | Targets | Android **and web** (batch 6, tension 1: Flutter Web replaces the PWA). The web build is in `verify.yml`; the CHANNEL acceptance (first load on a mid-range Android over 4G) is the owner's measurement, still pending. |
+| Billing | **Two rails, decided by the BUILD** (T-48 redesign, lote 5). The web target sells through the Asaas rail (`billing.enabled`, live in production since 29/07/2026); Android sells through **Play Billing** behind its own switch `billing.store_enabled`, which is PUBLIC and starts `false`. While it is false — or the device has no store, or no product comes back — the store branch shows the **T-38 neutral note**, which is also the fail-closed default. The **store price is Play's** (the product carries it; `app_settings` prices rule the web rail only), and **the client never grants Premium**: the purchase token goes to `billing-store-verify`, which asks the Play Developer API, and the acknowledge to Play happens only after the server accepted. Product ids `premium_monthly`/`premium_annual` are pinned by test — renaming one orphans real purchases. Go-live is console work: `entrelares-app/supabase/README.md` §9-bis. |
 | Analytics | T-37 via Umami Events API. The website id is PUBLIC and per environment: **dev is empty on purpose** (every call becomes a no-op, so QA never pollutes production statistics); prod carries the product's site. No PII ever — the sanitizer is a pure mirror with its own suite. |
 
 ## Product invariants that survive the rewrite (from the app repo)
@@ -61,11 +62,17 @@ carries its own backlog.
 
 ## Build & test
 ```
-cd packages/entrelares_core && fvm dart test
+cd packages/entrelares_core && fvm dart analyze --fatal-infos && fvm dart test
 cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
 cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per-abi
 cd apps/entrelares_app && fvm flutter build web --release   # canal web (tensão 1)
 ```
+⚠️ O lane core do `verify.yml` roda **`dart analyze --fatal-infos`**, não `dart analyze`:
+uma info (ex.: `unnecessary_brace_in_string_interps` num `reason:` de teste) derruba o job
+— e como esse é o PRIMEIRO passo, os lanes de app e web nem chegam a rodar. Rodar o
+comando acima antes do push é o que separa um push verde de um `main` vermelho (lote 5,
+20/08/2026).
+
 **Alvo web (lote 6):** habilitado em 19/08/2026 — Flutter Web SUBSTITUI o PWA (tensão 1)
 e o `verify.yml` compila o web em todo push, imprimindo o peso gzip do first-load no
 summary do run. O aceite do CANAL continua sendo medição real em Android mediano/4G,
