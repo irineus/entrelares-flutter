@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import '../models/care_schedule.dart';
 import '../models/family.dart';
 import '../models/member.dart';
+import '../models/role.dart';
 import '../models/swap_request.dart';
 import '../services/admin_mode.dart';
 import '../services/analytics_service.dart';
@@ -80,6 +81,11 @@ class _CalendarScreenState extends State<CalendarScreen>
   late DateTime _visibleMonth;
 
   List<Member> _members = const [];
+
+  /// U-28 — the roles, so the legend and the today card can say "Fernanda
+  /// (Mãe)" the way the web does. The port dropped the role everywhere on this
+  /// screen, which is what made the legend read as four unexplained colours.
+  List<Role> _roles = const [];
   Map<String, CareSchedule> _daysByIso = const {};
   Member? _ownProfile;
 
@@ -244,6 +250,12 @@ class _CalendarScreenState extends State<CalendarScreen>
     if (!silent) setState(() => _loading = true);
     try {
       final members = await widget.dataSource.fetchMembers();
+      // Best-effort: a family whose roles fail to load still gets its
+      // calendar, just without the "(Mãe)" suffix.
+      List<Role> roles = _roles;
+      try {
+        roles = await widget.dataSource.fetchRoles();
+      } catch (_) {/* keep whatever we had */}
       final days = await widget.dataSource
           .fetchMonth(_visibleMonth.year, _visibleMonth.month);
       final frozen = await widget.dataSource
@@ -254,6 +266,7 @@ class _CalendarScreenState extends State<CalendarScreen>
       if (!mounted) return;
       setState(() {
         _members = members;
+        _roles = roles;
         _daysByIso = {
           for (final d in days) CareSchedule.isoDate(d.scheduleDate): d
         };
@@ -668,9 +681,28 @@ class _CalendarScreenState extends State<CalendarScreen>
         isAdmin: _ownProfile?.isAdmin ?? false,
         activeMemberCount: _members.where((m) => m.isActiveMember).length,
       ),
+      responsibleRole: _roleLabelFor(
+          todayRow?.effectiveParentId, AppL10n.of(context).l.current),
       onGoToToday: _goToToday,
       onInvite: () => context.go('/family'),
     );
+  }
+
+  /// U-28 — how a member's role reads for this reader, or null when the family
+  /// never set one. Built-ins translate, custom roles pass through — the
+  /// composition lives in [Role.displayLabel], same as the family screen's.
+  String? _roleLabelFor(int? memberId, AppLanguage language) {
+    if (memberId == null) return null;
+    for (final m in _members) {
+      if (m.id != memberId) continue;
+      for (final r in _roles) {
+        if (r.id == m.roleId) {
+          final label = r.displayLabel(language);
+          return label.isEmpty ? null : label;
+        }
+      }
+    }
+    return null;
   }
 
   /// U-28 — the month, its two arrows and the calendar's own actions, sitting
@@ -770,15 +802,28 @@ class _CalendarScreenState extends State<CalendarScreen>
               onOpen: _openChecklist,
               onDismiss: _dismissChecklist,
             ),
-          if (_ownProfile != null)
+          // U-28: the skeleton covers the WHOLE screen it stands in for. Before,
+          // only the grid had one — the today card and the legend simply did
+          // not exist until data arrived, so the calendar loaded as a bare grid
+          // and then shoved itself down by two blocks when the load returned.
+          if (_ownProfile == null && _loading)
+            const _TodayCardSkeleton()
+          else if (_ownProfile != null)
             KeyedSubtree(
                 key: widget.tourKeys?.keyFor(TourTarget.todayCard),
                 child: _todayCard(context)),
           _monthBar(context, l),
-          KeyedSubtree(
-            key: widget.tourKeys?.keyFor(TourTarget.calendarLegend),
-            child: _Legend(members: _members, views: views),
-          ),
+          if (_members.isEmpty && _loading)
+            const _LegendSkeleton()
+          else
+            KeyedSubtree(
+              key: widget.tourKeys?.keyFor(TourTarget.calendarLegend),
+              child: _Legend(
+                members: _members,
+                views: views,
+                roleOf: (id) => _roleLabelFor(id, l.current),
+              ),
+            ),
           const Divider(height: 1),
           Expanded(
             child: PageView.builder(
@@ -864,32 +909,114 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 }
 
+/// The today card's outline while it loads — the same card, the same two
+/// bands, the same heights, so nothing moves when the real one arrives.
+class _TodayCardSkeleton extends StatelessWidget {
+  const _TodayCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) => Card(
+        margin: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AppSkeleton(width: 180, height: 18),
+              const SizedBox(height: Spacing.xs),
+              const AppSkeleton(width: 130, height: 12),
+              const Divider(height: Spacing.lg),
+              Row(
+                children: [
+                  const AppSkeleton.circle(size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        AppSkeleton(width: 90, height: 10),
+                        SizedBox(height: Spacing.xs),
+                        AppSkeleton(width: 150, height: 16),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const AppSkeleton(width: 70, height: 32),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+/// The legend's outline: one line of pills, the height the real one keeps.
+class _LegendSkeleton extends StatelessWidget {
+  const _LegendSkeleton();
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 40,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(
+              horizontal: Spacing.sm, vertical: Spacing.xs),
+          children: const [
+            AppSkeleton(width: 96, height: 32, radius: Radii.lg),
+            SizedBox(width: Spacing.sm),
+            AppSkeleton(width: 110, height: 32, radius: Radii.lg),
+            SizedBox(width: Spacing.sm),
+            AppSkeleton(width: 88, height: 32, radius: Radii.lg),
+          ],
+        ),
+      );
+}
+
+/// U-28 — the legend, scrolling sideways instead of wrapping.
+///
+/// Three problems, one shape. The chips wrapped onto a second row and pushed
+/// the grid down (on a four-carer family the calendar lost a whole week of
+/// height to a legend); every carer but the first wore a hatch, which the
+/// owner's review read as "these people are marked for something"; and the
+/// names had lost the ROLE, so the legend was a row of colours with first names
+/// and no explanation of who anyone is.
+///
+/// It is one line that scrolls now: the calendar keeps its height no matter how
+/// many carers a family has.
 class _Legend extends StatelessWidget {
   final List<Member> members;
   final List<MemberView> views;
 
-  const _Legend({required this.members, required this.views});
+  /// Resolves a member's role for the current reader; null keeps the bare name.
+  final String? Function(int memberId) roleOf;
+
+  const _Legend(
+      {required this.members, required this.views, required this.roleOf});
 
   @override
   Widget build(BuildContext context) {
     // F-27/S-11: colors are per ACTIVE member (persistent color_slot).
     final active = members.where((m) => m.isActiveMember).toList()
       ..sort((a, b) => (a.colorSlot ?? 9).compareTo(b.colorSlot ?? 9));
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 4,
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
         children: [
           for (final m in active)
             Builder(builder: (context) {
               final slot = context.tokens.slot(profileSlotIndex(m.id, views));
-              return Chip(
-                visualDensity: VisualDensity.compact,
-                // The swatch carries the texture as well as the hue — that is
-                // where a reader learns which pattern is whose.
-                avatar: SlotSwatch(slot: slot),
-                label: Text(m.fullName.split(' ').first),
+              final role = roleOf(m.id);
+              final first = m.fullName.split(' ').first;
+              return Padding(
+                padding: const EdgeInsets.only(right: Spacing.sm),
+                child: Chip(
+                  visualDensity: VisualDensity.compact,
+                  avatar: SlotSwatch(slot: slot),
+                  label: Text(role == null ? first : '$first ($role)'),
+                ),
               );
             }),
           Chip(
@@ -1100,12 +1227,17 @@ class _DayCell extends StatelessWidget {
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(Radii.md),
-              border: isSelected || isToday
+              // U-28: "today" was a 2 px indigo hairline that vanished into a
+              // tinted cell. It is the mark a reader looks for FIRST, so it
+              // takes the text colour and real weight — the web's black ring.
+              border: isSelected
                   ? Border.all(color: primary, width: 2)
-                  : Border.all(
-                      color: assigned && !isSwapped
-                          ? slot.tone.border
-                          : tokens.outline),
+                  : isToday
+                      ? Border.all(color: tokens.text, width: 2.5)
+                      : Border.all(
+                          color: assigned && !isSwapped
+                              ? slot.tone.border
+                              : tokens.outline),
               color: isSelected
                   ? primary.withValues(alpha: 0.12)
                   : assigned
@@ -1153,8 +1285,22 @@ class _DayCell extends StatelessWidget {
                       ),
                     )
                   else if (day?.handoffTime != null)
-                    Icon(Icons.swap_horiz,
-                        size: 10, color: Theme.of(context).hintColor),
+                    // U-28: the TIME, not an anonymous swap arrow. The web
+                    // prints "18:00" on every handoff day and the port replaced
+                    // it with an icon that says a handoff exists but not when —
+                    // which is the only thing a parent reads a handoff day for.
+                    // (It is also what the square cell had no room for: the
+                    // overflow the review caught was this line being clipped.)
+                    Text(
+                      AppL10n.of(context)
+                          .l
+                          .formatTimeString(day!.handoffTime!),
+                      style: TextStyle(
+                          fontSize: 9,
+                          color: assigned
+                              ? slot.tone.onContainer
+                              : Theme.of(context).hintColor),
+                    ),
                 ],
               ),
             ),

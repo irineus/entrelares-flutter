@@ -768,7 +768,7 @@ DateTime get today => DateTime.now();
 DateTime dayOfMonth(int day) => DateTime(today.year, today.month, day);
 
 CareSchedule row(int id, DateTime date, int scheduled,
-        {int? actual, int revision = 1}) =>
+        {int? actual, int revision = 1, String? handoffTime}) =>
     CareSchedule.fromJson({
       'id': id,
       'schedule_date': CareSchedule.isoDate(date),
@@ -776,6 +776,7 @@ CareSchedule row(int id, DateTime date, int scheduled,
       'actual_parent_id': actual,
       'revision': revision,
       'revision_token': 'tok-$id',
+      'handoff_time': ?handoffTime,
     });
 
 Widget app(FakeCustodyDataSource ds,
@@ -1027,5 +1028,52 @@ void main() {
     // The calendar's OWN actions stay with the calendar.
     expect(find.byIcon(Icons.check_box_outlined), findsOneWidget);
     expect(find.byIcon(Icons.event_repeat), findsOneWidget);
+  });
+
+  testWidgets('U-28: every assigned cell prints the carer initial',
+      (tester) async {
+    // This is the non-chromatic vector that lets the active slots drop their
+    // hatch (see no_color_literal_test). If a cell ever stops printing the
+    // initial, colour becomes the only way to tell two carers apart.
+    final day = futureDay;
+    if (day == null) return;
+    final ds = FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(1, dayOfMonth(day), 1)],
+    );
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    expect(find.descendant(of: find.byType(GridView), matching: find.text('A')),
+        findsWidgets);
+  });
+
+  testWidgets('U-28: a handoff day shows the TIME, not an anonymous arrow',
+      (tester) async {
+    final day = futureDay;
+    if (day == null) return;
+    final ds = FakeCustodyDataSource(
+      members: [ana, bruno],
+      days: [row(1, dayOfMonth(day), 1, handoffTime: '18:00')],
+    );
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    expect(find.text('18:00'), findsOneWidget);
+    expect(find.byIcon(Icons.swap_horiz), findsNothing);
+  });
+
+  testWidgets('U-28: the legend names the role and stays on one line',
+      (tester) async {
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    // The legend is a horizontal list now — a wrapping legend stole a week of
+    // grid height from a four-carer family.
+    final legend = find.ancestor(
+        of: find.text(Localization(AppLanguage.ptBr)[K.calSwapped]),
+        matching: find.byType(ListView));
+    expect(legend, findsWidgets);
   });
 }

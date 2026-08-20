@@ -20,10 +20,23 @@ library;
 
 import 'package:flutter/material.dart';
 
-/// The pattern a calendar slot paints behind its fill — the non-chromatic half
-/// of a slot's identity. Slot 1 stays clean (`none`) because the two-member
-/// family is the overwhelmingly common case and "no texture" is itself one of
-/// the distinguishable states.
+/// The pattern a calendar slot paints behind its fill.
+///
+/// **U-28 narrowed what a texture MEANS.** U-27 gave every slot its own hatch,
+/// as the non-chromatic half of a member's identity. In use that read wrong: a
+/// hatched cell looks like a cell in a special state, and the owner's review
+/// found the mother and the third and fourth carers all appearing "marked" for
+/// no reason a reader could name.
+///
+/// Texture now says ONE thing — this member is not here any more (slot 0). The
+/// non-chromatic vector the U-27 decision was protecting is still there and was
+/// always there: **every cell prints the carer's initial**, which distinguishes
+/// members with no colour vision at all. Swapped days keep their dashed amber
+/// border, which is a border and not a fill, so the two signals never collide.
+///
+/// The unused values stay in the enum: [SlotPatternPainter] draws them all and
+/// is tested for them all, and this decision is exactly the kind that gets
+/// revisited.
 enum SlotPattern { none, verticalHatch, diagonalHatch, backDiagonalHatch, dots }
 
 /// A semantic colour family: the solid, the text that sits ON the solid, the
@@ -103,7 +116,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
   final Color dangerBarDeep;
 
   /// Calendar `color_slot` 0..4. Slot 0 is the inactive/departed member: a
-  /// single grey identity with vertical hatching, exactly as the web paints it.
+  /// single grey identity with vertical hatching, exactly as the web paints it
+  /// — and, since U-28, the ONLY slot that carries a texture at all.
   final List<SlotColors> slots;
 
   /// An approved swap. Amber with a DASHED border, the web's "Trocado"
@@ -231,7 +245,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
           onContainer: Color(0xFF881337),
           border: Color(0xFFFDA4AF),
         ),
-        pattern: SlotPattern.diagonalHatch,
+        pattern: SlotPattern.none,
       ),
       // 3 — teal.
       SlotColors(
@@ -242,7 +256,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
           onContainer: Color(0xFF115E59),
           border: Color(0xFF5EEAD4),
         ),
-        pattern: SlotPattern.backDiagonalHatch,
+        pattern: SlotPattern.none,
       ),
       // 4 — orange (the web moved it off purple: too close to slot 1 in
       // pastels, and it has to stay distinct from the swapped amber too).
@@ -254,7 +268,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
           onContainer: Color(0xFF7C2D12),
           border: Color(0xFFFDBA74),
         ),
-        pattern: SlotPattern.dots,
+        pattern: SlotPattern.none,
       ),
     ],
     swapped: SlotColors(
@@ -359,7 +373,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
           onContainer: Color(0xFFFECDD3),
           border: Color(0xFFE11D48),
         ),
-        pattern: SlotPattern.diagonalHatch,
+        pattern: SlotPattern.none,
       ),
       SlotColors(
         tone: ToneColors(
@@ -369,7 +383,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
           onContainer: Color(0xFF99F6E4),
           border: Color(0xFF0D9488),
         ),
-        pattern: SlotPattern.backDiagonalHatch,
+        pattern: SlotPattern.none,
       ),
       SlotColors(
         tone: ToneColors(
@@ -379,7 +393,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
           onContainer: Color(0xFFFED7AA),
           border: Color(0xFFEA580C),
         ),
-        pattern: SlotPattern.dots,
+        pattern: SlotPattern.none,
       ),
     ],
     swapped: SlotColors(
