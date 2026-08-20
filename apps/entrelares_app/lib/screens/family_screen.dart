@@ -20,6 +20,7 @@ import '../env.dart';
 import '../services/custody_data_source.dart';
 import '../services/store_billing.dart';
 import '../services/sudo_service.dart';
+import '../theme/tokens.dart';
 import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
@@ -551,38 +552,49 @@ class _FamilyScreenState extends State<FamilyScreen> {
     // Web parity: my own card always opens; anyone else's only for an admin.
     final canOpen =
         widget.onOpenProfile != null && (isOwn || _isAdmin);
+    // U-28: the name gets ONE line and the badges go under it.
+    //
+    // They used to share the row: the name in a `Flexible` title, the badges in
+    // a `Wrap` trailing. `ListTile` gives the trailing what it asks for, so a
+    // carer who is both "(você)" and "Admin" squeezed the title to about a
+    // third of the row and a full legal name came out four lines tall — which
+    // is what made the admin's card twice the height of everyone else's.
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         onTap: canOpen ? () => widget.onOpenProfile!(member, isOwn) : null,
-        // The label the web puts on the clickable card, for screen readers.
         subtitleTextStyle: theme.textTheme.bodyMedium,
-        leading: AppAvatar(initials: member.initial),
-        title: Row(
-          children: [
-            Flexible(child: Text(member.fullName)),
-            if (member.id == _me?.id) ...[
-              const SizedBox(width: 6),
-              Text(l[K.famYou], style: theme.textTheme.bodySmall),
+        leading: AppAvatar(
+            initials: member.initial,
+            slot: member.isActiveMember
+                ? context.tokens.slot(member.colorSlot)
+                : context.tokens.slot(0)),
+        title: Text(
+          member.id == _me?.id
+              ? '${member.fullName} ${l[K.famYou]}'
+              : member.fullName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: Spacing.xs),
+          child: Wrap(
+            spacing: Spacing.xs,
+            runSpacing: Spacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (role.isNotEmpty)
+                Text(role, style: theme.textTheme.bodySmall),
+              if (!member.isActiveMember)
+                AppBadge(text: l[K.famLeftBadge], tone: context.tokens.neutral),
+              if (member.isAdmin)
+                AppBadge(text: l[K.famAdminBadge], tone: context.tokens.accent),
             ],
-          ],
+          ),
         ),
-        subtitle: role.isEmpty ? null : Text(role),
-        trailing: Wrap(
-          spacing: 6,
-          children: [
-            if (!member.isActiveMember)
-              Chip(
-                label: Text(l[K.famLeftBadge]),
-                visualDensity: VisualDensity.compact,
-              ),
-            if (member.isAdmin)
-              Chip(
-                label: Text(l[K.famAdminBadge]),
-                visualDensity: VisualDensity.compact,
-              ),
-          ],
-        ),
+        // U-28: the affordance the port dropped — without it nothing says a
+        // row opens anything.
+        trailing: canOpen ? const Icon(Icons.chevron_right) : null,
       ),
     );
   }
@@ -602,9 +614,13 @@ class _FamilyScreenState extends State<FamilyScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionTitle(l[K.famInviteSection]),
+        // U-28: the panel the web draws around this block. Without it the form,
+        // its notices and the buttons were loose on the page background — the
+        // "seções soltas" the owner's review named.
         if (!_isAdmin)
-          Text(l[K.famOnlyAdminsInvite],
-              style: Theme.of(context).textTheme.bodySmall)
+          AppCard(
+              child: Text(l[K.famOnlyAdminsInvite],
+                  style: Theme.of(context).textTheme.bodySmall))
         else ...[
           ...pending.map((i) => _invitationCard(i, l, expired: false)),
           ...expired.map((i) => _invitationCard(i, l, expired: true)),
@@ -630,9 +646,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
               ),
             )
           else if (_seatsTaken < _settings.maxCaregivers)
-            _inviteForm(l)
+            AppCard(child: _inviteForm(l))
           else if (pending.isEmpty && expired.isEmpty)
-            Text(l.format(K.famSeatsFull, [_settings.maxCaregivers])),
+            AppCard(
+                child: Text(l.format(
+                    K.famSeatsFull, [_settings.maxCaregivers]))),
         ],
       ],
     );
@@ -846,34 +864,38 @@ class _FamilyScreenState extends State<FamilyScreen> {
     return _deletionRequestPanel(l);
   }
 
+  /// U-28 — the family's danger zone, as [AppDangerZone].
+  ///
+  /// The web frames this in red, with the notices inside the frame and a filled
+  /// red button. The port had loose paragraphs with hand-glued `•` bullets (so
+  /// a wrapping notice started under its own bullet) and a plain text link at
+  /// the bottom — the least weight in the section, for the action that deletes
+  /// everything the family has.
   Widget _deletionRequestPanel(Localization l) {
-    final theme = Theme.of(context);
+    if (!_confirmingRequest) {
+      return AppDangerZone(
+        title: l[K.famDelReqTitle],
+        intro: l[K.famDelReqIntro],
+        notices: [
+          for (final consequence in [
+            K.famDelReqConsequenceData,
+            K.famDelReqConsequenceNotice,
+            K.famDelReqConsequenceUnanimity,
+            K.famDelReqConsequenceWithdraw,
+          ])
+            l[consequence],
+        ],
+        actionLabel: l[K.famDelReqOpen],
+        // Two steps on purpose: this press opens a question, the next one
+        // answers it. Nothing destructive is one tap away.
+        onAction: () => setState(() => _confirmingRequest = true),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionTitle(l[K.famDelReqTitle]),
-        Text(l[K.famDelReqIntro], style: theme.textTheme.bodySmall),
-        const SizedBox(height: 8),
-        for (final consequence in [
-          K.famDelReqConsequenceData,
-          K.famDelReqConsequenceNotice,
-          K.famDelReqConsequenceUnanimity,
-          K.famDelReqConsequenceWithdraw,
-        ])
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text('• ${l[consequence]}',
-                style: theme.textTheme.bodySmall),
-          ),
-        const SizedBox(height: 12),
-        if (!_confirmingRequest)
-          OutlinedButton(
-            onPressed: () => setState(() => _confirmingRequest = true),
-            child: Text(l[K.famDelReqOpen]),
-          )
-        else ...[
-          // Two steps on purpose: the first press opens a question, the second
-          // answers it. Nothing destructive is one tap away.
+        ...[
           Text(l[K.famDelReqConfirmText]),
           const SizedBox(height: 8),
           FilledButton(
@@ -1325,20 +1347,35 @@ class _FamilyScreenState extends State<FamilyScreen> {
                       : K.premIntroOffer,
                   style: theme.textTheme.bodyMedium,
                 ),
-                const SizedBox(height: 8),
-                for (final feature in const [
-                  K.premFeatureCaregivers,
-                  K.premFeatureHorizon,
-                  K.premFeaturePdf,
-                  K.premFeatureAdminMode,
-                  K.premFeatureRoles,
-                ])
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 2),
-                    child: Text('• ${l[feature]}',
-                        style: theme.textTheme.bodySmall),
-                  ),
-                const SizedBox(height: 12),
+                const SizedBox(height: Spacing.md),
+                // U-28: the benefits as a real list with aligned icons.
+                //
+                // This block is where a Free family decides to spend money, and
+                // it was the least composed thing on the screen: one `Text` per
+                // line with a literal `•` glued in front of an emoji, so a
+                // wrapping benefit restarted under its own bullet and the icons
+                // did not line up with each other. `AppBulletList` gives the
+                // hanging indent; the icons are the app's own, not emoji, so
+                // the list reads as a feature table rather than as chat.
+                AppBulletList(
+                  items: const [
+                    K.premFeatureCaregivers,
+                    K.premFeatureHorizon,
+                    K.premFeaturePdf,
+                    K.premFeatureAdminMode,
+                    K.premFeatureRoles,
+                  ].map((k) => l[k]).toList(),
+                  leadingIcons: const [
+                    Icon(Icons.group_outlined, size: TypeScale.subtitle),
+                    Icon(Icons.event_available_outlined,
+                        size: TypeScale.subtitle),
+                    Icon(Icons.picture_as_pdf_outlined,
+                        size: TypeScale.subtitle),
+                    Icon(Icons.shield_outlined, size: TypeScale.subtitle),
+                    Icon(Icons.sell_outlined, size: TypeScale.subtitle),
+                  ],
+                ),
+                const SizedBox(height: Spacing.md),
                 ..._premiumStateBlock(l, ui),
                 ..._historyPanel(l),
               ],
@@ -1831,6 +1868,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _sectionTitle(l[K.famAdminSection]),
+          AppCard(
+              child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
           Text(
               widget.adminMode.isActive
                   ? l[K.famAdminActiveNote]
@@ -1857,15 +1898,31 @@ class _FamilyScreenState extends State<FamilyScreen> {
               ),
             ),
           const SizedBox(height: 12),
+          // U-28: entering admin mode is not the same KIND of action as
+          // sending an invite, and the port painted both in the same brand
+          // indigo. The web framed this one in amber, and it should: the mode
+          // unlocks editing days the app otherwise protects. Same token
+          // vocabulary, different tone — warning, not accent.
           widget.adminMode.isActive
-              ? OutlinedButton(
+              ? FilledButton.icon(
                   onPressed: widget.adminMode.deactivate,
-                  child: Text(l[K.famAdminDeactivate]),
+                  icon: const Icon(Icons.shield),
+                  label: Text(l[K.famAdminDeactivate]),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: context.tokens.warning.solid,
+                      foregroundColor: context.tokens.warning.onSolid),
                 )
-              : FilledButton(
+              : OutlinedButton.icon(
                   onPressed: widget.adminMode.toggle,
-                  child: Text(l[K.famAdminActivate]),
+                  icon: const Icon(Icons.shield_outlined),
+                  label: Text(l[K.famAdminActivate]),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: context.tokens.warning.onContainer,
+                      backgroundColor: context.tokens.warning.container,
+                      side: BorderSide(color: context.tokens.warning.border)),
                 ),
+            ],
+          )),
         ],
       ),
     );

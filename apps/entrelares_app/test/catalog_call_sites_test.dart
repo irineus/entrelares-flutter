@@ -51,8 +51,6 @@ const _webOnly = <String>{
   'K.editorAriaLabel',
   'K.famCopyInviteLink',
   'K.famPageTitle',
-  'K.languageHint',
-  'K.languageLabel',
   'K.layoutErrorBody',
   'K.layoutErrorTitle',
   'K.layoutInstallAction',

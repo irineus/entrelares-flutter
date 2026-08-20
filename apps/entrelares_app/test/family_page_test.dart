@@ -116,12 +116,14 @@ void main() {
         (tester) async {
       await pumpFamily(tester, source());
 
-      expect(find.text('Ana Souza'), findsOne);
+      // U-28: the name owns ONE line and carries the "(você)" mark inline —
+      // as two widgets sharing the row with the badges, a full legal name came
+      // out four lines tall on the admin's card.
+      expect(find.text('Ana Souza ${l[K.famYou]}'), findsOne);
       expect(find.text('Bruno Lima'), findsOne);
       expect(find.text('Mãe'), findsOne);
       expect(find.text('Pai'), findsOne);
       expect(find.text(l[K.famAdminBadge]), findsOne);
-      expect(find.text(l[K.famYou]), findsOne);
     });
 
     testWidgets('a departed member keeps their card, marked "Saiu"',
