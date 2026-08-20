@@ -8,8 +8,8 @@
 // means someone catalogued a sentence and forgot to show it.
 //
 // The lists below are the inventory. Both directions are asserted: a new
-// orphan fails, and so does a stale entry — so when lote 5 lands, the billing
-// list must shrink or this test goes red.
+// orphan fails, and so does a stale entry — which is what made lote 5 delete
+// the billing list instead of quietly leaving it there.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -23,36 +23,11 @@ const _catalogFiles = {
   'strings_pt_br.dart',
 };
 
-/// Lote 5 — what is left of premium and billing. The section itself is wired
-/// (states, waitlist, cancel and the F-42 way back); these are the keys of the
-/// rails that still have no screen: the Asaas checkout buttons, the payment
-/// return page and the F-43 ledger panel.
-const _billing = <String>{
-  'K.famActivatePremiumLink',
-  'K.famBillingHistoryLoadFailed',
-  'K.famSeePremium',
-  'K.payActiveBody',
-  'K.payActiveTitle',
-  'K.payAlmostBody',
-  'K.payAlmostHint',
-  'K.payAlmostTitle',
-  'K.payBackToFamily',
-  'K.payConfirmingBody',
-  'K.payConfirmingTitle',
-  'K.payGuarantee',
-  'K.payPageTitle',
-  'K.premAvulsoAnnual',
-  'K.premAvulsoLead',
-  'K.premAvulsoMonthly',
-  'K.premGuarantee',
-  'K.premHistoryEmpty',
-  'K.premHistoryLoading',
-  'K.premHistoryReceipt',
-  'K.premHistoryToggle',
-  'K.premPaymentHint',
-  'K.premSubscribeAnnual',
-  'K.premSubscribeMonthly',
-};
+// Lote 5 closed the billing list: the Premium section, both checkout rails,
+// the payment return page and the F-43 ledger are all wired, so the set that
+// used to hold 82 keys is GONE rather than left empty. This is what the gate
+// was written to force — the classification is a debt register, not a
+// permanent home.
 
 /// Web-only by construction, or replaced by a native affordance: document
 /// <title> (an app has app bars), the PWA install banner and shell chrome (the
@@ -176,7 +151,7 @@ void main() {
     final declared = _declaredKeys();
     final used = _usedKeys();
     final orphans = declared.difference(used);
-    final classified = {..._billing, ..._webOnly, ..._appHasItsOwnPhrase, ..._notWiredYet};
+    final classified = {..._webOnly, ..._appHasItsOwnPhrase, ..._notWiredYet};
 
     expect(
       orphans.difference(classified),

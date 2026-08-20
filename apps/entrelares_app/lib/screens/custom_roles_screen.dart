@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../models/family.dart';
 import '../models/role.dart';
+import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
@@ -23,7 +24,20 @@ import '../widgets/app_snack.dart';
 class CustomRolesScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
 
-  const CustomRolesScreen({super.key, required this.dataSource});
+  /// T-37 — optional: the funnel signal never gates the screen.
+  final AnalyticsService? analytics;
+
+  /// Takes the admin to the Premium section of the Família page. Null leaves
+  /// the gate card as a plain explanation (which is all the web's is when the
+  /// section is a scroll away).
+  final VoidCallback? onSeePremium;
+
+  const CustomRolesScreen({
+    super.key,
+    required this.dataSource,
+    this.analytics,
+    this.onSeePremium,
+  });
 
   @override
   State<CustomRolesScreen> createState() => _CustomRolesScreenState();
@@ -184,7 +198,24 @@ class _CustomRolesScreenState extends State<CustomRolesScreen> {
                             .surfaceContainerHighest,
                         child: Padding(
                           padding: const EdgeInsets.all(12),
-                          child: Text(l[K.rolesPremiumGate]),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(l[K.rolesPremiumGate]),
+                              if (widget.onSeePremium != null)
+                                TextButton(
+                                  // F-41: same funnel family as the other
+                                  // gates (T-37), told apart by `gate`.
+                                  onPressed: () {
+                                    widget.analytics?.trackEvent(
+                                        'premium-gate-click',
+                                        props: {'gate': 'custom-roles'});
+                                    widget.onSeePremium!();
+                                  },
+                                  child: Text(l[K.famSeePremium]),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                   ],

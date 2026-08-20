@@ -110,6 +110,23 @@ class FakeCustodyDataSource implements CustodyDataSource {
     premiumInterest = true;
   }
 
+  final List<({String action, String cycle})> checkouts = [];
+  String checkoutUrl = 'https://pagamento.example/abc';
+
+  @override
+  Future<String> startCheckout(String cycle) async {
+    if (throwOnBillingAction != null) throw throwOnBillingAction!;
+    checkouts.add((action: 'checkout', cycle: cycle));
+    return checkoutUrl;
+  }
+
+  @override
+  Future<String> startAvulso(String cycle) async {
+    if (throwOnBillingAction != null) throw throwOnBillingAction!;
+    checkouts.add((action: 'avulso', cycle: cycle));
+    return checkoutUrl;
+  }
+
   @override
   Future<void> cancelSubscription() async {
     if (throwOnBillingAction != null) throw throwOnBillingAction!;

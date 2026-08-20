@@ -19,6 +19,7 @@ import 'screens/leaving_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/policy_update_screen.dart';
+import 'screens/premium_return_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/reports_screen.dart';
@@ -173,6 +174,18 @@ class _EntrelaresAppState extends State<EntrelaresApp>
       ),
       // S-15: also outside the shell — past the notice window this is the only
       // screen the app offers.
+      // T-39: where the hosted checkout sends the payer back. It is the SAME
+      // path the web serves (`appUrl/premium/retorno`, built server-side by
+      // billing-checkout), so on a device with the domain verified the App
+      // Link opens the app here and anywhere else it stays on the web.
+      GoRoute(
+        path: '/premium/retorno',
+        builder: (_, _) => PremiumReturnScreen(
+          dataSource: _dataSource,
+          analytics: _analytics,
+          onBackToFamily: () => _router.go('/family'),
+        ),
+      ),
       GoRoute(
         path: '/policy-update',
         builder: (_, _) => PolicyUpdateScreen(
@@ -226,8 +239,11 @@ class _EntrelaresAppState extends State<EntrelaresApp>
                 // persistent tab shell.
                 GoRoute(
                   path: 'custom-roles',
-                  builder: (_, _) =>
-                      CustomRolesScreen(dataSource: _dataSource),
+                  builder: (_, _) => CustomRolesScreen(
+                    dataSource: _dataSource,
+                    analytics: _analytics,
+                    onSeePremium: () => _router.go('/family'),
+                  ),
                 ),
                 GoRoute(
                   path: 'profile',

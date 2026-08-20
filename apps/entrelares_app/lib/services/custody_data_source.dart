@@ -72,6 +72,16 @@ abstract class CustodyDataSource {
   /// (optional, no PII).
   Future<void> registerPremiumInterest({String? feature});
 
+  /// T-39: starts the hosted checkout for [cycle] (`monthly`/`annual`) and
+  /// returns the gateway's payment URL to open. The call is NOT retried by
+  /// construction — a retry would create a second payment link.
+  Future<String> startCheckout(String cycle);
+
+  /// F-48: starts the Pix AVULSO checkout — one single, non-recurring charge
+  /// for [cycle]'s period (no card on file, no auto-renew). Same contract and
+  /// the same no-retry rule as [startCheckout].
+  Future<String> startAvulso(String cycle);
+
   /// T-39: cancels the subscription. No further charges; paid time is honored
   /// SERVER-side — the client never computes what the family keeps. Throws
   /// [BillingRefused] carrying the function's own text when it refuses.
