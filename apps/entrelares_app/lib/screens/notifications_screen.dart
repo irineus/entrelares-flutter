@@ -244,6 +244,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _infoRow(String label, String value) =>
       AppListRow(label: label, value: value);
 
+  /// U-28 — a card's first line: the day on the left, its state pills on the
+  /// right, and a SECOND LINE for the pills when they do not fit.
+  ///
+  /// It was a `Row` with the date in an `Expanded` beside a `Wrap` of up to
+  /// three badges. `Row` lays the inflexible child out first, so the badges took
+  /// the width they wanted and the `Expanded` got what was left — around ten
+  /// pixels, which the date then filled ONE CHARACTER PER LINE while the badges
+  /// still reported `RIGHT OVERFLOWED BY 85 PIXELS`. A `Wrap` cannot do that to
+  /// itself: what does not fit moves down.
+  Widget _cardHeader(String title, List<Widget> badges) => Wrap(
+        spacing: Spacing.sm,
+        runSpacing: Spacing.xs,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          Wrap(spacing: Spacing.xs, runSpacing: Spacing.xs, children: badges),
+        ],
+      );
+
   Widget _statusBadge(String text, {ToneColors? tone, String? semantics}) =>
       AppBadge(
         text: text,
@@ -299,16 +319,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final error = _actionErrors[req.id];
 
     return _card(children: [
-      Row(
-        children: [
-          Expanded(child: Text('📅 ${l.formatDate(req.scheduleDate)}')),
-          _statusBadge(
-            l[isRevert ? K.notifRevertPendingBadge : K.notifPendingBadge],
-            tone:
-                isRevert ? context.tokens.accent : context.tokens.warning,
-          ),
-        ],
-      ),
+      _cardHeader('📅 ${l.formatDate(req.scheduleDate)}', [
+        _statusBadge(
+          l[isRevert ? K.notifRevertPendingBadge : K.notifPendingBadge],
+          tone: isRevert ? context.tokens.accent : context.tokens.warning,
+        ),
+      ]),
       if (tag != SwapPriorityTag.none) _tagBanner(tag, l),
       _infoRow(l[K.notifLabelRequester],
           _nameOf(req.requestingProfileId) ?? '—'),
@@ -441,34 +457,25 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final statusKey = swapStatusLabelKey(req.status);
 
     return _card(children: [
-      Row(
-        children: [
-          Expanded(child: Text('📅 ${l.formatDate(req.scheduleDate)}')),
-          Wrap(
-            spacing: 4,
-            children: [
-              // The state the request had AT RESOLUTION, kept forever (F-20).
-              if (!isPending && tag != SwapPriorityTag.none)
-                _statusBadge(
-                  l[tag == SwapPriorityTag.overdue
-                      ? K.notifTagOverdueShort
-                      : K.notifTagUrgentShort],
-                  tone: tag == SwapPriorityTag.overdue
-                      ? context.tokens.danger
-                      : context.tokens.warning,
-                  semantics: l[K.notifResolvedStateTitle],
-                ),
-              _statusBadge(
-                  statusKey == null ? req.status : l[statusKey]),
-              // F-24: resolved by the 48h server cron.
-              if (req.isAutoResolved)
-                _statusBadge(l[K.notifAutoBadge],
-                    tone: context.tokens.info,
-                    semantics: l[K.notifAutoBadgeTitle]),
-            ],
+      _cardHeader('📅 ${l.formatDate(req.scheduleDate)}', [
+        // The state the request had AT RESOLUTION, kept forever (F-20).
+        if (!isPending && tag != SwapPriorityTag.none)
+          _statusBadge(
+            l[tag == SwapPriorityTag.overdue
+                ? K.notifTagOverdueShort
+                : K.notifTagUrgentShort],
+            tone: tag == SwapPriorityTag.overdue
+                ? context.tokens.danger
+                : context.tokens.warning,
+            semantics: l[K.notifResolvedStateTitle],
           ),
-        ],
-      ),
+        _statusBadge(statusKey == null ? req.status : l[statusKey]),
+        // F-24: resolved by the 48h server cron.
+        if (req.isAutoResolved)
+          _statusBadge(l[K.notifAutoBadge],
+              tone: context.tokens.info,
+              semantics: l[K.notifAutoBadgeTitle]),
+      ]),
       _infoRow(l[K.notifLabelTo], _nameOf(req.targetProfileId) ?? '—'),
       _infoRow(l[K.notifLabelProposed],
           _nameOf(req.proposedActualParentId) ?? '—'),

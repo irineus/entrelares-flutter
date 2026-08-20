@@ -21,6 +21,9 @@ abstract final class StringsEn {
     K.languagePtBr: 'Português',
     K.languageEn: 'English',
     K.languageHint: 'Your choice also applies to the e-mails you receive.',
+    // ── Splash ──
+    K.splashTagline: 'Whose day is it today?',
+
     // ── Login ──
     K.loginPageTitle: 'Sign in - Entrelares',
     K.loginHeading: 'Entrelares',

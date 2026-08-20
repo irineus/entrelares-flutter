@@ -21,6 +21,9 @@ abstract final class StringsPtBr {
     K.languagePtBr: 'Português',
     K.languageEn: 'English',
     K.languageHint: 'O idioma escolhido vale também para os e-mails que você receber.',
+    // ── Splash ──
+    K.splashTagline: 'De quem é o dia hoje?',
+
     // ── Login ──
     K.loginPageTitle: 'Login - Entrelares',
     K.loginHeading: 'Entrelares',

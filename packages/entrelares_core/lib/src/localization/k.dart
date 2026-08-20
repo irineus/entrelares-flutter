@@ -23,6 +23,12 @@ abstract final class K {
   static const String languageEn = 'language.en';
   static const String languageHint = 'language.hint';
 
+  // ── Splash ──
+  /// U-28: the tagline under the animated calendar, ported from the web's U-10
+  /// splash. It is NOT `loginSubtitle` — that one names the product's promise
+  /// ("two homes, one childhood"); this one names what the app answers today.
+  static const String splashTagline = 'splash.tagline';
+
   // ── Login ──
   static const String loginPageTitle = 'login.pageTitle';
   static const String loginHeading = 'login.heading';
@@ -1064,6 +1070,7 @@ abstract final class K {
     languagePtBr,
     languageEn,
     languageHint,
+    splashTagline,
     loginPageTitle,
     loginHeading,
     loginSubtitle,

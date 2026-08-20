@@ -37,6 +37,7 @@ import 'services/sudo_service.dart';
 import 'services/supabase_custody_data_source.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_l10n.dart';
+import 'widgets/app_splash.dart';
 import 'widgets/onboarding.dart';
 
 Future<void> main() async {
@@ -125,8 +126,9 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     routes: [
       GoRoute(
         path: '/splash',
-        builder: (_, _) =>
-            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        // U-28: the product's first frame says what the product is — the
+        // web's U-10 animated calendar, ported to Flutter over the tokens.
+        builder: (_, _) => const AppSplash(),
       ),
       GoRoute(
         path: '/login',

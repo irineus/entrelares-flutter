@@ -30,6 +30,11 @@ import 'wizard_sheet.dart';
 /// [SlotPattern] alongside each hue and a dark set that did not exist before.
 /// "Trocado" is the web's amber with a DASHED border, which is also what frees
 /// the rose for a role again.
+/// U-28 — what one day of the grid is tall enough to hold: the day number, the
+/// carer's initial, and the handoff mark under it. The width follows from the
+/// screen; only the height is a design decision, so only the height is here.
+const double _dayCellHeight = 58;
+
 SlotColors _slotOf(BuildContext context, DayPaint paint) => switch (paint) {
       DaySwapped() => context.tokens.swapped,
       DaySlot(slot: final s) => context.tokens.slot(s),
@@ -960,17 +965,34 @@ class _MonthGrid extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 4),
-        if (loading)
-          // U-27: the grid's own shape, at its own aspect ratio — the month
-          // does not jump into place when the days land.
-          const AppSkeletonCalendar()
-        else
-          GridView.count(
+        // U-28: the cell is sized by its CONTENT, not by the accident of being
+        // square. `GridView.count` defaults to `childAspectRatio: 1`, which on a
+        // phone gives a ~43 dp cell for the ~50 dp the day number, the avatar
+        // and the handoff mark need — every assigned day rendered
+        // `BOTTOM OVERFLOWED`. The height is fixed and the ratio derives from
+        // the real width, so the same cell holds on any screen.
+        LayoutBuilder(builder: (context, constraints) {
+          final cellWidth = (constraints.maxWidth - 6 * 4) / 7;
+          final ratio = cellWidth / _dayCellHeight;
+          return loading
+              // U-27: the grid's own shape, at its own aspect ratio — the month
+              // does not jump into place when the days land.
+              ? AppSkeletonCalendar(childAspectRatio: ratio)
+              : _grid(context, ratio, daysInMonth, blanksBefore, todayIso);
+        }),
+      ],
+    );
+  }
+
+  Widget _grid(BuildContext context, double ratio, int daysInMonth,
+          int blanksBefore, String todayIso) =>
+      GridView.count(
             crossAxisCount: 7,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             mainAxisSpacing: 4,
             crossAxisSpacing: 4,
+            childAspectRatio: ratio,
             children: [
               for (var i = 0; i < blanksBefore; i++) const SizedBox.shrink(),
               for (var day = 1; day <= daysInMonth; day++)
@@ -992,10 +1014,7 @@ class _MonthGrid extends StatelessWidget {
                   onLongPress: onDayLongPress,
                 ),
             ],
-          ),
-      ],
-    );
-  }
+          );
 }
 
 /// What a frozen day paints on its cell (computed in [_MonthGrid._markFor]).

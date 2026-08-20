@@ -7,7 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
+import '../env.dart';
+import '../theme/tokens.dart';
 import '../widgets/app_l10n.dart';
+import '../widgets/app_splash.dart';
 
 /// Why the visitor was sent back here, so the banner reads the right message
 /// (the web's `session_expired` sessionStorage flag).
@@ -125,6 +128,18 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  /// A legal link, sized to its text: the default `TextButton` padding is what
+  /// made the pair too wide for one line.
+  Widget _legalLink(String label, VoidCallback onTap) => TextButton(
+        onPressed: onTap,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: Text(label, style: Theme.of(context).textTheme.bodySmall),
+      );
+
   Future<void> _openWebPage(String url) async {
     // Legal pages live on the web until lote 4 ports them.
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
@@ -148,6 +163,11 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // U-28: the mark the web puts above the name. Without it the
+                // screen opened on two lines of text over an empty page — the
+                // one screen every user meets first had no identity on it.
+                const Center(child: AppBrandMark()),
+                const SizedBox(height: Spacing.md),
                 Text(l[K.loginHeading],
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineMedium),
@@ -201,6 +221,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: widget.onForgotPassword,
                   child: Text(l[K.loginForgot]),
                 ),
+                // U-28: the rule the web draws here. Everything above it is
+                // signing in; everything below is about the app. Without it the
+                // screen was one undifferentiated stack of links.
+                const Divider(height: Spacing.lg),
                 Wrap(
                   alignment: WrapAlignment.center,
                   crossAxisAlignment: WrapCrossAlignment.center,
@@ -214,27 +238,38 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    TextButton(
-                      onPressed: () => _openWebPage(DeepLinkUrls.privacy),
-                      child: Text(l[K.commonPrivacyPolicy],
-                          style: Theme.of(context).textTheme.bodySmall),
+                // U-28: ONE line, always. As a `Wrap` of two default-padded
+                // `TextButton`s the pair broke in two on a phone and left the
+                // screen tall and strewn; `FittedBox` gives up a couple of
+                // percent of type size on the narrowest screens instead.
+                Center(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _legalLink(l[K.commonPrivacyPolicy],
+                            () => _openWebPage(DeepLinkUrls.privacy)),
+                        Text('·', style: Theme.of(context).textTheme.bodySmall),
+                        _legalLink(l[K.commonTermsOfUse],
+                            () => _openWebPage(DeepLinkUrls.terms)),
+                      ],
                     ),
-                    Text('·', style: Theme.of(context).textTheme.bodySmall),
-                    TextButton(
-                      onPressed: () => _openWebPage(DeepLinkUrls.terms),
-                      child: Text(l[K.commonTermsOfUse],
-                          style: Theme.of(context).textTheme.bodySmall),
-                    ),
-                  ],
+                  ),
                 ),
                 const SizedBox(height: 8),
                 // U-13: the picker must exist BEFORE a session does — the
                 // recruited tester meets this screen first.
                 const LanguagePickerRow(),
+                const SizedBox(height: Spacing.md),
+                // U-28: the version the web prints in its own footer. It is the
+                // first thing a tester is asked for when they report something.
+                Text(Env.appVersion,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelSmall
+                        ?.copyWith(color: context.tokens.textMuted)),
               ],
             ),
           ),
