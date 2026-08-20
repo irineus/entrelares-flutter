@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
@@ -960,10 +961,9 @@ class _MonthGrid extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         if (loading)
-          const Padding(
-            padding: EdgeInsets.all(48),
-            child: Center(child: CircularProgressIndicator()),
-          )
+          // U-27: the grid's own shape, at its own aspect ratio — the month
+          // does not jump into place when the days land.
+          const AppSkeletonCalendar()
         else
           GridView.count(
             crossAxisCount: 7,

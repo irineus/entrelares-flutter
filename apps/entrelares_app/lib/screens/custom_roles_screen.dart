@@ -168,7 +168,8 @@ class _CustomRolesScreenState extends State<CustomRolesScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(l[K.rolesHeading])),
       body: _loading
-          ? Center(child: Text(l[K.famLoading]))
+          ? AppSkeletonList(
+              rows: 3, leading: false, semanticsLabel: l[K.famLoading])
           : !_isAdmin
               // Admin-only, and the DB agrees — showing the form to a
               // non-admin would only produce a refusal they cannot act on.

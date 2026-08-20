@@ -9,3 +9,4 @@ library;
 export 'controls.dart';
 export 'signals.dart';
 export 'surfaces.dart';
+export 'skeleton.dart';

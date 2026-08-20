@@ -135,10 +135,7 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
           if (_errorRaw != null)
             _errorBanner(l)
           else if (_loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 48),
-              child: Center(child: CircularProgressIndicator()),
-            )
+            const AppSkeletonCards()
           else if (!hasSummaryData(stats))
             _emptyState(l)
           else ...[
