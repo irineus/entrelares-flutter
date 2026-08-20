@@ -31,7 +31,12 @@ import 'wizard_sheet.dart';
 /// U-28 — what one day of the grid is tall enough to hold: the day number, the
 /// carer's initial, and the handoff mark under it. The width follows from the
 /// screen; only the height is a design decision, so only the height is here.
-const double _dayCellHeight = 54;
+///
+/// U-28 QA settled the number by measurement, not by taste: the content is
+/// 12 + 2 + 18 + 11 ≈ 43 dp inside a 2.5 dp "today" ring, and a six-week month
+/// with the admin strip on and a four-carer legend has to fit a 700 dp phone.
+/// `calendar_fits_u28_test` fails if either side of that stops being true.
+const double _dayCellHeight = 52;
 
 /// U-27 — the F-27 slot palette now lives in [AppTokens.slots], with a
 /// [SlotPattern] alongside each hue and a dark set that did not exist before.
@@ -722,10 +727,13 @@ class _CalendarScreenState extends State<CalendarScreen>
   /// that silently removed the web's explicit `<` `>`, leaving no visible way
   /// to change month at all. The swipe stays; the arrows come back.
   Widget _monthBar(BuildContext context, Localization l) {
+    // U-28 QA: `visualDensity.compact` on the arrows. A default IconButton is
+    // 48 dp tall around a 24 dp glyph, and this row exists to name the month.
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
+          visualDensity: VisualDensity.compact,
           tooltip: l[K.calPrevMonth],
           icon: const Icon(Icons.chevron_left),
           onPressed: () => _stepMonth(-1),
@@ -740,6 +748,7 @@ class _CalendarScreenState extends State<CalendarScreen>
           ),
         ),
         IconButton(
+          visualDensity: VisualDensity.compact,
           tooltip: l[K.calNextMonth],
           icon: const Icon(Icons.chevron_right),
           onPressed: () => _stepMonth(1),
@@ -977,7 +986,7 @@ class _LegendSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        height: _Legend.height,
+        height: _Legend.rowHeight + Spacing.xs,
         child: ListView(
           scrollDirection: Axis.horizontal,
           physics: const NeverScrollableScrollPhysics(),
@@ -1032,18 +1041,27 @@ class _Legend extends StatelessWidget {
     required this.showSwapKey,
   });
 
-  static const height = 30.0;
+  /// One row of keys. A four-carer family plus the swap key needs two.
+  static const rowHeight = 22.0;
 
   @override
   Widget build(BuildContext context) {
     // F-27/S-11: colors are per ACTIVE member (persistent color_slot).
     final active = members.where((m) => m.isActiveMember).toList()
       ..sort((a, b) => (a.colorSlot ?? 9).compareTo(b.colorSlot ?? 9));
-    return SizedBox(
-      height: height,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+    // U-28 QA: it WRAPS, it does not scroll.
+    //
+    // The arithmetic does not leave a choice. "Fernanda (Mãe)" is about 100 dp
+    // with its swatch; four of those plus "Trocado" is roughly 490 dp against a
+    // 360 dp phone. One line was never going to hold a four-carer family, and a
+    // horizontal scroll hides the fourth carer behind a gesture nobody knows is
+    // there. Two rows show everyone, and the rows only appear when the family
+    // has grown enough to need them — a two-carer family still gets one.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Spacing.sm, 0, Spacing.sm, Spacing.xs),
+      child: Wrap(
+        spacing: Spacing.md,
+        runSpacing: Spacing.xs,
         children: [
           for (final m in active)
             Builder(builder: (context) {
@@ -1067,9 +1085,10 @@ class _Legend extends StatelessWidget {
           {required SlotColors slot,
           required String label,
           bool dashed = false}) =>
-      Padding(
-        padding: const EdgeInsets.only(right: Spacing.md),
+      SizedBox(
+        height: rowHeight,
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             SlotSwatch(slot: slot, dashedBorder: dashed),
             const SizedBox(width: Spacing.xs + 2),
@@ -1148,7 +1167,7 @@ class _MonthGrid extends StatelessWidget {
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
       children: [
         Row(
           children: [
@@ -1164,7 +1183,7 @@ class _MonthGrid extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         // U-28: the cell is sized by its CONTENT, not by the accident of being
         // square. `GridView.count` defaults to `childAspectRatio: 1`, which on a
         // phone gives a ~43 dp cell for the ~50 dp the day number, the avatar
@@ -1190,7 +1209,9 @@ class _MonthGrid extends StatelessWidget {
             crossAxisCount: 7,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 4,
+            // 3 dp, not 4: five gaps in a six-week month, and the month has to
+            // clear the admin strip on a 700 dp phone.
+            mainAxisSpacing: 3,
             crossAxisSpacing: 4,
             childAspectRatio: ratio,
             children: [

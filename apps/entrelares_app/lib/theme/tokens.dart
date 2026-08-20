@@ -260,13 +260,22 @@ class AppTokens extends ThemeExtension<AppTokens> {
       ),
       // 4 — orange (the web moved it off purple: too close to slot 1 in
       // pastels, and it has to stay distinct from the swapped amber too).
+      //
+      // U-28 QA: deepened TWO steps, container and border. At `#FFEDD5` the
+      // third carer's cell measured 1.03:1 against the `#FEF3C7` swapped day —
+      // a lighter version of the swap key rather than a colour of its own,
+      // which is what the owner saw as the third carer losing the standing the
+      // web gives them. `#FDBA74` takes that separation to 1.51:1 and still
+      // holds `#7C2D12` text at 5.6:1, well clear of the 4.5 the norm asks.
+      // One step further (`#FCA35C`) would buy 1.79:1 at 4.7:1 text — too
+      // little margin for a product that also renders this in dark mode.
       SlotColors(
         tone: ToneColors(
           solid: Color(0xFFEA580C),
           onSolid: Color(0xFFFFFFFF),
-          container: Color(0xFFFFEDD5),
+          container: Color(0xFFFDBA74),
           onContainer: Color(0xFF7C2D12),
-          border: Color(0xFFFDBA74),
+          border: Color(0xFFF97316),
         ),
         pattern: SlotPattern.none,
       ),
@@ -389,9 +398,11 @@ class AppTokens extends ThemeExtension<AppTokens> {
         tone: ToneColors(
           solid: Color(0xFFFB923C),
           onSolid: Color(0xFF111827),
-          container: Color(0xFF45210F),
+          // U-28 QA, the dark half of the same decision: lifted away from the
+          // `#452F0C` swapped container it used to sit almost on top of.
+          container: Color(0xFF5C2A10),
           onContainer: Color(0xFFFED7AA),
-          border: Color(0xFFEA580C),
+          border: Color(0xFFF97316),
         ),
         pattern: SlotPattern.none,
       ),

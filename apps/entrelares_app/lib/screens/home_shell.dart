@@ -97,9 +97,14 @@ class HomeShell extends StatelessWidget {
                           child: Row(
                             children: [
                               Expanded(
+                                // U-28 QA: one line with an ellipsis, exactly
+                                // as the web draws it. Wrapped to two it was
+                                // costing the calendar below a whole row.
                                 child: Text(
                                   '🛡️ ${l[K.layoutAdminActive]} — '
                                   '${l[K.layoutAdminHint]}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                       color: Colors.white, fontSize: 13),
                                 ),
@@ -184,6 +189,8 @@ class HomeShell extends StatelessWidget {
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Text(
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               // Unanimity already reached reads differently from a request
               // still collecting answers — the deadline means something else
               // in each case.

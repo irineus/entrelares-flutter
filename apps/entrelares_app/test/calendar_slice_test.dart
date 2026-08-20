@@ -1065,7 +1065,7 @@ void main() {
     expect(find.byIcon(Icons.swap_horiz), findsNothing);
   });
 
-  testWidgets('U-28: the legend names the role and stays on one line',
+  testWidgets('U-28 QA: the legend names the role and never scrolls sideways',
       (tester) async {
     final day = futureDay;
     if (day == null) return;
@@ -1076,12 +1076,18 @@ void main() {
     await tester.pumpWidget(app(ds));
     await tester.pumpAndSettle();
 
-    // The legend is a horizontal list now — a wrapping legend stole a week of
-    // grid height from a four-carer family.
-    final legend = find.ancestor(
-        of: find.text(Localization(AppLanguage.ptBr)[K.calSwapped]),
-        matching: find.byType(ListView));
-    expect(legend, findsWidgets);
+    // It WRAPS. "Fernanda (Mãe)" is ~100 dp with its swatch, so four carers
+    // plus the swap key is ~490 dp against a 360 dp phone — one line was never
+    // going to hold them, and a sideways scroll hides the fourth carer behind
+    // a gesture nobody knows is there.
+    final l = Localization(AppLanguage.ptBr);
+    expect(
+        find.ancestor(
+            of: find.text(l[K.calSwapped]), matching: find.byType(Wrap)),
+        findsWidgets);
+    // This fixture carries no roles, so the key is the bare first name; the
+    // role suffix is exercised where the roles exist (family_page_test).
+    expect(find.text('Ana'), findsWidgets);
   });
 
   // U-18 parity, in two tests and not one: pumping a second CalendarScreen of
