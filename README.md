@@ -16,8 +16,10 @@ não acontece, rollback é não fazer nada.
 ```
 .fvmrc                        # pin do Flutter (3.44.7) — só o .fvmrc é versionado, .fvm/ não
 tool/setup_env.sh             # bootstrap idempotente de ambiente Linux (JDK 17, FVM, Android SDK)
+apps/entrelares_app/tool/     # subset_inter.py — regenera a fonte embarcada (U-27)
 packages/entrelares_core/     # Dart puro: espelhos-cliente das regras do servidor, testáveis com `dart test`
 apps/entrelares_app/          # o app Flutter (só orquestra e apresenta)
+apps/entrelares_app/lib/theme/  # U-27: tokens.dart (a única fonte de cor) + app_theme.dart
 ```
 
 ## Comandos
@@ -223,17 +225,44 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
 - **Falta configuração de console (do owner)** para o trilho da loja vender:
   `entrelares-app/supabase/README.md` §9-bis.
 
+## Fundação visual (U-27)
+
+Antes do cutover, o item **U-27** trocou a camada visual do porte — que trazia 100% das
+regras e ~0% do visual — por um sistema de tokens. O que ela estabelece:
+
+- **`lib/theme/tokens.dart` é o ÚNICO lugar onde uma cor pode ser escrita.** Os 79 literais
+  `Color(0x…)` que estavam espalhados por 13 arquivos viraram tokens semânticos
+  (`accent`/`neutral`/`success`/`warning`/`danger`/`info`, cada um com solid, container,
+  onContainer e border). O gate `no_color_literal_test` quebra o build se um literal
+  aparecer fora desse arquivo — sem ele, os literais voltam a crescer.
+- **Modo escuro entrou JUNTO com os tokens**, seguindo o sistema
+  (`themeMode: ThemeMode.system`). Uma chave visível para o usuário é a U-12, não este
+  item. O único desvio da tabela de tokens do registro: no escuro o indigo da marca clareia
+  para `#818CF8` — `#4F46E5` sobre `#111827` mede 2,3:1 e deixaria todo rótulo acentuado
+  ilegível. Mesma matiz, tom legível.
+- **`ColorScheme` escrito à mão**, nunca `fromSeed`: semear a partir do indigo tinge todos
+  os cinzas e destrói a neutralidade que a identidade compra.
+- **Cor nunca é o único vetor.** Cada slot do calendário carrega uma textura
+  (`SlotPattern`) além da matiz — os quatro slots ativos do web continuam coloridos
+  (paridade), e com a textura o grid é legível sem visão de cores nenhuma. O dia
+  **trocado** voltou à convenção do web (âmbar + borda tracejada), o que libera o rosa
+  `#E11D48` para voltar a ser um papel.
+- **Tipografia Inter** (SIL OFL, de `google/fonts`), instanciada nos quatro pesos estáticos
+  da escala e subsetada para o range `latin` — 438 glifos, ~57 KB cada, ~96 KB gzip no
+  conjunto. Regenerável por `tool/subset_inter.py`. O PDF continua com Roboto: relatório é
+  peça quase probatória e uma fonte completa não imprime tofu para um nome incomum.
+
 ## Versionamento
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.2.28+30` (T-53 lote 5 PR4 — Play Billing no cliente) |
+| `apps/entrelares_app` | `0.2.29+31` (U-27 PR1 — tokens, tema claro/escuro e o gate de literais) |
 
 Trilha do estágio 3: `0.2.0+2` abertura de flavors → `0.2.1+3` T-55 → `0.2.2+4`…`0.2.4+6`
 lote 1 → `0.2.5+7`…`0.2.8+10` lote 2 → `0.2.9+11`…`0.2.13+15` lote 3 →
 `0.2.14+16`…`0.2.19+21` lote 4 → `0.2.20+22`…`0.2.24+26` lote 6 →
 `0.2.25+27`…`0.2.28+30` lote 5. **Os seis lotes estão entregues** — o app está
-funcionalmente completo e o próximo passo é o cutover do estágio 4.
+funcionalmente completo. Depois deles, a fundação visual do cutover: `0.2.29+31` U-27 PR1.
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 

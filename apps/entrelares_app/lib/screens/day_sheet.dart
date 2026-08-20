@@ -1,11 +1,11 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 
 import '../models/care_schedule.dart';
 import '../models/member.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
-import 'calendar_screen.dart' show slotColors;
 
 /// What the sheet did — the caller picks the toast, mirroring the web's four
 /// success paths (`toastSaved` · `toastDayCleared` · `toastSwapRequested` ·
@@ -453,14 +453,14 @@ class _DaySheetState extends State<_DaySheet> {
 
   Widget _memberChip(int id, String label, {required bool selected,
       required ValueChanged<int>? onSelected}) {
+    final slot =
+        context.tokens.slot(profileSlotIndex(id, widget.memberViews));
     return ChoiceChip(
       avatar: CircleAvatar(
-        backgroundColor:
-            slotColors[profileSlotIndex(id, widget.memberViews)] ??
-                slotColors[0],
+        backgroundColor: slot.tone.solid,
         child: Text(
           displayInitials(id, widget.memberViews),
-          style: const TextStyle(fontSize: 10, color: Colors.white),
+          style: TextStyle(fontSize: 10, color: slot.tone.onSolid),
         ),
       ),
       label: Text(label),
@@ -469,10 +469,9 @@ class _DaySheetState extends State<_DaySheet> {
     );
   }
 
-  Widget _banner(String text,
-      {Color bg = const Color(0xFFFEF3C7),
-      Color border = const Color(0xFFFDE68A),
-      Color fg = const Color(0xFF92400E)}) {
+  Widget _banner(String text, {ToneColors? tone}) {
+    final t = tone ?? context.tokens.warning;
+    final (bg, border, fg) = (t.container, t.border, t.onContainer);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
@@ -566,9 +565,7 @@ class _DaySheetState extends State<_DaySheet> {
     final widgets = <Widget>[];
     if (widget.adminBypass && (_isPast || isApprovedSwapDay(assignment))) {
       widgets.add(_banner(l[K.editorAdminOverride],
-          bg: const Color(0xFFFEE2E2),
-          border: const Color(0xFFFECACA),
-          fg: const Color(0xFF991B1B)));
+          tone: context.tokens.danger));
       if (_beyondRetroReach) {
         widgets.add(_banner(
             widget.isPremium!
@@ -578,9 +575,7 @@ class _DaySheetState extends State<_DaySheet> {
                     widget.settings.overrideFreeDays,
                     widget.settings.overridePremiumMonths,
                   ]),
-            bg: const Color(0xFFFEE2E2),
-            border: const Color(0xFFFECACA),
-            fg: const Color(0xFF991B1B)));
+            tone: context.tokens.danger));
       }
     } else if (_isPast) {
       widgets.add(_banner(l[K.editorPastReadonly]));
@@ -749,16 +744,17 @@ class _DaySheetState extends State<_DaySheet> {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEE2E2),
-            border: Border.all(color: const Color(0xFFFECACA)),
-            borderRadius: BorderRadius.circular(8),
+            color: context.tokens.danger.container,
+            border: Border.all(color: context.tokens.danger.border),
+            borderRadius: BorderRadius.circular(Radii.md),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(l[K.editorAdminChangeWarning],
-                  style: const TextStyle(
-                      fontSize: 13, color: Color(0xFF991B1B))),
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: context.tokens.danger.onContainer)),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -794,16 +790,17 @@ class _DaySheetState extends State<_DaySheet> {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF3C7),
-            border: Border.all(color: const Color(0xFFFDE68A)),
-            borderRadius: BorderRadius.circular(8),
+            color: context.tokens.warning.container,
+            border: Border.all(color: context.tokens.warning.border),
+            borderRadius: BorderRadius.circular(Radii.md),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(l[K.editorRevertNotesQuestion],
-                  style: const TextStyle(
-                      fontSize: 13, color: Color(0xFF92400E))),
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: context.tokens.warning.onContainer)),
               const SizedBox(height: 8),
               for (final (labelKey, value) in [
                 (K.editorRevertNotesCurrent, _revertCurrentText),

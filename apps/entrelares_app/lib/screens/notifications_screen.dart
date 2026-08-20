@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 
 import '../models/app_notification.dart';
 import '../models/member.dart';
@@ -258,18 +259,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       );
 
   Widget _statusBadge(String text,
-          {Color bg = const Color(0xFFE5E7EB),
-          Color fg = const Color(0xFF374151),
-          String? semantics}) =>
+          {Color? bg, Color? fg, String? semantics}) =>
       Semantics(
         label: semantics,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
           decoration: BoxDecoration(
-            color: bg,
+            color: bg ?? context.tokens.neutral.container,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Text(text, style: TextStyle(fontSize: 11, color: fg)),
+          child: Text(text,
+              style: TextStyle(
+                  fontSize: 11,
+                  color: fg ?? context.tokens.neutral.onContainer)),
         ),
       );
 
@@ -278,18 +280,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: tag == SwapPriorityTag.overdue
-              ? const Color(0xFFFEE2E2)
-              : const Color(0xFFFEF3C7),
-          borderRadius: BorderRadius.circular(8),
+          color: (tag == SwapPriorityTag.overdue
+                  ? context.tokens.danger
+                  : context.tokens.warning)
+              .container,
+          borderRadius: BorderRadius.circular(Radii.md),
         ),
         child: Text(
           l[tag == SwapPriorityTag.overdue ? K.frozenOverdue : K.frozenUrgent],
           style: TextStyle(
-              fontSize: 12,
-              color: tag == SwapPriorityTag.overdue
-                  ? const Color(0xFF991B1B)
-                  : const Color(0xFF92400E)),
+              fontSize: TypeScale.label,
+              color: (tag == SwapPriorityTag.overdue
+                      ? context.tokens.danger
+                      : context.tokens.warning)
+                  .onContainer),
         ),
       );
 
@@ -334,8 +338,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Expanded(child: Text('📅 ${l.formatDate(req.scheduleDate)}')),
           _statusBadge(
             l[isRevert ? K.notifRevertPendingBadge : K.notifPendingBadge],
-            bg: isRevert ? const Color(0xFFEDE9FE) : const Color(0xFFFEF3C7),
-            fg: isRevert ? const Color(0xFF5B21B6) : const Color(0xFF92400E),
+            bg: (isRevert ? context.tokens.accent : context.tokens.warning)
+                .container,
+            fg: (isRevert ? context.tokens.accent : context.tokens.warning)
+                .onContainer,
           ),
         ],
       ),
@@ -363,7 +369,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text('⚠️ $error',
-              style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+              style: TextStyle(
+                  color: context.tokens.danger.onContainer,
+                  fontSize: TypeScale.label)),
         ),
       const SizedBox(height: 8),
       TextField(
@@ -483,12 +491,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   l[tag == SwapPriorityTag.overdue
                       ? K.notifTagOverdueShort
                       : K.notifTagUrgentShort],
-                  bg: tag == SwapPriorityTag.overdue
-                      ? const Color(0xFFFEE2E2)
-                      : const Color(0xFFFEF3C7),
-                  fg: tag == SwapPriorityTag.overdue
-                      ? const Color(0xFF991B1B)
-                      : const Color(0xFF92400E),
+                  bg: (tag == SwapPriorityTag.overdue
+                          ? context.tokens.danger
+                          : context.tokens.warning)
+                      .container,
+                  fg: (tag == SwapPriorityTag.overdue
+                          ? context.tokens.danger
+                          : context.tokens.warning)
+                      .onContainer,
                   semantics: l[K.notifResolvedStateTitle],
                 ),
               _statusBadge(
@@ -496,8 +506,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               // F-24: resolved by the 48h server cron.
               if (req.isAutoResolved)
                 _statusBadge(l[K.notifAutoBadge],
-                    bg: const Color(0xFFDBEAFE),
-                    fg: const Color(0xFF1E40AF),
+                    bg: context.tokens.info.container,
+                    fg: context.tokens.info.onContainer,
                     semantics: l[K.notifAutoBadgeTitle]),
             ],
           ),
@@ -523,8 +533,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text('⚠️ $error',
-                style:
-                    const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
+                style: TextStyle(
+                    color: context.tokens.danger.onContainer,
+                    fontSize: TypeScale.label)),
           ),
         const SizedBox(height: 8),
         OutlinedButton(
@@ -546,7 +557,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       () => widget.dataSource
                           .cancelSwap(req.id, allProfiles: _allProfiles)),
           style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFB91C1C)),
+              foregroundColor: context.tokens.danger.onContainer),
           child: acting
               ? const SizedBox(
                   width: 16,

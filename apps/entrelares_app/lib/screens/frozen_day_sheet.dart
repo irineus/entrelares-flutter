@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 
 import '../models/member.dart';
 import '../models/swap_request.dart';
@@ -196,7 +197,7 @@ class _FrozenDaySheetState extends State<_FrozenDaySheet> {
         return OutlinedButton(
           onPressed: _acting ? null : onPressed,
           style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFFB91C1C)),
+              foregroundColor: context.tokens.danger.onContainer),
           child: child,
         );
       }
@@ -233,19 +234,21 @@ class _FrozenDaySheetState extends State<_FrozenDaySheet> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: tag == SwapPriorityTag.overdue
-                        ? const Color(0xFFFEE2E2)
-                        : const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(8),
+                    color: (tag == SwapPriorityTag.overdue
+                            ? context.tokens.danger
+                            : context.tokens.warning)
+                        .container,
+                    borderRadius: BorderRadius.circular(Radii.md),
                   ),
                   child: Text(
                     l[tag == SwapPriorityTag.overdue
                         ? K.frozenOverdue
                         : K.frozenUrgent],
                     style: TextStyle(
-                        color: tag == SwapPriorityTag.overdue
-                            ? const Color(0xFF991B1B)
-                            : const Color(0xFF92400E)),
+                        color: (tag == SwapPriorityTag.overdue
+                                ? context.tokens.danger
+                                : context.tokens.warning)
+                            .onContainer),
                   ),
                 ),
               ],
@@ -272,7 +275,8 @@ class _FrozenDaySheetState extends State<_FrozenDaySheet> {
               if (_error != null) ...[
                 const SizedBox(height: 8),
                 Text('⚠️ $_error',
-                    style: const TextStyle(color: Color(0xFFB91C1C))),
+                    style: TextStyle(
+                        color: context.tokens.danger.onContainer)),
               ],
               const SizedBox(height: 12),
               if (iAmTarget) ...[

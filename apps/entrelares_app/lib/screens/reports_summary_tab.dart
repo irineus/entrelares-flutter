@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 
 import '../models/care_schedule.dart';
 import '../models/member.dart';
@@ -7,7 +8,6 @@ import '../models/role.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/rich_label.dart';
-import 'calendar_screen.dart' show slotColors;
 
 /// "Resumo do Período" — port of `ReportsSummary.razor`.
 ///
@@ -263,8 +263,8 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
   }
 
   Widget _statCard(CaregiverStat stat, Localization l) {
-    final slot = profileSlotIndex(stat.profileId, _views);
-    final color = slotColors[slot] ?? slotColors[0]!;
+    final color =
+        context.tokens.slot(profileSlotIndex(stat.profileId, _views)).tone.solid;
     final firstName = stat.name.split(' ').first;
 
     return Card(
@@ -348,18 +348,20 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
   Widget _errorBanner(Localization l) => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFFEE2E2),
-          borderRadius: BorderRadius.circular(8),
+          color: context.tokens.danger.container,
+          borderRadius: BorderRadius.circular(Radii.md),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('⚠️ ${l[K.repErrorTitle]}',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: Color(0xFF991B1B))),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: context.tokens.danger.onContainer)),
             const SizedBox(height: 4),
             Text(_errorMessage(l),
-                style: const TextStyle(color: Color(0xFF991B1B))),
+                style:
+                    TextStyle(color: context.tokens.danger.onContainer)),
           ],
         ),
       );

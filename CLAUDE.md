@@ -7,7 +7,10 @@ this repo is becoming the product app, built batch by batch per the parity map
 (`entrelares-app/docs/flutter-paridade.md`, order 1→2→3→4→6→5) behind the cutover plan
 (`entrelares-app/docs/flutter-cutover.md`). **All six batches are delivered — batch 5
 (premium/billing with the T-48 Play Billing redesign) closed on 20/08/2026**, so stage 3
-is functionally complete and the next step is the stage-4 cutover. The Blazor app is
+is functionally complete. What remains before the stage-4 cutover is **U-27**, the visual
+foundation (design tokens, the shared component set, skeletons) — deliberately done while
+zero users are on the Flutter app, because after the cutover every visual change is a
+change to a live product. The Blazor app is
 frozen (owner policy, 19/08/2026) and stays in production until that cutover.
 
 Authority chain: `entrelares-app/CLAUDE.md` holds the product invariants (language rules,
@@ -26,6 +29,7 @@ carries its own backlog.
 | Environment | Build flavors (stage 3): `dev` → project `buroanotfjcgvbfmacuh`, `prod` → production — both PUBLIC configs hardcoded in `env.dart`, selected at compile time via `appFlavor`. Every Android build requires `--flavor`; flavor-less targets (`flutter test`) fall back to dev by construction. The Supabase singleton initializes once per process, so environments are per build variant, NEVER a runtime switcher. |
 | Targets | Android **and web** (batch 6, tension 1: Flutter Web replaces the PWA). The web build is in `verify.yml`; the CHANNEL acceptance (first load on a mid-range Android over 4G) is the owner's measurement, still pending. |
 | Billing | **Two rails, decided by the BUILD** (T-48 redesign, lote 5). The web target sells through the Asaas rail (`billing.enabled`, live in production since 29/07/2026); Android sells through **Play Billing** behind its own switch `billing.store_enabled`, which is PUBLIC and starts `false`. While it is false — or the device has no store, or no product comes back — the store branch shows the **T-38 neutral note**, which is also the fail-closed default. The **store price is Play's** (the product carries it; `app_settings` prices rule the web rail only), and **the client never grants Premium**: the purchase token goes to `billing-store-verify`, which asks the Play Developer API, and the acknowledge to Play happens only after the server accepted. Product ids `premium_monthly`/`premium_annual` are pinned by test — renaming one orphans real purchases. Go-live is console work: `entrelares-app/supabase/README.md` §9-bis. |
+| Visual system | **U-27 (20/08/2026)**: `apps/entrelares_app/lib/theme/tokens.dart` is the ONE place a colour may be written — `no_color_literal_test` fails the build on a `Color(0x` anywhere else in `lib/`. Both themes are hand-written (never `ColorScheme.fromSeed`: seeding tints the greys with the brand indigo and kills the neutral identity), and **dark ships with the tokens**, following the system — a user-facing switch is U-12's. Colour is never the only vector: each calendar slot carries a `SlotPattern` texture too, and the swapped day is amber with a dashed border (web parity), which is what freed the rose `#E11D48` to be a role again. Type is **Inter**, four static weights subset to `latin` (~96 KB gzip), regenerable with `apps/entrelares_app/tool/subset_inter.py`; the PDF keeps Roboto on purpose (F-33). |
 | Analytics | T-37 via Umami Events API. The website id is PUBLIC and per environment: **dev is empty on purpose** (every call becomes a no-op, so QA never pollutes production statistics); prod carries the product's site. No PII ever — the sanitizer is a pure mirror with its own suite. |
 
 ## Product invariants that survive the rewrite (from the app repo)
@@ -64,6 +68,8 @@ carries its own backlog.
 ```
 cd packages/entrelares_core && fvm dart analyze --fatal-infos && fvm dart test
 cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
+# The two source gates live in that suite: no_literal_snack_test (catalog strings)
+# and no_color_literal_test (U-27 — colours only in lib/theme/tokens.dart).
 cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per-abi
 cd apps/entrelares_app && fvm flutter build web --release   # canal web (tensão 1)
 ```

@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 
 import '../models/account_log.dart';
 import '../models/activity_log.dart';
@@ -377,7 +378,7 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
         margin: const EdgeInsets.symmetric(vertical: 4),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF3F4F6),
+          color: context.tokens.slot(0).tone.container,
           borderRadius: BorderRadius.circular(6),
         ),
         child: Column(
@@ -503,9 +504,9 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
     required List<Widget> children,
   }) {
     final color = switch (badge) {
-      AuditBadge.created => const Color(0xFF16A34A),
-      AuditBadge.deleted => const Color(0xFFDC2626),
-      AuditBadge.updated => const Color(0xFF2563EB),
+      AuditBadge.created => context.tokens.success.solid,
+      AuditBadge.deleted => context.tokens.danger.solid,
+      AuditBadge.updated => context.tokens.info.solid,
     };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -551,14 +552,16 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
             if (from != null)
               TextSpan(
                 text: from,
-                style: const TextStyle(
-                    color: Color(0xFF991B1B),
+                style: TextStyle(
+                    color: context.tokens.danger.onContainer,
                     decoration: TextDecoration.lineThrough),
               ),
             if (from != null && to != null) const TextSpan(text: ' → '),
             if (to != null)
               TextSpan(
-                  text: to, style: const TextStyle(color: Color(0xFF166534))),
+                  text: to,
+                  style: TextStyle(
+                      color: context.tokens.success.onContainer)),
           ]),
           style: Theme.of(context).textTheme.bodySmall,
         ),
@@ -582,17 +585,20 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
   Widget _banner(String title, String message) => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFFEE2E2),
-          borderRadius: BorderRadius.circular(8),
+          color: context.tokens.danger.container,
+          borderRadius: BorderRadius.circular(Radii.md),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('⚠️ $title',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: Color(0xFF991B1B))),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: context.tokens.danger.onContainer)),
             const SizedBox(height: 4),
-            Text(message, style: const TextStyle(color: Color(0xFF991B1B))),
+            Text(message,
+                style:
+                    TextStyle(color: context.tokens.danger.onContainer)),
           ],
         ),
       );

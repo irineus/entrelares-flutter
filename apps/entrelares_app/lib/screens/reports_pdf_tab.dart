@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 import 'package:printing/printing.dart';
 
 import '../env.dart';
@@ -370,7 +371,8 @@ class _ReportsPdfTabState extends State<ReportsPdfTab> {
               if (_errorText != null) ...[
                 const SizedBox(height: 4),
                 Text('⚠️ $_errorText',
-                    style: const TextStyle(color: Color(0xFF991B1B))),
+                    style: TextStyle(
+                        color: context.tokens.danger.onContainer)),
               ],
               const SizedBox(height: 8),
               FilledButton(
@@ -463,10 +465,10 @@ class _ReportsPdfTabState extends State<ReportsPdfTab> {
   Widget _banner(String message) => Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: const Color(0xFFFEE2E2),
-          borderRadius: BorderRadius.circular(8),
+          color: context.tokens.danger.container,
+          borderRadius: BorderRadius.circular(Radii.md),
         ),
         child: Text('⚠️ $message',
-            style: const TextStyle(color: Color(0xFF991B1B))),
+            style: TextStyle(color: context.tokens.danger.onContainer)),
       );
 }

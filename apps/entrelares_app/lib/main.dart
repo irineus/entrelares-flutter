@@ -35,6 +35,7 @@ import 'services/session_gate.dart';
 import 'services/store_billing.dart';
 import 'services/sudo_service.dart';
 import 'services/supabase_custody_data_source.dart';
+import 'theme/app_theme.dart';
 import 'widgets/app_l10n.dart';
 import 'widgets/onboarding.dart';
 
@@ -642,11 +643,14 @@ class _EntrelaresAppState extends State<EntrelaresApp>
           locale: _l.isEnglish ? const Locale('en') : const Locale('pt', 'BR'),
           supportedLocales: const [Locale('pt', 'BR'), Locale('en')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
-          theme: ThemeData(
-            colorScheme:
-                ColorScheme.fromSeed(seedColor: const Color(0xFF4F46E5)),
-            useMaterial3: true,
-          ),
+          // U-27 — both themes are hand-written from the tokens, and dark
+          // ships WITH them: it is nearly free here and was nearly impossible
+          // against the 79 colour literals this delivery removed. Following
+          // the system is the whole feature for now; a user-facing switch is
+          // U-12's, not this item's.
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.system,
           routerConfig: _router,
         ),
       ),
