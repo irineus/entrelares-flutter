@@ -29,6 +29,10 @@ fvm flutter --version                                  # 3.44.7 (pinado)
 cd packages/entrelares_core && fvm dart test           # regras puras, sem emulador
 cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
 cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per-abi
+# Preview do alvo web em 127.0.0.1:8080 — é o caminho mais rápido para conferir a
+# camada visual (U-27), inclusive o tema escuro pelo prefers-color-scheme do
+# navegador. Mesmo comando que `.claude/launch.json` roda.
+cd apps/entrelares_app && fvm flutter run -d web-server --web-port 8080
 # E2E (lote 3): app real em emulador contra o projeto dev — exige a service_role key
 cd apps/entrelares_app && fvm flutter test integration_test/swap_workflow_test.dart \
   --flavor dev --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
