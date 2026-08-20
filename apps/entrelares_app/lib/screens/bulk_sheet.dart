@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import '../theme/tokens.dart';
 
 import '../models/care_schedule.dart';
@@ -564,11 +565,10 @@ class _BulkSheetState extends State<_BulkSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                l.format(count == 1 ? K.bulkTitleOne : K.bulkTitleMany, [count]),
-                style: Theme.of(context).textTheme.titleMedium,
+              AppSheetHeader(
+                title: l.format(
+                    count == 1 ? K.bulkTitleOne : K.bulkTitleMany, [count]),
               ),
-              const SizedBox(height: 12),
               if (_showDeleteAllConfirm)
                 _confirmBox(
                   l[K.bulkDeleteAllWarning],
@@ -735,7 +735,11 @@ class _BulkSheetState extends State<_BulkSheet> {
                     ),
                   ],
                 ),
-                TextField(
+                // U-27: the note had only a placeholder, which disappears the
+                // moment someone types — the label is the accessible name.
+                AppTextField(
+                  label: l[K.editorDayNote],
+                  hint: l[K.bulkNotePlaceholder],
                   controller: _notes,
                   maxLength: 100,
                   enabled: fieldsEnabled,
@@ -744,28 +748,19 @@ class _BulkSheetState extends State<_BulkSheet> {
                       setState(() => _clearNotes = false);
                     }
                   },
-                  decoration: InputDecoration(
-                    hintText: l[K.bulkNotePlaceholder],
-                    border: const OutlineInputBorder(),
-                    counterText: '',
-                  ),
                 ),
                 const SizedBox(height: 16),
 
                 // ── F-44: shown only when the batch can open swap/revert
                 //    requests; one message rides every request it creates ──
                 if (_actualParentId != 0 || _clearActual) ...[
-                  TextField(
+                  AppTextField(
+                    label:
+                        '${l[K.editorMessageLabel]} ${l[K.bulkMessageHint]}',
+                    hint: l[K.bulkMessagePlaceholder],
                     controller: _swapMessage,
                     maxLength: 200,
                     enabled: fieldsEnabled,
-                    decoration: InputDecoration(
-                      labelText:
-                          '${l[K.editorMessageLabel]} ${l[K.bulkMessageHint]}',
-                      hintText: l[K.bulkMessagePlaceholder],
-                      border: const OutlineInputBorder(),
-                      counterText: '',
-                    ),
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -860,7 +855,7 @@ class _BulkSheetState extends State<_BulkSheet> {
     final l = AppL10n.of(context).l;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(Spacing.sm + Spacing.xs),
       decoration: BoxDecoration(
         color: context.tokens.danger.container,
         border: Border.all(color: context.tokens.danger.border),
@@ -872,16 +867,14 @@ class _BulkSheetState extends State<_BulkSheet> {
           Text(warning,
               style: TextStyle(
                   fontSize: 13, color: context.tokens.danger.onContainer)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              FilledButton(
-                  onPressed: _saving ? null : onYes, child: Text(yesLabel)),
-              const SizedBox(width: 8),
-              OutlinedButton(
-                  onPressed: _saving ? null : onNo,
-                  child: Text(l[K.editorNoGoBack])),
-            ],
+          const SizedBox(height: Spacing.sm),
+          AppActionPair(
+            primaryLabel: yesLabel,
+            destructive: true,
+            busy: _saving,
+            onPrimary: onYes,
+            secondaryLabel: l[K.editorNoGoBack],
+            onSecondary: onNo,
           ),
         ],
       ),

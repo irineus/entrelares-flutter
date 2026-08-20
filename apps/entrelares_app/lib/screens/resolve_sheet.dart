@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 
 import '../models/care_schedule.dart';
 import '../models/member.dart';
@@ -230,25 +231,18 @@ class _ResolveSheetState extends State<_ResolveSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(l[K.wfTitle],
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 12),
+              AppSheetHeader(title: l[K.wfTitle]),
 
               if (pendingForMe.isNotEmpty) ...[
                 Text(l.format(K.wfAwaitingYou, [pendingForMe.length]),
                     style: Theme.of(context).textTheme.labelLarge),
                 const SizedBox(height: 8),
-                TextField(
+                AppTextField(
+                  label: '${l[K.wfMessage]} ${l[K.wfRejectHint]}',
+                  hint: l[K.wfRejectPlaceholder],
                   controller: _rejectReason,
                   maxLength: 200,
                   enabled: !_acting,
-                  decoration: InputDecoration(
-                    labelText: '${l[K.wfMessage]} ${l[K.wfRejectHint]}',
-                    hintText: l[K.wfRejectPlaceholder],
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                    counterText: '',
-                  ),
                 ),
                 const SizedBox(height: 8),
                 Row(

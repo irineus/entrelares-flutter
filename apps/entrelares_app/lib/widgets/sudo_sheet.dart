@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import 'ui/ui.dart';
 
 import '../services/sudo_service.dart';
 import 'app_l10n.dart';
@@ -120,20 +121,17 @@ class _SudoSheetState extends State<_SudoSheet> {
             Text(l[K.sudoHint],
                 style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 16),
-            TextField(
+            AppTextField(
+              label: l[K.sudoCurrentPassword],
               controller: _controller,
               autofocus: true,
               obscureText: _obscured,
               enabled: !_busy && !cooling,
-              decoration: InputDecoration(
-                labelText: l[K.sudoCurrentPassword],
-                border: const OutlineInputBorder(),
-                errorText: _error,
-                suffixIcon: IconButton(
-                  icon: Icon(
-                      _obscured ? Icons.visibility : Icons.visibility_off),
-                  onPressed: () => setState(() => _obscured = !_obscured),
-                ),
+              errorText: _error,
+              suffixIcon: IconButton(
+                icon:
+                    Icon(_obscured ? Icons.visibility : Icons.visibility_off),
+                onPressed: () => setState(() => _obscured = !_obscured),
               ),
               onChanged: (_) => setState(() {}),
               onSubmitted: canSubmit ? (_) => _confirm(l) : null,

@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 
 import '../models/family.dart';
 import '../models/role.dart';
@@ -283,14 +284,12 @@ class _CustomRolesScreenState extends State<CustomRolesScreen> {
         Text(l[editing ? KApp.rolesEditTitle : KApp.rolesCreateTitle],
             style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 12),
-        TextField(
+        AppTextField(
+          label: l[K.rolesNameLabel],
+          hint: l[K.rolesNamePlaceholder],
           controller: _label,
           maxLength: CustomRoleRules.maxLabelLength,
-          decoration: InputDecoration(
-            labelText: l[K.rolesNameLabel],
-            hintText: l[K.rolesNamePlaceholder],
-            errorText: _formError,
-          ),
+          errorText: _formError,
           onChanged: (_) {
             if (_formError != null) setState(() => _formError = null);
           },

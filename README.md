@@ -247,6 +247,13 @@ regras e ~0% do visual — por um sistema de tokens. O que ela estabelece:
   (paridade), e com a textura o grid é legível sem visão de cores nenhuma. O dia
   **trocado** voltou à convenção do web (âmbar + borda tracejada), o que libera o rosa
   `#E11D48` para voltar a ser um papel.
+- **Onze componentes compartilhados** em `lib/widgets/ui/` (barril `ui.dart`): cabeçalho de
+  seção, cartão, badge, estado vazio, linha rótulo/valor, cabeçalho de folha, par de ações,
+  banner, campo de texto, segmentado e avatar. Cada um substituiu de três a seis cópias que
+  já tinham divergido entre telas. Duas convenções ficam gravadas neles: **o par de ações
+  põe a confirmação PRIMEIRO** (ordem do Blazor — quem chega no cutover tem essa memória
+  muscular) e **todo campo tem rótulo permanente**, que é como a WCAG 1.4.11 é satisfeita
+  sem engrossar a borda.
 - **Tipografia Inter** (SIL OFL, de `google/fonts`), instanciada nos quatro pesos estáticos
   da escala e subsetada para o range `latin` — 438 glifos, ~57 KB cada, ~96 KB gzip no
   conjunto. Regenerável por `tool/subset_inter.py`. O PDF continua com Roboto: relatório é
@@ -256,13 +263,13 @@ regras e ~0% do visual — por um sistema de tokens. O que ela estabelece:
 
 | Componente | Versão atual |
 |---|---|
-| `apps/entrelares_app` | `0.2.29+31` (U-27 PR1 — tokens, tema claro/escuro e o gate de literais) |
+| `apps/entrelares_app` | `0.2.30+32` (U-27 PR2 — os onze componentes compartilhados) |
 
 Trilha do estágio 3: `0.2.0+2` abertura de flavors → `0.2.1+3` T-55 → `0.2.2+4`…`0.2.4+6`
 lote 1 → `0.2.5+7`…`0.2.8+10` lote 2 → `0.2.9+11`…`0.2.13+15` lote 3 →
 `0.2.14+16`…`0.2.19+21` lote 4 → `0.2.20+22`…`0.2.24+26` lote 6 →
 `0.2.25+27`…`0.2.28+30` lote 5. **Os seis lotes estão entregues** — o app está
-funcionalmente completo. Depois deles, a fundação visual do cutover: `0.2.29+31` U-27 PR1.
+funcionalmente completo. Depois deles, a fundação visual do cutover: `0.2.29+31`…`0.2.30+32` U-27.
 
 Regra herdada do produto: bump em toda mudança funcional entregue ao owner.
 

@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import 'package:flutter/services.dart';
 
 import '../models/care_schedule.dart';
@@ -208,11 +209,8 @@ class _WizardSheetState extends State<_WizardSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(l[K.wizTitle],
-                  style: Theme.of(context).textTheme.titleMedium),
-              Text(l[K.wizSubtitle],
-                  style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: 12),
+              AppSheetHeader(
+                  title: l[K.wizTitle], subtitle: l[K.wizSubtitle]),
               if (_errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),

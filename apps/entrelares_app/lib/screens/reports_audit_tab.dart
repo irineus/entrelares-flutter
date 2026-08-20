@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import '../theme/tokens.dart';
 
 import '../models/account_log.dart';
@@ -253,26 +254,19 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SegmentedButton<_AuditTab>(
-              showSelectedIcon: false,
-              segments: [
-                ButtonSegment(
-                    value: _AuditTab.recent, label: Text(l[K.auditTabRecent])),
-                ButtonSegment(
-                    value: _AuditTab.month, label: Text(l[K.repByMonth])),
-                ButtonSegment(
-                    value: _AuditTab.year, label: Text(l[K.repByYear])),
-                ButtonSegment(
-                    value: _AuditTab.account,
-                    label: Text(l[K.auditTabAccount])),
+            AppSegmented<_AuditTab>(
+              options: [
+                (value: _AuditTab.recent, label: l[K.auditTabRecent]),
+                (value: _AuditTab.month, label: l[K.repByMonth]),
+                (value: _AuditTab.year, label: l[K.repByYear]),
+                (value: _AuditTab.account, label: l[K.auditTabAccount]),
               ],
-              selected: {_tab},
-              onSelectionChanged: _loading
-                  ? null
-                  : (s) {
-                      setState(() => _tab = s.first);
-                      _load();
-                    },
+              selected: _tab,
+              enabled: !_loading,
+              onChanged: (v) {
+                setState(() => _tab = v);
+                _load();
+              },
             ),
             if (needsSelectors) ...[
               const SizedBox(height: 8),
@@ -567,39 +561,13 @@ class _ReportsAuditTabState extends State<ReportsAuditTab> {
         ),
       );
 
-  Widget _emptyState(String icon, String title, String body) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Column(
-          children: [
-            Text(icon, style: const TextStyle(fontSize: 40)),
-            const SizedBox(height: 8),
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 4),
-            Text(body,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall),
-          ],
-        ),
-      );
+  Widget _emptyState(String icon, String title, String body) =>
+      AppEmptyState(icon: icon, title: title, body: body);
 
-  Widget _banner(String title, String message) => Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: context.tokens.danger.container,
-          borderRadius: BorderRadius.circular(Radii.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('⚠️ $title',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: context.tokens.danger.onContainer)),
-            const SizedBox(height: 4),
-            Text(message,
-                style:
-                    TextStyle(color: context.tokens.danger.onContainer)),
-          ],
-        ),
+  Widget _banner(String title, String message) => AppBanner(
+        tone: context.tokens.danger,
+        leading: '⚠️',
+        title: title,
+        message: message,
       );
 }

@@ -1,5 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
+import '../widgets/ui/ui.dart';
 import '../theme/tokens.dart';
 
 import '../models/app_notification.dart';
@@ -187,21 +188,19 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: SegmentedButton<_Tab>(
-              segments: [
-                ButtonSegment(
+            child: AppSegmented<_Tab>(
+              options: [
+                (
                   value: _Tab.incoming,
-                  label: Text(_incoming.isEmpty
+                  label: _incoming.isEmpty
                       ? l[K.notifTabIncoming]
-                      : '${l[K.notifTabIncoming]} (${_incoming.length})'),
+                      : '${l[K.notifTabIncoming]} (${_incoming.length})'
                 ),
-                ButtonSegment(
-                    value: _Tab.sent, label: Text(l[K.notifTabSent])),
-                ButtonSegment(
-                    value: _Tab.history, label: Text(l[K.notifTabHistory])),
+                (value: _Tab.sent, label: l[K.notifTabSent]),
+                (value: _Tab.history, label: l[K.notifTabHistory]),
               ],
-              selected: {_tab},
-              onSelectionChanged: (s) => setState(() => _tab = s.first),
+              selected: _tab,
+              onChanged: (v) => setState(() => _tab = v),
             ),
           ),
           Expanded(
@@ -232,75 +231,42 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  // Still a ListView: the empty tab has to stay pull-to-refreshable, which is
+  // the one thing the shared component cannot know about.
   Widget _empty(String icon, String textKey, Localization l) => ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          const SizedBox(height: 48),
-          Center(child: Text(icon, style: const TextStyle(fontSize: 40))),
-          const SizedBox(height: 8),
-          Center(child: Text(l[textKey])),
+          const SizedBox(height: Spacing.md),
+          AppEmptyState(icon: icon, title: l[textKey]),
         ],
       );
 
-  Widget _infoRow(String label, String value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-                child: Text(label,
-                    style: Theme.of(context).textTheme.bodySmall)),
-            Expanded(
-              flex: 2,
-              child: Text(value, textAlign: TextAlign.end),
-            ),
-          ],
+  Widget _infoRow(String label, String value) =>
+      AppListRow(label: label, value: value);
+
+  Widget _statusBadge(String text, {ToneColors? tone, String? semantics}) =>
+      AppBadge(
+        text: text,
+        tone: tone ?? context.tokens.neutral,
+        semantics: semantics,
+      );
+
+  Widget _tagBanner(SwapPriorityTag tag, Localization l) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+        child: AppBanner(
+          tone: tag == SwapPriorityTag.overdue
+              ? context.tokens.danger
+              : context.tokens.warning,
+          bordered: false,
+          message: l[
+              tag == SwapPriorityTag.overdue ? K.frozenOverdue : K.frozenUrgent],
         ),
       );
 
-  Widget _statusBadge(String text,
-          {Color? bg, Color? fg, String? semantics}) =>
-      Semantics(
-        label: semantics,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: bg ?? context.tokens.neutral.container,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(text,
-              style: TextStyle(
-                  fontSize: 11,
-                  color: fg ?? context.tokens.neutral.onContainer)),
-        ),
-      );
-
-  Widget _tagBanner(SwapPriorityTag tag, Localization l) => Container(
-        width: double.infinity,
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: (tag == SwapPriorityTag.overdue
-                  ? context.tokens.danger
-                  : context.tokens.warning)
-              .container,
-          borderRadius: BorderRadius.circular(Radii.md),
-        ),
-        child: Text(
-          l[tag == SwapPriorityTag.overdue ? K.frozenOverdue : K.frozenUrgent],
-          style: TextStyle(
-              fontSize: TypeScale.label,
-              color: (tag == SwapPriorityTag.overdue
-                      ? context.tokens.danger
-                      : context.tokens.warning)
-                  .onContainer),
-        ),
-      );
-
-  Widget _card({required List<Widget> children}) => Card(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
+  Widget _card({required List<Widget> children}) => Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Spacing.sm + Spacing.xs, vertical: Spacing.sm - 2),
+        child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: children,
@@ -338,10 +304,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Expanded(child: Text('📅 ${l.formatDate(req.scheduleDate)}')),
           _statusBadge(
             l[isRevert ? K.notifRevertPendingBadge : K.notifPendingBadge],
-            bg: (isRevert ? context.tokens.accent : context.tokens.warning)
-                .container,
-            fg: (isRevert ? context.tokens.accent : context.tokens.warning)
-                .onContainer,
+            tone:
+                isRevert ? context.tokens.accent : context.tokens.warning,
           ),
         ],
       ),
@@ -374,16 +338,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   fontSize: TypeScale.label)),
         ),
       const SizedBox(height: 8),
-      TextField(
+      // U-27: a placeholder-only field has no accessible name once it has
+      // text in it — the label is permanent, the placeholder stays a hint.
+      AppTextField(
+        label: l[K.wfMessage],
+        hint: l[K.notifNotePlaceholder],
         controller: _noteFor(req.id),
         maxLength: 200,
         enabled: !acting,
-        decoration: InputDecoration(
-          hintText: l[K.notifNotePlaceholder],
-          border: const OutlineInputBorder(),
-          isDense: true,
-          counterText: '',
-        ),
       ),
       const SizedBox(height: 8),
       Row(
@@ -491,14 +453,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   l[tag == SwapPriorityTag.overdue
                       ? K.notifTagOverdueShort
                       : K.notifTagUrgentShort],
-                  bg: (tag == SwapPriorityTag.overdue
-                          ? context.tokens.danger
-                          : context.tokens.warning)
-                      .container,
-                  fg: (tag == SwapPriorityTag.overdue
-                          ? context.tokens.danger
-                          : context.tokens.warning)
-                      .onContainer,
+                  tone: tag == SwapPriorityTag.overdue
+                      ? context.tokens.danger
+                      : context.tokens.warning,
                   semantics: l[K.notifResolvedStateTitle],
                 ),
               _statusBadge(
@@ -506,8 +463,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               // F-24: resolved by the 48h server cron.
               if (req.isAutoResolved)
                 _statusBadge(l[K.notifAutoBadge],
-                    bg: context.tokens.info.container,
-                    fg: context.tokens.info.onContainer,
+                    tone: context.tokens.info,
                     semantics: l[K.notifAutoBadgeTitle]),
             ],
           ),
