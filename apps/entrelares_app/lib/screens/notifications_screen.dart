@@ -8,6 +8,7 @@ import '../models/member.dart';
 import '../models/swap_request.dart';
 import '../services/custody_data_source.dart';
 import '../services/notification_badge.dart';
+import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
 
@@ -183,7 +184,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget build(BuildContext context) {
     final l = AppL10n.of(context).l;
     return Scaffold(
-      appBar: AppBar(title: Text(l[K.notifPageTitle])),
+      appBar: AppBar(
+          title: Text(l[K.notifPageTitle]),
+          actions: const [AppAccountButton()]),
       body: Column(
         children: [
           Padding(

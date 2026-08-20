@@ -57,7 +57,6 @@ Future<void> pumpCalendar(
       home: CalendarScreen(
         dataSource: ds,
         adminMode: AdminMode(),
-        onSignOut: () async {},
         onboarding: onboarding ?? OnboardingService(ds),
         tourKeys: tourKeys,
         onOpenFamily: onOpenFamily,
@@ -340,8 +339,7 @@ void main() {
         home: CalendarScreen(
           dataSource: ds,
           adminMode: AdminMode(),
-          onSignOut: () async {},
-          onboarding: OnboardingService(ds),
+            onboarding: OnboardingService(ds),
         ),
       ),
     ));

@@ -20,6 +20,7 @@ import '../env.dart';
 import '../services/custody_data_source.dart';
 import '../services/store_billing.dart';
 import '../services/sudo_service.dart';
+import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
 import '../widgets/rich_label.dart';
@@ -442,7 +443,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
     final l = AppL10n.of(context).l;
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text(l[K.famHeading])),
+        appBar: AppBar(
+            title: Text(l[K.famHeading]),
+            actions: const [AppAccountButton()]),
         // U-27: the word "Carregando" said nothing about what was coming; the
         // skeleton outlines the carer cards that are.
         body: AppSkeletonList(semanticsLabel: l[K.famLoading]),
@@ -450,7 +453,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
     }
     if (_loadErrorKey != null) {
       return Scaffold(
-        appBar: AppBar(title: Text(l[K.famHeading])),
+        appBar: AppBar(
+            title: Text(l[K.famHeading]),
+            actions: const [AppAccountButton()]),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -465,7 +470,9 @@ class _FamilyScreenState extends State<FamilyScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(l[K.famHeading])),
+      appBar: AppBar(
+            title: Text(l[K.famHeading]),
+            actions: const [AppAccountButton()]),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(

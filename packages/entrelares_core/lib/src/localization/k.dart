@@ -117,6 +117,11 @@ abstract final class K {
   static const String navNotificationsManyPending = 'nav.notificationsManyPending';
   static const String navReports = 'nav.reports';
   static const String navLogout = 'nav.logout';
+  /// U-28: the account button that carries Perfil / Idioma / Sair on every tab.
+  /// Logout used to exist only on the calendar's app bar, so three of the four
+  /// tabs had no way out of the app at all.
+  static const String navAccount = 'nav.account';
+  static const String navProfile = 'nav.profile';
   static const String navAdmin = 'nav.admin';
   static const String navAdminEnter = 'nav.adminEnter';
   static const String navAdminExit = 'nav.adminExit';
@@ -1152,6 +1157,8 @@ abstract final class K {
     navNotificationsManyPending,
     navReports,
     navLogout,
+    navAccount,
+    navProfile,
     navAdmin,
     navAdminEnter,
     navAdminExit,

@@ -787,7 +787,7 @@ Widget app(FakeCustodyDataSource ds,
         home: CalendarScreen(
             dataSource: ds,
             adminMode: adminMode ?? AdminMode(),
-            onSignOut: () async {}),
+            ),
       ),
     );
 
@@ -970,5 +970,62 @@ void main() {
     expect(find.text('Planned caregiver'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
     expect(find.textContaining('(swapped)'), findsOneWidget);
+  });
+
+  // ── U-28: the month bar ────────────────────────────────────────────────────
+
+  testWidgets('the month name sits above the grid, not in the app bar',
+      (tester) async {
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    final l = Localization(AppLanguage.ptBr);
+    final month = l.formatMonthYear(today.year, today.month);
+    expect(find.text(month), findsOneWidget);
+    // The app bar names the TAB now — five actions up there were what
+    // truncated the month to "agosto de..." for an admin.
+    expect(find.text(l[K.navCalendar]), findsOneWidget);
+    expect(
+        tester.getTopLeft(find.text(month)).dy >
+            tester.getTopLeft(find.text(l[K.navCalendar])).dy,
+        isTrue,
+        reason: 'the month must sit below the app bar, against its own grid');
+  });
+
+  testWidgets('the arrows step the month in both directions', (tester) async {
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    final l = Localization(AppLanguage.ptBr);
+    final next = DateTime(today.year, today.month + 1, 1);
+    final previous = DateTime(today.year, today.month - 1, 1);
+
+    await tester.tap(find.byIcon(Icons.chevron_right));
+    await tester.pumpAndSettle();
+    expect(find.text(l.formatMonthYear(next.year, next.month)), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.chevron_left));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.chevron_left));
+    await tester.pumpAndSettle();
+    expect(find.text(l.formatMonthYear(previous.year, previous.month)),
+        findsOneWidget);
+  });
+
+  testWidgets('the calendar app bar carries the account button and nothing else',
+      (tester) async {
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: []);
+    await tester.pumpWidget(app(ds));
+    await tester.pumpAndSettle();
+
+    // The language picker and the logout icon moved into the account menu;
+    // logout living only here is the defect U-28 closes.
+    expect(find.byIcon(Icons.language), findsNothing);
+    expect(find.byIcon(Icons.logout), findsNothing);
+    // The calendar's OWN actions stay with the calendar.
+    expect(find.byIcon(Icons.check_box_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.event_repeat), findsOneWidget);
   });
 }

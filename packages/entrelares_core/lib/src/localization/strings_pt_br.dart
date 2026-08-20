@@ -109,6 +109,8 @@ abstract final class StringsPtBr {
     K.navNotificationsManyPending: 'Notificações, {0} pendentes',
     K.navReports: 'Relatórios',
     K.navLogout: 'Sair',
+    K.navAccount: 'Conta',
+    K.navProfile: 'Perfil',
     K.navAdmin: 'Admin',
     K.navAdminEnter: 'Ativar modo administrador',
     K.navAdminExit: 'Sair do modo administrador',

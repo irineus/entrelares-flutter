@@ -15,6 +15,7 @@ import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../theme/slot_pattern.dart';
 import '../theme/tokens.dart';
+import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
 import '../widgets/today_card.dart';
@@ -26,15 +27,15 @@ import '../services/onboarding_service.dart';
 import '../widgets/onboarding.dart';
 import 'wizard_sheet.dart';
 
-/// U-27 — the F-27 slot palette now lives in [AppTokens.slots], with a
-/// [SlotPattern] alongside each hue and a dark set that did not exist before.
-/// "Trocado" is the web's amber with a DASHED border, which is also what frees
-/// the rose for a role again.
 /// U-28 — what one day of the grid is tall enough to hold: the day number, the
 /// carer's initial, and the handoff mark under it. The width follows from the
 /// screen; only the height is a design decision, so only the height is here.
 const double _dayCellHeight = 58;
 
+/// U-27 — the F-27 slot palette now lives in [AppTokens.slots], with a
+/// [SlotPattern] alongside each hue and a dark set that did not exist before.
+/// "Trocado" is the web's amber with a DASHED border, which is also what frees
+/// the rose for a role again.
 SlotColors _slotOf(BuildContext context, DayPaint paint) => switch (paint) {
       DaySwapped() => context.tokens.swapped,
       DaySlot(slot: final s) => context.tokens.slot(s),
@@ -47,7 +48,6 @@ class CalendarScreen extends StatefulWidget {
   /// T-37 — optional, and only passed through to the wizard.
   final AnalyticsService? analytics;
   final AdminMode adminMode;
-  final Future<void> Function() onSignOut;
 
   /// U-23 — the first-run surfaces. Null in tests that do not exercise them
   /// (and in any host that has no tour targets to offer).
@@ -61,7 +61,6 @@ class CalendarScreen extends StatefulWidget {
       {super.key,
       required this.dataSource,
       required this.adminMode,
-      required this.onSignOut,
       this.onboarding,
       this.tourKeys,
       this.analytics,
@@ -268,6 +267,9 @@ class _CalendarScreenState extends State<CalendarScreen>
         _loading = false;
         _loadError = null;
       });
+      // U-28: the account button in every tab's app bar wears this.
+      AccountScope.identityOf(context)?.adopt(
+          fullName: ownProfile?.fullName, colorSlot: ownProfile?.colorSlot);
       unawaited(_refreshOnboarding(ownProfile, members));
     } catch (e) {
       if (!mounted) return;
@@ -671,17 +673,40 @@ class _CalendarScreenState extends State<CalendarScreen>
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final app = AppL10n.of(context);
-    final l = app.l;
-    final views = _memberViews;
-    final title =
-        l.formatMonthYear(_visibleMonth.year, _visibleMonth.month);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
+  /// U-28 — the month, its two arrows and the calendar's own actions, sitting
+  /// directly above the grid they act on.
+  ///
+  /// Two things were wrong before. The month name lived in the app bar, four
+  /// icon buttons away from the calendar it names, and truncated to
+  /// "agosto de…" whenever the admin shield made a fifth. And month navigation
+  /// was swipe-ONLY — an improvement the owner asked for (18/08/2026), but one
+  /// that silently removed the web's explicit `<` `>`, leaving no visible way
+  /// to change month at all. The swipe stays; the arrows come back.
+  Widget _monthBar(BuildContext context, Localization l) {
+    final tokens = context.tokens;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Spacing.sm, Spacing.xs, Spacing.sm, 0),
+      child: Row(
+        children: [
+          IconButton(
+            tooltip: l[K.calPrevMonth],
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => _stepMonth(-1),
+          ),
+          Expanded(
+            child: Text(
+              l.formatMonthYear(_visibleMonth.year, _visibleMonth.month),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
+          IconButton(
+            tooltip: l[K.calNextMonth],
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => _stepMonth(1),
+          ),
           // U-11: the accessible entry point to bulk selection (mirrors the
           // long-press). Once armed, tapping a day toggles its selection.
           if (!_isSelectionMode)
@@ -698,46 +723,44 @@ class _CalendarScreenState extends State<CalendarScreen>
           ),
           // F-14: the explicit admin-mode toggle — mirror of the web's NavMenu
           // button. Only a real admin sees it; the shell shows the persistent
-          // banner while it is on.
+          // banner while it is on. It stays with the calendar and not in the
+          // account menu because what it unlocks is a day on THIS grid.
           if (_ownProfile?.isAdmin == true)
             IconButton(
               tooltip: l[widget.adminMode.isActive
                   ? K.navAdminExit
                   : K.navAdminEnter],
               icon: Icon(
-                widget.adminMode.isActive
-                    ? Icons.shield
-                    : Icons.shield_outlined,
-                color: widget.adminMode.isActive
-                    ? context.tokens.dangerBar
-                    : null,
+                widget.adminMode.isActive ? Icons.shield : Icons.shield_outlined,
+                color: widget.adminMode.isActive ? tokens.dangerBar : null,
               ),
               onPressed: widget.adminMode.toggle,
             ),
-          // U-13: the signed-in picker — a switch persists to the profile so
-          // the server-side senders follow (best-effort, in _setLanguage).
-          PopupMenuButton<AppLanguage>(
-            tooltip: l[K.languageAriaLabel],
-            icon: const Icon(Icons.language),
-            onSelected: app.setLanguage,
-            itemBuilder: (context) => [
-              for (final (language, label) in [
-                (AppLanguage.ptBr, l[K.languagePtBr]),
-                (AppLanguage.en, l[K.languageEn]),
-              ])
-                PopupMenuItem(
-                  value: language,
-                  enabled: l.current != language,
-                  child: Text(label),
-                ),
-            ],
-          ),
-          IconButton(
-            tooltip: l[K.navLogout],
-            icon: const Icon(Icons.logout),
-            onPressed: widget.onSignOut,
-          ),
         ],
+      ),
+    );
+  }
+
+  /// One month forward or back, on the same controller the swipe drives — so
+  /// the arrows and the gesture cannot disagree about where the calendar is.
+  void _stepMonth(int delta) {
+    final page = (_pageController.page ?? _basePage.toDouble()).round() + delta;
+    _pageController.animateToPage(page,
+        duration: Motion.sheet, curve: Motion.sheetCurve);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = AppL10n.of(context);
+    final l = app.l;
+    final views = _memberViews;
+    return Scaffold(
+      // U-28: the app bar names the TAB, like the other three do. The month
+      // moved down to sit against the grid it labels — up here, competing with
+      // five icon buttons, it truncated to "agosto de…" for any admin.
+      appBar: AppBar(
+        title: Text(l[K.navCalendar]),
+        actions: const [AppAccountButton()],
       ),
       body: Column(
         children: [
@@ -751,6 +774,7 @@ class _CalendarScreenState extends State<CalendarScreen>
             KeyedSubtree(
                 key: widget.tourKeys?.keyFor(TourTarget.todayCard),
                 child: _todayCard(context)),
+          _monthBar(context, l),
           KeyedSubtree(
             key: widget.tourKeys?.keyFor(TourTarget.calendarLegend),
             child: _Legend(members: _members, views: views),

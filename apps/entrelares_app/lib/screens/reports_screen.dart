@@ -2,6 +2,7 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 
 import '../services/custody_data_source.dart';
+import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import 'reports_audit_tab.dart';
 import 'reports_pdf_tab.dart';
@@ -28,6 +29,7 @@ class ReportsScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: Text(l[K.navReports]),
+          actions: const [AppAccountButton()],
           bottom: TabBar(
             tabs: [
               Tab(text: '📋 ${l[K.repTabSummary]}'),

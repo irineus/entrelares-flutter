@@ -109,6 +109,8 @@ abstract final class StringsEn {
     K.navNotificationsManyPending: 'Notifications, {0} pending',
     K.navReports: 'Reports',
     K.navLogout: 'Sign out',
+    K.navAccount: 'Account',
+    K.navProfile: 'Profile',
     K.navAdmin: 'Admin',
     K.navAdminEnter: 'Enter administrator mode',
     K.navAdminExit: 'Leave administrator mode',
