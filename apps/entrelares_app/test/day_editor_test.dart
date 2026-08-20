@@ -84,7 +84,12 @@ void main() {
     await tester.pumpAndSettle();
 
     await openDay(tester, future);
-    expect(find.text(pt[K.editorLockedHint]), findsOneWidget);
+    // U-28 QA: the explanation moved off the label and into an ⓘ tooltip, so
+    // it is a Tooltip's message now and not a line of text under the chips.
+    expect(
+        find.byWidgetPredicate(
+            (w) => w is Tooltip && w.message == pt[K.editorLockedHint]),
+        findsOneWidget);
     // Chip disabled — no effect.
     await tapSheet(tester, find.widgetWithText(ChoiceChip, 'Bruno').first);
     await tapSheet(tester, find.text(pt[K.commonSave]));

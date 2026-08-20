@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 
 import 'app_l10n.dart';
+import 'ui/ui.dart';
 import 'rich_label.dart';
 
 
@@ -104,10 +105,8 @@ Future<OnboardingAction?> showOnboardingChecklist({
   required BuildContext context,
   required OnboardingSignals signals,
 }) =>
-    showModalBottomSheet<OnboardingAction>(
+    showAppSheet<OnboardingAction>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (context) {
         final l = AppL10n.of(context).l;
         final theme = Theme.of(context);
@@ -195,10 +194,8 @@ class _StepTile extends StatelessWidget {
 /// "Como funciona a troca" — four ideas that explain the whole app. Opening it
 /// IS completing step 3, and the caller stamps that before this renders.
 Future<void> showHowSwapsWork(BuildContext context) =>
-    showModalBottomSheet<void>(
+    showAppSheet<void>(
       context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
       builder: (context) {
         final l = AppL10n.of(context).l;
         final theme = Theme.of(context);

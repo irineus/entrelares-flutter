@@ -120,6 +120,25 @@ abstract final class K {
   /// U-28: the account button that carries Perfil / Idioma / Sair on every tab.
   /// Logout used to exist only on the calendar's app bar, so three of the four
   /// tabs had no way out of the app at all.
+  /// U-28 QA — the one word the app uses to mark a field as optional.
+  ///
+  /// Required is the default and goes UNMARKED: most fields in this product are
+  /// required, so marking those would put a badge on nearly every row. The
+  /// explanations that used to ride in parentheses after a label moved into an
+  /// [AppInfoTip], which is why the hint strings below lost their brackets.
+  static const String commonOptional = 'common.optional';
+
+  /// U-28 QA — the two halves of a handoff time. They exist because the pickers
+  /// became real form fields with integrated labels: a bare "19" and "00" side
+  /// by side say nothing about which is which.
+  /// U-28 QA — the wizard's block row became two real form fields, and a field
+  /// needs a label of its own: "Fernanda" and "7" side by side said nothing
+  /// about which was the carer and which the number of days.
+  static const String wizBlockParentLabel = 'wiz.blockParentLabel';
+
+  static const String editorHourLabel = 'editor.hourLabel';
+  static const String editorMinuteLabel = 'editor.minuteLabel';
+
   static const String navAccount = 'nav.account';
   static const String navProfile = 'nav.profile';
   static const String navAdmin = 'nav.admin';
@@ -225,7 +244,6 @@ abstract final class K {
   static const String editorHandoffHint = 'editor.handoffHint';
   static const String editorNoTransitionHint = 'editor.noTransitionHint';
   static const String editorMessageLabel = 'editor.messageLabel';
-  static const String editorOptional = 'editor.optional';
   static const String editorMessagePlaceholder = 'editor.messagePlaceholder';
   static const String editorWorkflowHint = 'editor.workflowHint';
   static const String editorAdminChangeWarning = 'editor.adminChangeWarning';
@@ -1163,6 +1181,10 @@ abstract final class K {
     navNotificationsManyPending,
     navReports,
     navLogout,
+    commonOptional,
+    wizBlockParentLabel,
+    editorHourLabel,
+    editorMinuteLabel,
     navAccount,
     navProfile,
     navAdmin,
@@ -1258,7 +1280,6 @@ abstract final class K {
     editorHandoffHint,
     editorNoTransitionHint,
     editorMessageLabel,
-    editorOptional,
     editorMessagePlaceholder,
     editorWorkflowHint,
     editorAdminChangeWarning,

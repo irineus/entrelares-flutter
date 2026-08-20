@@ -1,5 +1,10 @@
 /// U-27 — the components that carry STRUCTURE: what a section looks like, what
-/// a card looks like, what a label/value row looks like, how a sheet opens.
+/// a card looks like, what a label/value row looks like.
+///
+/// U-28 QA moved the sheet's own chrome out to `sheets.dart` and retired
+/// `AppSheetHeader` with it: a title that only ever appeared inside a sheet
+/// belongs to the sheet frame, and a second component drawing the same block
+/// would drift from it.
 ///
 /// None of these invents a look. They fix the one the app already had in six
 /// slightly different versions — `_sectionTitle` in Família, the same title
@@ -131,48 +136,6 @@ class AppListRow extends StatelessWidget {
             child: valueWidget ??
                 Text(value!, textAlign: TextAlign.end),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The title block of a bottom sheet. The drag handle itself is the theme's
-/// (`showDragHandle: true` plus `bottomSheetTheme`) — this is what goes under
-/// it, so every sheet in the app starts the same way.
-class AppSheetHeader extends StatelessWidget {
-  final String title;
-  final String? subtitle;
-  final Widget? trailing;
-
-  const AppSheetHeader({
-    super.key,
-    required this.title,
-    this.subtitle,
-    this.trailing,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: Spacing.md),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: textTheme.titleLarge),
-                if (subtitle != null) ...[
-                  const SizedBox(height: Spacing.xs),
-                  Text(subtitle!, style: textTheme.bodySmall),
-                ],
-              ],
-            ),
-          ),
-          ?trailing,
         ],
       ),
     );

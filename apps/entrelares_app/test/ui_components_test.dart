@@ -215,7 +215,6 @@ void main() {
           const AppEmptyState(icon: '📭', title: 'vazio', body: 'nada aqui'),
           const AppListRow(label: 'a', value: 'b'),
           const AppSectionHeader(title: 'Seção'),
-          const AppSheetHeader(title: 'Folha', subtitle: 'sub'),
           AppCard(title: 'Cartão', child: const Text('conteúdo')),
           const AppTextField(label: 'Campo'),
           AppActionPair(primaryLabel: 'ok', onPrimary: () {}),

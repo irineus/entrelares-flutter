@@ -30,10 +30,8 @@ Future<String?> showBulkSheet({
   Member? myProfile,
   List<Member> allProfiles = const [],
 }) {
-  return showModalBottomSheet<String>(
+  return showAppSheet<String>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => _BulkSheet(
       selectedDays: selectedDays,
       daysByIso: daysByIso,
@@ -552,23 +550,18 @@ class _BulkSheetState extends State<_BulkSheet> {
     final l = AppL10n.of(context).l;
     final count = widget.selectedDays.length;
     final fieldsEnabled = _scheduledParentId != 0 && !_saving;
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 8,
-          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppSheetHeader(
-                title: l.format(
-                    count == 1 ? K.bulkTitleOne : K.bulkTitleMany, [count]),
-              ),
+    // U-28 QA: same frame as every other sheet — capped height so a strip of
+    // calendar stays visible and tappable, and the action row pinned rather
+    // than sitting at the end of a long form.
+    final confirming = _showDeleteAllConfirm || _showOverwriteConfirm;
+    return AppSheetFrame(
+      title: l.format(count == 1 ? K.bulkTitleOne : K.bulkTitleMany, [count]),
+      primaryLabel: confirming ? null : l[K.commonSave],
+      onPrimary: _scheduledParentId == 0 ? null : _save,
+      secondaryLabel: confirming ? null : l[K.commonCancel],
+      onSecondary: () => Navigator.of(context).pop(),
+      busy: _saving,
+      children: [
               if (_showDeleteAllConfirm)
                 _confirmBox(
                   l[K.bulkDeleteAllWarning],
@@ -797,34 +790,9 @@ class _BulkSheetState extends State<_BulkSheet> {
                     onNo: () =>
                         setState(() => _showOverwriteConfirm = false),
                   )
-                else
-                  Row(
-                    children: [
-                      FilledButton(
-                        onPressed:
-                            _saving || _scheduledParentId == 0 ? null : _save,
-                        child: _saving
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2))
-                            : Text(l[K.commonSave]),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton(
-                        onPressed: _saving
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                        child: Text(l[K.commonCancel]),
-                      ),
-                    ],
-                  ),
+                ,
               ],
-            ],
-          ),
-        ),
-      ),
+      ],
     );
   }
 

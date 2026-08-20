@@ -970,7 +970,9 @@ void main() {
     await openDay(tester, day);
     expect(find.text('Planned caregiver'), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
-    expect(find.textContaining('(swapped)'), findsOneWidget);
+    // U-28 QA: the redundant "Responsável: X (swapped)" line is gone; the fact
+    // it carried now rides as a badge on the field that owns it.
+    expect(find.text('Swapped'), findsWidgets);
   });
 
   // ── U-28: the month bar ────────────────────────────────────────────────────

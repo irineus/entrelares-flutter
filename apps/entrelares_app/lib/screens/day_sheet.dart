@@ -42,10 +42,8 @@ Future<DaySheetOutcome?> showDaySheet({
   PublicSettings settings = PublicSettings.unloaded,
   Iterable<DateTime> frozenDates = const [],
 }) {
-  return showModalBottomSheet<DaySheetOutcome>(
+  return showAppSheet<DaySheetOutcome>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => _DaySheet(
       date: date,
       day: day,
@@ -493,40 +491,74 @@ class _DaySheetState extends State<_DaySheet> {
     final day = widget.day;
     final assignment = _assignment;
 
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 8,
-          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppSheetHeader(
-                title: '${formatHandoffDate(widget.date, l)} · '
-                    '${daysUntilLabel(widget.date, widget.today, l)}',
+    final banners = _guardBanners(l, assignment);
+    // U-28 QA: the day is READ-ONLY here, and the owner's review said the
+    // stripped-down version of this sheet is the best thing on the screen — so
+    // it keeps exactly what it had. The responsible line survives only in this
+    // branch: with the form on screen it repeats what "Agendado" and "Real"
+    // already say two lines below.
+    final readOnly = _saveBlocked;
+    return AppSheetFrame(
+      title: _capitalize('${formatHandoffDate(widget.date, l)} · '
+          '${daysUntilLabel(widget.date, widget.today, l)}'),
+      // A guard is the reason the sheet looks the way it does; it must not be
+      // something the reader can scroll past.
+      pinnedNotice: banners.isEmpty
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final b in banners)
+                  Padding(
+                      padding: const EdgeInsets.only(bottom: Spacing.xs),
+                      child: b),
+              ],
+            ),
+      primaryLabel: readOnly || _showAdminConfirm ? null : l[K.commonSave],
+      onPrimary: _scheduledParentId == null || _deleting || _beyondRetroReach
+          ? null
+          : _save,
+      secondaryLabel:
+          readOnly || _showAdminConfirm ? null : l[K.commonCancel],
+      onSecondary: () => Navigator.of(context).pop(),
+      busy: _saving,
+      extraAction: readOnly ||
+              _showAdminConfirm ||
+              widget.day == null ||
+              isClearDayBlocked(adminBypass: widget.adminBypass)
+          ? null
+          : OutlinedButton.icon(
+              onPressed: _saving || _deleting ? null : _clearDay,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: context.tokens.danger.onContainer,
+                side: BorderSide(color: context.tokens.danger.border),
               ),
-              _readView(l, day, assignment),
-              const SizedBox(height: 12),
-              ..._guardBanners(l, assignment),
-              if (!_saveBlocked) ..._form(l),
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(_error!,
-                      style:
-                          TextStyle(color: Theme.of(context).colorScheme.error)),
-                ),
-            ],
+              icon: _deleting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.delete_outline),
+              label: Text(l[K.editorClearDay]),
+            ),
+      children: [
+        if (readOnly) _readView(l, day, assignment),
+        if (!readOnly) ..._form(l),
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(top: Spacing.sm),
+            child: Text(_error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
-        ),
-      ),
+      ],
     );
   }
+
+  /// The sheet's title starts a sentence, so it starts with a capital: the
+  /// formatter returns "sáb, 22/08" because that is how a date reads INSIDE a
+  /// sentence, and this is not inside one.
+  String _capitalize(String text) =>
+      text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
 
   Widget _readView(
       Localization l, CareSchedule? day, DayAssignment? assignment) {
@@ -539,10 +571,15 @@ class _DaySheetState extends State<_DaySheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l.format(KApp.sheetResponsible, [
-              displayInitials(assignment.effectiveParentId, widget.memberViews)
-            ]) +
-            (isSwapped(assignment) ? l[KApp.sheetSwappedSuffix] : '')),
+        // U-28 QA defect: this printed the INITIAL ("Responsável: I"). An
+        // initial is what a 40 dp calendar cell can afford; a sheet has room
+        // for the name, and the name is what the reader came for.
+        Text(
+            l.format(KApp.sheetResponsible, [
+                  _nameOf(assignment.effectiveParentId)
+                ]) +
+                (isSwapped(assignment) ? l[KApp.sheetSwappedSuffix] : ''),
+            style: Theme.of(context).textTheme.titleSmall),
         if (isTransition)
           Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -558,6 +595,16 @@ class _DaySheetState extends State<_DaySheet> {
           ),
       ],
     );
+  }
+
+  /// The carer's name, or their initial as the last resort — a member the
+  /// client does not know (an old row, a departed profile) must not render an
+  /// empty label.
+  String _nameOf(int? id) {
+    for (final v in widget.memberViews) {
+      if (v.id == id) return v.fullName;
+    }
+    return id == null ? '' : displayInitials(id, widget.memberViews);
   }
 
   List<Widget> _guardBanners(Localization l, DayAssignment? assignment) {
@@ -590,9 +637,16 @@ class _DaySheetState extends State<_DaySheet> {
         _actualParentId == 0 ? null : _actualParentId);
     return [
       // ── Planned parent (S-09: locked on assigned days for non-admins) ──
-      Text(l[K.editorScheduledParent],
-          style: Theme.of(context).textTheme.labelLarge),
-      const SizedBox(height: 8),
+      //
+      // U-28 QA: each block of this form is a card now. Loose on the sheet they
+      // read as one long list of controls with no idea where one question ended
+      // and the next began.
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+      AppFieldLabel(l[K.editorScheduledParent],
+          info: _scheduledLocked ? l[K.editorLockedHint] : null),
       Wrap(
         spacing: 8,
         children: [
@@ -609,20 +663,28 @@ class _DaySheetState extends State<_DaySheet> {
                     : (id) => setState(() => _scheduledParentId = id)),
         ],
       ),
-      if (_scheduledLocked)
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(l[K.editorLockedHint],
-              style: Theme.of(context).textTheme.bodySmall),
+          ],
         ),
-      const SizedBox(height: 16),
+      ),
+      const SizedBox(height: Spacing.sm),
 
       // ── Actual parent — general since lote 3: changing it on today/future
       //    opens a swap request; the direct write survives only where the DB
       //    allows it (admin past-day correction, no-workflow saves) ──
-      Text(l[K.editorActualParent],
-          style: Theme.of(context).textTheme.labelLarge),
-      const SizedBox(height: 8),
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+      // U-28 QA: the redundant "Responsável: X" line went away, and with it the
+      // "(trocado)" suffix it carried. The FACT is not redundant, only the
+      // sentence was — so it rides here, on the label of the field that owns it.
+      AppFieldLabel(
+        l[K.editorActualParent],
+        trailing: isSwapped(_assignment)
+            ? AppBadge(
+                text: l[K.calSwapped], tone: context.tokens.swapped.tone)
+            : null,
+      ),
       Wrap(
         spacing: 8,
         children: [
@@ -648,52 +710,78 @@ class _DaySheetState extends State<_DaySheet> {
                   onSelected: (id) => setState(() => _actualParentId = id)),
         ],
       ),
-      const SizedBox(height: 16),
-
-      // ── Day note ──
-      AppTextField(
-        label: l[K.editorDayNote],
-        helper: l[K.editorDayNoteHint],
-        hint: l[K.editorDayNotePlaceholder],
-        controller: _notes,
-        maxLength: 100,
+          ],
+        ),
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: Spacing.sm),
 
-      // ── Handoff time (T-27: transition days only) ──
-      Text(l[K.editorHandoffTime],
-          style: Theme.of(context).textTheme.labelLarge),
-      Text(l[K.editorHandoffHint],
-          style: Theme.of(context).textTheme.bodySmall),
-      const SizedBox(height: 4),
+      AppCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+      // ── Day note ──
+      //
+      // U-28 QA: the explanation left the helper line for an ⓘ on the label.
+      // `AppTextField` keeps the integrated label, which the owner named as the
+      // best thing the port brought — so it stays a field, with a tip beside it.
       Row(
         children: [
-          DropdownButton<int>(
-            key: const Key('handoffHour'),
-            value: _handoffHour,
-            items: [
-              const DropdownMenuItem(value: -1, child: Text('--')),
-              for (var h = 0; h < 24; h++)
-                DropdownMenuItem(
-                    value: h, child: Text(h.toString().padLeft(2, '0'))),
-            ],
-            onChanged: (v) => setState(() => _handoffHour = v ?? -1),
+          Expanded(
+            child: AppTextField(
+              label: l[K.editorDayNote],
+              hint: l[K.editorDayNotePlaceholder],
+              controller: _notes,
+              maxLength: 100,
+            ),
+          ),
+          AppInfoTip(message: l[K.editorDayNoteHint]),
+        ],
+      ),
+      const SizedBox(height: Spacing.md),
+
+      // ── Handoff time (T-27: transition days only) ──
+      //
+      // The two pickers were bare `DropdownButton`s — an underline where every
+      // other field in the app has a border, which is what made this block look
+      // switched off. As form fields they get the same outline AND the same
+      // integrated label as the rest.
+      AppFieldLabel(l[K.editorHandoffTime],
+          info: l[K.editorHandoffHint], optionalLabel: l[K.commonOptional]),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: DropdownButtonFormField<int>(
+              key: const Key('handoffHour'),
+              initialValue: _handoffHour,
+              decoration: InputDecoration(labelText: l[K.editorHourLabel]),
+              items: [
+                const DropdownMenuItem(value: -1, child: Text('--')),
+                for (var h = 0; h < 24; h++)
+                  DropdownMenuItem(
+                      value: h, child: Text(h.toString().padLeft(2, '0'))),
+              ],
+              onChanged: (v) => setState(() => _handoffHour = v ?? -1),
+            ),
           ),
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 16),
             child: Text(':'),
           ),
-          DropdownButton<int>(
-            key: const Key('handoffMinute'),
-            value: _handoffMinute,
-            items: [
-              for (var m = 0; m < 60; m++)
-                DropdownMenuItem(
-                    value: m, child: Text(m.toString().padLeft(2, '0'))),
-            ],
-            onChanged: _handoffHour < 0
-                ? null
-                : (v) => setState(() => _handoffMinute = v ?? 0),
+          Expanded(
+            child: DropdownButtonFormField<int>(
+              key: const Key('handoffMinute'),
+              initialValue: _handoffMinute,
+              decoration: InputDecoration(labelText: l[K.editorMinuteLabel]),
+              items: [
+                for (var m = 0; m < 60; m++)
+                  DropdownMenuItem(
+                      value: m, child: Text(m.toString().padLeft(2, '0'))),
+              ],
+              onChanged: _handoffHour < 0
+                  ? null
+                  : (v) => setState(() => _handoffMinute = v ?? 0),
+            ),
           ),
         ],
       ),
@@ -710,26 +798,35 @@ class _DaySheetState extends State<_DaySheet> {
                     )
                   : const SizedBox.shrink(),
         ),
-      const SizedBox(height: 16),
+          ],
+        ),
+      ),
 
       // ── F-44: only shown when saving will actually open a swap/revert
       //    request — keeps it apart from the day-scoped "Observação do dia" ──
       if (_willOpenWorkflow) ...[
-        AppTextField(
-          label: '${l[K.editorMessageLabel]} ${l[K.editorOptional]}',
-          hint: l[K.editorMessagePlaceholder],
-          controller: _swapMessage,
-          maxLength: 200,
+        const SizedBox(height: Spacing.sm),
+        AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppFieldLabel(l[K.editorMessageLabel],
+                  info: l[K.editorWorkflowHint],
+                  optionalLabel: l[K.commonOptional]),
+              AppTextField(
+                label: l[K.editorMessageLabel],
+                hint: l[K.editorMessagePlaceholder],
+                controller: _swapMessage,
+                maxLength: 200,
+              ),
+            ],
+          ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(l[K.editorWorkflowHint],
-              style: Theme.of(context).textTheme.bodySmall),
-        ),
-        const SizedBox(height: 16),
       ],
 
-      // ── Actions ──
+      // ── The admin confirmation stays IN the scroll: it is a question about
+      //    what is on screen, not the sheet's own action row (which the frame
+      //    pins and which this branch hides).
       if (_showAdminConfirm)
         Container(
           width: double.infinity,
@@ -849,35 +946,6 @@ class _DaySheetState extends State<_DaySheet> {
             ],
           ),
         )
-      else ...[
-        FilledButton(
-          onPressed: _scheduledParentId == null ||
-                  _saving ||
-                  _deleting ||
-                  _beyondRetroReach
-              ? null
-              : _save,
-          child: _saving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2))
-              : Text(l[K.commonSave]),
-        ),
-        if (widget.day != null &&
-            !isClearDayBlocked(adminBypass: widget.adminBypass))
-          TextButton(
-            onPressed: _saving || _deleting ? null : _clearDay,
-            style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.error),
-            child: _deleting
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(l[K.editorClearDay]),
-          ),
-      ],
     ];
   }
 }

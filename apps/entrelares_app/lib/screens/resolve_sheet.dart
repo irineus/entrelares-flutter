@@ -6,6 +6,7 @@ import '../models/care_schedule.dart';
 import '../models/member.dart';
 import '../models/swap_request.dart';
 import '../services/custody_data_source.dart';
+import '../theme/tokens.dart';
 import '../widgets/app_l10n.dart';
 
 /// The "🔔 Resolver" sheet — port of `Home.razor`'s bulk-workflow sheet. Three
@@ -28,10 +29,8 @@ Future<String?> showResolveSheet({
   required List<Member> allProfiles,
   required CustodyDataSource dataSource,
 }) {
-  return showModalBottomSheet<String>(
+  return showAppSheet<String>(
     context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
     builder: (context) => _ResolveSheet(
       selectedDays: selectedDays,
       openRequests: openRequests,
@@ -218,31 +217,33 @@ class _ResolveSheetState extends State<_ResolveSheet> {
     final sentByMe = _sentByMe;
     final revertable = _revertable;
 
-    return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 8,
-          bottom: 24 + MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              AppSheetHeader(title: l[K.wfTitle]),
-
+    // U-28 QA: framed like every other sheet — capped height, scrolling body,
+    // and the way out pinned instead of buried under the action groups.
+    return AppSheetFrame(
+      title: l[K.wfTitle],
+      primaryLabel: l[K.wfClose],
+      onPrimary: _acting ? null : () => Navigator.of(context).pop(),
+      busy: _acting,
+      children: [
               if (pendingForMe.isNotEmpty) ...[
-                Text(l.format(K.wfAwaitingYou, [pendingForMe.length]),
-                    style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 8),
-                AppTextField(
-                  label: '${l[K.wfMessage]} ${l[K.wfRejectHint]}',
-                  hint: l[K.wfRejectPlaceholder],
-                  controller: _rejectReason,
-                  maxLength: 200,
-                  enabled: !_acting,
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                AppFieldLabel(l.format(K.wfAwaitingYou, [pendingForMe.length])),
+                Row(
+                  children: [
+                    Expanded(
+                      child: AppTextField(
+                        label: l[K.wfMessage],
+                        hint: l[K.wfRejectPlaceholder],
+                        controller: _rejectReason,
+                        maxLength: 200,
+                        enabled: !_acting,
+                      ),
+                    ),
+                    AppInfoTip(message: l[K.wfRejectHint]),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Row(
@@ -287,18 +288,22 @@ class _ResolveSheetState extends State<_ResolveSheet> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: Spacing.sm),
               ],
 
               if (sentByMe.isNotEmpty) ...[
-                Text(
-                    l.format(
-                        sentByMe.length == 1
-                            ? K.wfSentByYouOne
-                            : K.wfSentByYouMany,
-                        [sentByMe.length]),
-                    style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 8),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                AppFieldLabel(l.format(
+                    sentByMe.length == 1
+                        ? K.wfSentByYouOne
+                        : K.wfSentByYouMany,
+                    [sentByMe.length])),
                 _actionButton(
                   kind: _WfAction.cancel,
                   label: l.format(K.wfCancel, [sentByMe.length]),
@@ -314,13 +319,18 @@ class _ResolveSheetState extends State<_ResolveSheet> {
                     _WfAction.cancel,
                   ),
                 ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: Spacing.sm),
               ],
 
               if (revertable.isNotEmpty) ...[
-                Text(l.format(K.wfApprovedSwaps, [revertable.length]),
-                    style: Theme.of(context).textTheme.labelLarge),
-                const SizedBox(height: 8),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                AppFieldLabel(l.format(K.wfApprovedSwaps, [revertable.length])),
                 _actionButton(
                   kind: _WfAction.revert,
                   label: l.format(K.wfRequestRevert, [revertable.length]),
@@ -341,7 +351,10 @@ class _ResolveSheetState extends State<_ResolveSheet> {
                     _WfAction.revert,
                   ),
                 ),
-                const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: Spacing.sm),
               ],
 
               if (_acting) ...[
@@ -349,24 +362,15 @@ class _ResolveSheetState extends State<_ResolveSheet> {
                 const SizedBox(height: 4),
                 Text(_progressLabel,
                     style: Theme.of(context).textTheme.bodySmall),
-                const SizedBox(height: 8),
               ],
               if (_error != null)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(top: Spacing.sm),
                   child: Text('⚠️ $_error',
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.error)),
                 ),
-              OutlinedButton(
-                onPressed:
-                    _acting ? null : () => Navigator.of(context).pop(),
-                child: Text(l[K.wfClose]),
-              ),
-            ],
-          ),
-        ),
-      ),
+      ],
     );
   }
 }
