@@ -97,9 +97,15 @@ class TodayCard extends StatelessWidget {
                   // U-28 QA: one line, greeting left and date right. The web
                   // puts them on one line too but lets the name wrap; the first
                   // name plus an ellipsis keeps the promise the layout makes.
+                  // `spaceBetween` is what actually pushes the date right, and
+                  // the third attempt at it. A `Flexible` greeting takes LESS
+                  // than the space the flex algorithm allots it, and a Row
+                  // hands that leftover to the END of the line — so the date's
+                  // box started right after the name no matter what alignment
+                  // lived inside it. With the leftover placed BETWEEN the two,
+                  // the greeting keeps the left edge and the date the right.
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Flexible(
                         child: Text(
@@ -112,27 +118,32 @@ class TodayCard extends StatelessWidget {
                               ?.copyWith(color: user.tone.onContainer),
                         ),
                       ),
-                      const SizedBox(width: Spacing.sm),
                       // U-28 QA: the date must arrive WHOLE — "quinta-feira,
                       // 20 de ag…" is worse than no date at all. It is not
                       // rigid either, or a long month name would overflow the
                       // row on a narrow phone: `scaleDown` gives up a couple of
                       // percent of type size instead of the last five letters.
-                      // Expanded, not Flexible: the date takes whatever the
-                      // greeting leaves and sits at the END of it. As a
-                      // Flexible it shrank to its own width and ended up glued
-                      // to the name.
-                      Expanded(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            _capitalize(l.formatTodayHeading(today)),
-                            maxLines: 1,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(color: user.tone.onContainer),
+                      //
+                      // The `Align` is not decoration. `Expanded` + `FittedBox`
+                      // alone left the date floating next to the name: a
+                      // FittedBox reports the size its CHILD needs, so the
+                      // alignment inside it had nothing to align against.
+                      // `Align` takes the whole half and puts the date at the
+                      // end of it, which is what "right-aligned" means.
+                      Flexible(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: Spacing.sm),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              _capitalize(l.formatTodayHeading(today)),
+                              maxLines: 1,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .labelSmall
+                                  ?.copyWith(color: user.tone.onContainer),
+                            ),
                           ),
                         ),
                       ),

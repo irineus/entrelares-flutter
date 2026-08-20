@@ -76,6 +76,27 @@ void main() {
     expect(find.text('↩ Voltar para hoje'), findsNothing);
   });
 
+  testWidgets('U-28 QA: the date sits at the RIGHT edge, not beside the name',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(wrap(card()));
+
+    final date = tester.getRect(find.text('Quarta-feira, 19 de agosto'));
+    final greeting = tester.getRect(find.text('Olá, Ana!'));
+    final band = tester.getRect(find.byType(Card));
+
+    // Two earlier attempts LOOKED right in code and were not: `Flexible` sized
+    // the date to itself, and `Expanded` + `FittedBox` gave the alignment
+    // nothing to align against. Only geometry catches that.
+    // `Card`'s own rect includes its margin, so the visible surface ends 12 dp
+    // inside it and the content another 12 dp inside that.
+    expect(date.right, closeTo(band.right - 24, 2),
+        reason: 'the date ends where the card content ends');
+    expect(date.left, greaterThan(greeting.right),
+        reason: 'and it never overlaps the greeting');
+  });
+
   testWidgets('swapped day shows both badges — 🔄 and the ⏰ time',
       (tester) async {
     final glance = todayGlance(
