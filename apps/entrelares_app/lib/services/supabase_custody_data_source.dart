@@ -154,6 +154,14 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   }
 
   @override
+  Future<String> startCheckout(String cycle) =>
+      _invokeBillingForUrl({'action': 'checkout', 'cycle': cycle});
+
+  @override
+  Future<String> startAvulso(String cycle) =>
+      _invokeBillingForUrl({'action': 'avulso', 'cycle': cycle});
+
+  @override
   Future<void> cancelSubscription() => _invokeBilling({'action': 'cancel'});
 
   @override
@@ -167,6 +175,24 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   Future<void> _invokeBilling(Map<String, dynamic> body) async {
     try {
       await _client.functions.invoke('billing-checkout', body: body);
+    } on FunctionException catch (e) {
+      throw BillingRefused(_functionErrorText(e));
+    }
+  }
+
+  /// The checkout variants, which answer with a payment URL. A success with no
+  /// `url` is a refusal too: sending the family nowhere is worse than saying
+  /// the attempt failed.
+  Future<String> _invokeBillingForUrl(Map<String, dynamic> body) async {
+    try {
+      final response =
+          await _client.functions.invoke('billing-checkout', body: body);
+      final data = response.data;
+      if (data is Map && data['url'] is String) {
+        final url = (data['url'] as String).trim();
+        if (url.isNotEmpty) return url;
+      }
+      throw const BillingRefused();
     } on FunctionException catch (e) {
       throw BillingRefused(_functionErrorText(e));
     }

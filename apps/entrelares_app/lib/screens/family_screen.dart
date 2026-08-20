@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
 import '../models/family.dart';
@@ -60,6 +61,11 @@ class FamilyScreen extends StatefulWidget {
   /// nothing at runtime ever passes it.
   final bool isStoreChannel;
 
+  /// Hands a URL to the system browser. Injectable for the same reason: WHERE
+  /// the family is sent to pay is a money-critical fact worth asserting, and
+  /// the plugin channel does not exist in a widget test.
+  final Future<void> Function(String url)? openExternal;
+
   const FamilyScreen({
     super.key,
     required this.dataSource,
@@ -70,6 +76,7 @@ class FamilyScreen extends StatefulWidget {
     this.onOpenProfile,
     this.onFamilyDeleted,
     this.isStoreChannel = !kIsWeb,
+    this.openExternal,
   });
 
   @override
@@ -104,6 +111,19 @@ class _FamilyScreenState extends State<FamilyScreen> {
   bool _premiumBusy = false;
   bool _billingBusy = false;
   bool _cancelConfirming = false;
+
+  /// F-48: one premium-paywall-view per VISIT, however often `_load` reruns.
+  bool _paywallViewTracked = false;
+
+  /// The web's `href="#premium-section"` has no equivalent here — a key the
+  /// gate CTAs scroll to is the native way to keep the same promise.
+  final _premiumSectionKey = GlobalKey();
+
+  // F-43: payment history — lazy on first expand, cached afterwards.
+  bool _historyOpen = false;
+  bool _historyLoading = false;
+  bool _historyLoaded = false;
+  List<BillingHistoryEntry> _history = const [];
 
   // S-11 family deletion
   PendingFamilyDeletion? _deletion;
@@ -166,6 +186,11 @@ class _FamilyScreenState extends State<FamilyScreen> {
   /// its own switch).
   bool get _isStoreChannel => widget.isStoreChannel;
 
+  /// The funnel dimension that separates the store cohort from the web one —
+  /// derived from the SAME build fact, so a channel-tagged event can never
+  /// disagree with the rail the family was actually offered.
+  String get _channel => analyticsChannel(isWeb: !widget.isStoreChannel);
+
   bool get _atFreeCap => atFreeCaregiverCap(
       isPremium: _isPremium,
       seatsTaken: _seatsTaken,
@@ -217,6 +242,19 @@ class _FamilyScreenState extends State<FamilyScreen> {
           : await widget.dataSource.hasRegisteredPremiumInterest();
 
       if (!mounted) return;
+      // F-48: first funnel step — the offer became VISIBLE. Guarded so a
+      // reload within the same visit (e.g. after an invite) counts once.
+      final ui = computeBillingUi(
+        billingEnabled: settings.billingEnabled,
+        isPremium: plan.isPremium,
+        onTrial: plan.onTrial,
+        subscriptionStatus: subscription?.status,
+      );
+      if (ui == BillingUi.offer && !_paywallViewTracked) {
+        _paywallViewTracked = true;
+        widget.analytics?.trackEvent('premium-paywall-view',
+            props: analyticsFunnelProps(channel: _channel));
+      }
       setState(() {
         _subscription = subscription;
         _hasPremiumInterest = interest;
@@ -538,13 +576,24 @@ class _FamilyScreenState extends State<FamilyScreen> {
           ...pending.map((i) => _invitationCard(i, l, expired: false)),
           ...expired.map((i) => _invitationCard(i, l, expired: true)),
           if (_atFreeCap)
-            // F-37 without the upsell CTA: the checkout surface is lote 5, and
-            // the store build must not carry an external checkout link (T-38).
+            // F-37: the cap notice plus the CTA that takes the admin to the
+            // Premium section. The CTA never carries a price or an external
+            // link — it scrolls, and the section decides what the CHANNEL may
+            // offer (T-38).
             Card(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: Text(l[K.famFreeCapNotice]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(l[K.famFreeCapNotice]),
+                    TextButton(
+                      onPressed: () => _goToPremium('extra-caregiver'),
+                      child: Text(l[K.famSeePremium]),
+                    ),
+                  ],
+                ),
               ),
             )
           else if (_seatsTaken < _settings.maxCaregivers)
@@ -983,6 +1032,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
     setState(() => _premiumBusy = true);
     try {
       await widget.dataSource.registerPremiumInterest(feature: 'family');
+      widget.analytics?.trackEvent('premium-interest', props: {
+        'source': 'family',
+        'trial': _planStatus.onTrial,
+      });
       if (!mounted) return;
       setState(() {
         _premiumBusy = false;
@@ -1004,11 +1057,15 @@ class _FamilyScreenState extends State<FamilyScreen> {
     Localization l,
     Future<void> Function() action, {
     required String successKey,
+    required String event,
   }) async {
     if (_billingBusy) return;
     setState(() => _billingBusy = true);
     try {
       await action();
+      widget.analytics?.trackEvent(event,
+          props: analyticsFunnelProps(
+              channel: _channel, cycle: _subscription?.cycle ?? '?'));
       if (!mounted) return;
       setState(() {
         _billingBusy = false;
@@ -1031,6 +1088,47 @@ class _FamilyScreenState extends State<FamilyScreen> {
           type: AppSnackType.error);
     }
   }
+
+  /// T-39/F-48: leaves the app for the hosted checkout. Recurring and avulso
+  /// share everything but the action and the funnel's `mode` — the family sees
+  /// two rails, the server sees one function.
+  Future<void> _startCheckout(
+    Localization l,
+    String cycle, {
+    required bool avulso,
+  }) async {
+    if (_billingBusy) return;
+    setState(() => _billingBusy = true);
+    try {
+      final url = avulso
+          ? await widget.dataSource.startAvulso(cycle)
+          : await widget.dataSource.startCheckout(cycle);
+      widget.analytics?.trackEvent('premium-checkout-start',
+          props: analyticsFunnelProps(
+              channel: _channel,
+              cycle: cycle,
+              mode: avulso ? 'avulso' : 'recurring'));
+      await (widget.openExternal ?? _openExternal)(url);
+      if (!mounted) return;
+      // The payment happens outside the app and confirms ASYNCHRONOUSLY (the
+      // webhook), so there is nothing to await here — the return screen polls.
+      setState(() => _billingBusy = false);
+    } on BillingRefused catch (e) {
+      if (!mounted) return;
+      setState(() => _billingBusy = false);
+      showAppSnack(context, e.serverMessage ?? l[K.errSaveFailed],
+          type: AppSnackType.error);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _billingBusy = false);
+      showAppSnack(
+          context, translateSaveError(e.toString(), l[K.errSaveFailed], l),
+          type: AppSnackType.error);
+    }
+  }
+
+  static Future<void> _openExternal(String url) =>
+      launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
   String _cycleLabel(Localization l, String? cycle) =>
       l[cycle == 'annual' ? K.premCycleAnnual : K.premCycleMonthly];
@@ -1086,10 +1184,24 @@ class _FamilyScreenState extends State<FamilyScreen> {
     );
   }
 
+  /// A gate CTA was tapped: record the intent signal (T-37, one event family
+  /// distinguished by `gate`) and take the admin to the section. Never a price
+  /// and never an external link — what may be OFFERED is the section's call,
+  /// and it depends on the channel.
+  void _goToPremium(String gate) {
+    widget.analytics?.trackEvent('premium-gate-click', props: {'gate': gate});
+    final target = _premiumSectionKey.currentContext;
+    if (target != null) {
+      Scrollable.ensureVisible(target,
+          duration: const Duration(milliseconds: 300));
+    }
+  }
+
   Widget _premiumSection(Localization l) {
     final theme = Theme.of(context);
     final ui = _billingUi;
     return Column(
+      key: _premiumSectionKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _sectionTitle(l[K.premTitle]),
@@ -1126,6 +1238,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
                   ),
                 const SizedBox(height: 12),
                 ..._premiumStateBlock(l, ui),
+                ..._historyPanel(l),
               ],
             ),
           ),
@@ -1249,6 +1362,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
                 l,
                 widget.dataSource.cancelSubscription,
                 successKey: K.famSubscriptionCancelled,
+                event: 'premium-cancel',
               ),
         child: Text(l[K.premCancelConfirm]),
       ),
@@ -1317,15 +1431,65 @@ class _FamilyScreenState extends State<FamilyScreen> {
             args: [l.formatDate(trialEnd.toLocal())]),
       if (!_isAdmin)
         RichLabel.of(l, K.premAdminOnly)
-      else if (canReactivate(
-        subscriptionStatus: subscription?.status,
-        currentPeriodEndUtc: subscription?.currentPeriodEnd,
-        billingType: subscription?.billingType,
-        externalCustomerId: subscription?.externalCustomerId,
-        nowUtc: now,
-        singleCharge: subscription?.singleCharge ?? false,
-      ))
-        ..._reactivateControls(l, subscription!),
+      else ...[
+        if (canReactivate(
+          subscriptionStatus: subscription?.status,
+          currentPeriodEndUtc: subscription?.currentPeriodEnd,
+          billingType: subscription?.billingType,
+          externalCustomerId: subscription?.externalCustomerId,
+          nowUtc: now,
+          singleCharge: subscription?.singleCharge ?? false,
+        ))
+          ..._reactivateControls(l, subscription!),
+        ..._checkoutControls(l),
+      ],
+    ];
+  }
+
+  List<Widget> _checkoutControls(Localization l) {
+    final monthly = formatPriceBrl(_settings.priceMonthlyCents);
+    final annual = formatPriceBrl(_settings.priceAnnualCents);
+    return [
+      const SizedBox(height: 12),
+      FilledButton(
+        onPressed: _billingBusy
+            ? null
+            : () => _startCheckout(l, 'monthly', avulso: false),
+        child: Text(l.format(K.premSubscribeMonthly, [monthly])),
+      ),
+      // "2 meses grátis" is a factual claim and holds by construction: the
+      // annual price is exactly ten times the monthly one, both from
+      // app_settings.
+      FilledButton(
+        onPressed: _billingBusy
+            ? null
+            : () => _startCheckout(l, 'annual', avulso: false),
+        child: Text(l.format(K.premSubscribeAnnual, [annual])),
+      ),
+      const SizedBox(height: 8),
+      // F-48: Pix avulso — the no-recurrence rail. One single charge for one
+      // period: no card on file, no auto-renew, renewing later is an explicit
+      // new payment (additive).
+      RichLabel.of(l, K.premAvulsoLead),
+      OutlinedButton(
+        onPressed:
+            _billingBusy ? null : () => _startCheckout(l, 'monthly', avulso: true),
+        child: Text(l.format(K.premAvulsoMonthly, [monthly])),
+      ),
+      OutlinedButton(
+        onPressed:
+            _billingBusy ? null : () => _startCheckout(l, 'annual', avulso: true),
+        child: Text(l.format(K.premAvulsoAnnual, [annual])),
+      ),
+      const SizedBox(height: 8),
+      // F-48: trust signals on the payment surface — Pix first (no card data
+      // leaves your bank app), then the 7-day guarantee, a visible mirror of
+      // Terms §10 / CDC art. 49. Same promise, same channel — NOT a new
+      // commitment, so no PolicyVersions bump.
+      RichLabel.of(l, K.premPaymentHint,
+          style: Theme.of(context).textTheme.bodySmall),
+      RichLabel.of(l, K.premGuarantee,
+          style: Theme.of(context).textTheme.bodySmall),
     ];
   }
 
@@ -1363,12 +1527,91 @@ class _FamilyScreenState extends State<FamilyScreen> {
                 l,
                 widget.dataSource.reactivateSubscription,
                 successKey: K.famSubscriptionReactivated,
+                event: 'premium-reactivate',
               ),
         child: Text(l[K.premReactivateButton]),
       ),
       RichLabel.of(l, hintKey,
           args: hintArgs, style: Theme.of(context).textTheme.bodySmall),
     ];
+  }
+
+  // ── F-43: payment history (admins only; the sanitized ledger comes from an
+  // RPC the DATABASE guards, and it is loaded only when the panel is opened).
+
+  Future<void> _toggleHistory(Localization l) async {
+    final opening = !_historyOpen;
+    setState(() => _historyOpen = opening);
+    if (!opening || _historyLoaded) return;
+
+    setState(() => _historyLoading = true);
+    try {
+      final entries = await widget.dataSource.fetchBillingHistory();
+      if (!mounted) return;
+      setState(() {
+        _history = entries;
+        _historyLoaded = true;
+        _historyLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _historyLoading = false;
+        _historyOpen = false;
+      });
+      showAppSnack(context, l[K.famBillingHistoryLoadFailed],
+          type: AppSnackType.error);
+    }
+  }
+
+  List<Widget> _historyPanel(Localization l) {
+    // No subscription row means no ledger to show — and with billing off the
+    // whole surface is the waitlist.
+    if (!_settings.billingEnabled || !_isAdmin || _subscription == null) {
+      return const [];
+    }
+    return [
+      const SizedBox(height: 12),
+      TextButton(
+        onPressed: () => _toggleHistory(l),
+        child: Text('${_historyOpen ? '▾' : '▸'} ${l[K.premHistoryToggle]}'),
+      ),
+      if (_historyOpen)
+        if (_historyLoading)
+          Text(l[K.premHistoryLoading])
+        else if (_history.isEmpty)
+          Text(l[K.premHistoryEmpty])
+        else
+          for (final entry in _history) _historyRow(l, entry),
+    ];
+  }
+
+  Widget _historyRow(Localization l, BillingHistoryEntry entry) {
+    final theme = Theme.of(context);
+    final methodKey = billingTypeKey(entry.billingType);
+    final cents = entry.amountCents;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '${l.formatDate(entry.occurredAt.toLocal())} · '
+              '${l[historyCategoryKey(entry.category)]}'
+              '${methodKey == null ? '' : ' · ${l[methodKey]}'}',
+              style: theme.textTheme.bodySmall,
+            ),
+          ),
+          if (cents != null)
+            Text(formatPriceBrl(cents), style: theme.textTheme.bodySmall),
+          if (entry.invoiceUrl case final url?)
+            TextButton(
+              onPressed: () => (widget.openExternal ?? _openExternal)(url),
+              child: Text(l[K.premHistoryReceipt]),
+            ),
+        ],
+      ),
+    );
   }
 
   List<Widget> _waitlistPanel(Localization l) {
@@ -1412,6 +1655,14 @@ class _FamilyScreenState extends State<FamilyScreen> {
                       _settings.overridePremiumMonths
                     ]),
               style: theme.textTheme.bodySmall),
+          if (!_isPremium)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => _goToPremium('admin-mode'),
+                child: Text(l[K.famActivatePremiumLink]),
+              ),
+            ),
           const SizedBox(height: 12),
           widget.adminMode.isActive
               ? OutlinedButton(

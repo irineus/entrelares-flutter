@@ -7,9 +7,15 @@
 // access past it; a store-channel family must see NO price and NO checkout
 // link at all (Play's payments policy). The channel is a build fact, so the
 // screen takes it as a parameter here to exercise both rails on the VM.
+import 'dart:convert';
+
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+
+import 'package:entrelares_app/services/analytics_service.dart';
 
 import 'package:entrelares_app/models/family.dart';
 import 'package:entrelares_app/models/member.dart';
@@ -102,11 +108,43 @@ Subscription _subscription({
 /// for the reader, never characters on screen.
 Finder _text(String value) => find.text(stripRichText(value));
 
+/// The funnel events this screen fires, captured through the REAL service so
+/// the props travel exactly as they would in production (channel included).
+class _Funnel {
+  final List<Map<String, dynamic>> payloads = [];
+
+  late final AnalyticsService service = AnalyticsService(
+    websiteId: 'site-1',
+    host: 'https://umami.example',
+    hostname: 'app.entrelares.app',
+    client: MockClient((request) async {
+      payloads.add((jsonDecode(request.body) as Map<String, dynamic>)['payload']
+          as Map<String, dynamic>);
+      return http.Response('', 200);
+    }),
+  );
+
+  Map<String, dynamic>? event(String name) {
+    for (final payload in payloads) {
+      if (payload['name'] == name) return payload;
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? dataOf(String name) =>
+      event(name)?['data'] as Map<String, dynamic>?;
+
+  int count(String name) =>
+      payloads.where((p) => p['name'] == name).length;
+}
+
 Future<void> _pump(
   WidgetTester tester,
   FakeCustodyDataSource ds, {
   bool store = false,
   AppLanguage language = AppLanguage.ptBr,
+  _Funnel? funnel,
+  List<String>? opened,
 }) async {
   await tester.binding.setSurfaceSize(const Size(800, 3000));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -119,6 +157,10 @@ Future<void> _pump(
         adminMode: AdminMode(),
         sudo: SudoService(ds),
         isStoreChannel: store,
+        analytics: funnel?.service,
+        openExternal: opened == null
+            ? (_) async {}
+            : (url) async => opened.add(url),
       ),
     ),
   ));
@@ -536,6 +578,195 @@ void main() {
         findsOne,
       );
       expect(_text(l[K.premTrialAdditive]), findsNothing);
+    });
+  });
+
+  group('checkout rails (web)', () {
+    testWidgets('the monthly subscription leaves for the gateway URL',
+        (tester) async {
+      final ds = _source();
+      final funnel = _Funnel();
+      final opened = <String>[];
+      await _pump(tester, ds, funnel: funnel, opened: opened);
+
+      await tester.tap(_text(l.format(K.premSubscribeMonthly, ['R\$ 5,49'])));
+      await tester.pumpAndSettle();
+
+      expect(ds.checkouts, [(action: 'checkout', cycle: 'monthly')]);
+      expect(opened, ['https://pagamento.example/abc']);
+      expect(funnel.dataOf('premium-checkout-start'),
+          {'channel': 'web', 'cycle': 'monthly', 'mode': 'recurring'});
+    });
+
+    testWidgets('F-48: the avulso rail is a different mode, same function',
+        (tester) async {
+      final ds = _source();
+      final funnel = _Funnel();
+      await _pump(tester, ds, funnel: funnel);
+
+      await tester.tap(_text(l.format(K.premAvulsoAnnual, ['R\$ 54,90'])));
+      await tester.pumpAndSettle();
+
+      expect(ds.checkouts, [(action: 'avulso', cycle: 'annual')]);
+      expect(funnel.dataOf('premium-checkout-start'),
+          {'channel': 'web', 'cycle': 'annual', 'mode': 'avulso'});
+    });
+
+    testWidgets('the 7-day guarantee is on the payment surface', (tester) async {
+      // A visible mirror of Terms §10 / CDC art. 49 — same promise, same
+      // channel, so it must not be reachable only from the legal page.
+      await _pump(tester, _source());
+
+      expect(_text(l[K.premGuarantee]), findsOne);
+      expect(_text(l[K.premPaymentHint]), findsOne);
+    });
+
+    testWidgets('a refused checkout says what the SERVER said, and goes nowhere',
+        (tester) async {
+      final opened = <String>[];
+      final ds = _source()
+        ..throwOnBillingAction = const BillingRefused('Cobrança desativada.');
+      await _pump(tester, ds, opened: opened);
+
+      await tester.tap(_text(l.format(K.premSubscribeMonthly, ['R\$ 5,49'])));
+      await tester.pumpAndSettle();
+
+      expect(_text('Cobrança desativada.'), findsOne);
+      expect(opened, isEmpty);
+    });
+
+    testWidgets('the store channel has no checkout button at all',
+        (tester) async {
+      await _pump(tester, _source(), store: true);
+
+      expect(_text(l.format(K.premSubscribeMonthly, ['R\$ 5,49'])), findsNothing);
+      expect(_text(l.format(K.premAvulsoMonthly, ['R\$ 5,49'])), findsNothing);
+    });
+  });
+
+  group('F-43 payment history', () {
+    testWidgets('loads once on the first expand and lists the entries',
+        (tester) async {
+      final occurred = DateTime.utc(2026, 7, 15, 12);
+      final ds = _source(
+        plan: 'premium',
+        subscription: _subscription(status: 'active'),
+      )..billingHistory = [
+          BillingHistoryEntry(
+            occurredAt: occurred,
+            category: 'payment',
+            amount: 54.90,
+            billingType: 'PIX',
+          ),
+        ];
+      await _pump(tester, ds);
+
+      await tester.tap(_text('▸ ${l[K.premHistoryToggle]}'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(
+            '${l.formatDate(occurred.toLocal())} · ${l[K.premHistoryPayment]}'),
+        findsOne,
+      );
+      // The amount arrives as a decimal; rounding it wrong prints R$ 54,89.
+      // (The subscription's own price line shows R$ 5,49, so this also pins
+      // that the row states the ENTRY's amount, not the plan's.)
+      expect(find.textContaining('R\$ 54,90'), findsOne);
+      expect(ds.billingHistoryFetches, 1);
+
+      // Collapsing and expanding again reads the cache, not the RPC.
+      await tester.tap(_text('▾ ${l[K.premHistoryToggle]}'));
+      await tester.pumpAndSettle();
+      await tester.tap(_text('▸ ${l[K.premHistoryToggle]}'));
+      await tester.pumpAndSettle();
+      expect(ds.billingHistoryFetches, 1);
+    });
+
+    testWidgets('a failed load closes the panel and says so', (tester) async {
+      final ds = _source(
+        plan: 'premium',
+        subscription: _subscription(status: 'active'),
+      )..throwOnBillingHistory = Exception('boom');
+      await _pump(tester, ds);
+
+      await tester.tap(_text('▸ ${l[K.premHistoryToggle]}'));
+      await tester.pumpAndSettle();
+
+      expect(_text(l[K.famBillingHistoryLoadFailed]), findsOne);
+      expect(_text(l[K.premHistoryEmpty]), findsNothing);
+    });
+
+    testWidgets('a family with no subscription has no ledger to offer',
+        (tester) async {
+      await _pump(tester, _source());
+
+      expect(find.textContaining(l[K.premHistoryToggle]), findsNothing);
+    });
+
+    testWidgets('a non-admin never sees the toggle — the RPC would refuse',
+        (tester) async {
+      await _pump(
+        tester,
+        _source(
+          plan: 'premium',
+          members: const [_plain, _admin],
+          subscription: _subscription(status: 'active'),
+        ),
+      );
+
+      expect(find.textContaining(l[K.premHistoryToggle]), findsNothing);
+    });
+  });
+
+  group('funnel (T-37)', () {
+    testWidgets('the paywall view fires once per visit, only on the offer',
+        (tester) async {
+      final funnel = _Funnel();
+      await _pump(tester, _source(), funnel: funnel);
+
+      expect(funnel.count('premium-paywall-view'), 1);
+      expect(funnel.dataOf('premium-paywall-view'), {'channel': 'web'});
+
+      // A reload within the same visit must not count again.
+      await tester.drag(find.byType(RefreshIndicator), const Offset(0, 400));
+      await tester.pumpAndSettle();
+      expect(funnel.count('premium-paywall-view'), 1);
+    });
+
+    testWidgets('an active subscriber is not a paywall view', (tester) async {
+      final funnel = _Funnel();
+      await _pump(
+        tester,
+        _source(plan: 'premium', subscription: _subscription(status: 'active')),
+        funnel: funnel,
+      );
+
+      expect(funnel.count('premium-paywall-view'), 0);
+    });
+
+    testWidgets('the F-37 gate CTA records the intent and scrolls, no price',
+        (tester) async {
+      final funnel = _Funnel();
+      await _pump(
+        tester,
+        _source(settings: {..._billingOn, 'freemium.free_caregivers': '2'}),
+        funnel: funnel,
+      );
+
+      await tester.tap(_text(l[K.famSeePremium]));
+      await tester.pumpAndSettle();
+
+      expect(funnel.dataOf('premium-gate-click'), {'gate': 'extra-caregiver'});
+    });
+
+    testWidgets('the store cohort is tagged as store, not web', (tester) async {
+      // This dimension is the whole reason the funnel exists: it is what tells
+      // the store cohort apart from the web one.
+      final funnel = _Funnel();
+      await _pump(tester, _source(), funnel: funnel, store: true);
+
+      expect(funnel.dataOf('premium-paywall-view'), {'channel': 'store'});
     });
   });
 
