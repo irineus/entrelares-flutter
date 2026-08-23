@@ -52,12 +52,18 @@ void main() {
       expect(csp, contains('https://cloud.umami.is'));
       expect(csp, contains("frame-ancestors 'none'"));
 
+      // The font fallback the engine fetches when the embedded Inter has no
+      // glyph. Without it the product's emoji vocabulary is tofu on the web.
+      expect(csp, contains('https://fonts.gstatic.com'));
+
       // Blazor WASM needed `unsafe-eval`; CanvasKit does not, and inheriting
       // it would be a permission granted for a reason that no longer exists.
       expect(csp, isNot(contains("'unsafe-eval'")));
-      // CanvasKit is served from this origin (`--no-web-resources-cdn`), so a
-      // gstatic host in the policy would mean the build lost that flag.
-      expect(csp, isNot(contains('gstatic')));
+      // CanvasKit is served from THIS origin (`--no-web-resources-cdn`). Fonts
+      // may come from a third party; EXECUTABLE code may not — a gstatic host
+      // inside script-src would mean the build lost that flag.
+      final scriptSrc = RegExp(r'script-src ([^;]+)').firstMatch(csp!)!.group(1);
+      expect(scriptSrc, isNot(contains('gstatic')));
     });
 
     test('the files whose staleness breaks a deploy are uncacheable', () {

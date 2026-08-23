@@ -8,17 +8,24 @@
 #     WebAssembly and Flutter spawns workers from blob URLs.
 #   * `'unsafe-eval'` is NOT here — Blazor WASM needed it, CanvasKit does not.
 #   * canvaskit is served from THIS origin (the deploy builds with
-#     `--no-web-resources-cdn`), so no gstatic host is allowed and the first
-#     load has no third-party request.
-#   * connect-src keeps exactly the three the app talks to: Supabase (REST +
-#     Realtime socket) and the Umami collector.
+#     `--no-web-resources-cdn`) — no third-party SCRIPT source, ever.
+#   * `fonts.gstatic.com` in connect-src/font-src is NOT decoration: CanvasKit
+#     draws text itself, so a glyph the embedded Inter does not cover (the
+#     subset is `latin`, U-27) makes the engine FETCH a fallback font — Roboto
+#     and Noto Sans Symbols. Blocked, the product's own emoji vocabulary
+#     (🔔 ⏳ 🛡️ 🗑️ 📄) renders as tofu on the web channel; Android never sees
+#     this because the glyph comes from the system font. Owner decision
+#     (23/08/2026): allow the host — which makes Google an operator for the web
+#     client, declared in the privacy policy. It is fetched with `fetch`, so
+#     `connect-src` is the directive that actually rules; `font-src` is there
+#     for the CSS path.
 /*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; child-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cloud.umami.is; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; worker-src 'self' blob:; child-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cloud.umami.is https://fonts.gstatic.com; frame-ancestors 'none'
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Cache control
