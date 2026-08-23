@@ -41,6 +41,7 @@ import 'services/sudo_service.dart';
 import 'services/supabase_custody_data_source.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_l10n.dart';
+import 'widgets/app_width_cap.dart';
 import 'widgets/app_splash.dart';
 import 'widgets/onboarding.dart';
 
@@ -684,6 +685,15 @@ class _EntrelaresAppState extends State<EntrelaresApp>
           // against the 79 colour literals this delivery removed. Following
           // the system is the whole feature for now; a user-facing switch is
           // U-12's, not this item's.
+          // T-53 stage 4 — the web channel is a phone-shaped app, and a
+          // browser window is not a phone. The Blazor PWA always capped its
+          // pages (`.page-container { max-width: 500px; margin: 0 auto }`), so
+          // an edge-to-edge calendar on a 2000px monitor is a parity BREAK,
+          // not inherited behaviour. 600 rather than the web's 500 by owner
+          // decision: the calendar has seven columns and breathes better.
+          // Applied through `builder`, so it wraps the Navigator and therefore
+          // every route, sheet and dialog — one place, no screen to forget.
+          builder: (context, child) => AppWidthCap(child: child),
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: ThemeMode.system,

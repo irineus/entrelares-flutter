@@ -554,3 +554,13 @@ abstract final class TypeScale {
   static const double bodySmall = 14;
   static const double label = 12;
 }
+
+/// The widest the app ever draws itself.
+///
+/// The product is phone-shaped, and the web channel inherits a promise the
+/// Blazor PWA always kept: pages lived in a centred column
+/// (`.page-container { max-width: 500px }`), never edge to edge. 600 instead of
+/// 500 by owner decision (23/08/2026) — the calendar carries seven columns and
+/// breathes better with the extra hundred. On a phone the constraint never
+/// binds, so this changes nothing on the store channel.
+const double maxAppWidth = 600;
