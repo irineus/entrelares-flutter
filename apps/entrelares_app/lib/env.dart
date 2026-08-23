@@ -17,6 +17,7 @@ class Env {
     required this.supabaseKey,
     this.umamiWebsiteId = '',
     required this.analyticsHostname,
+    required this.webHostname,
     required this.androidPackage,
   });
 
@@ -41,6 +42,12 @@ class Env {
   /// dashboard — a device has no `location.hostname` to read.
   final String analyticsHostname;
 
+  /// The same, for the WEB build of this environment. T-53 stage 4: Flutter
+  /// Web takes over the hostname the Blazor PWA reports today, so the Umami
+  /// series does not break in two at the cutover — the `channel` prop is what
+  /// separates the clients, never the site.
+  final String webHostname;
+
   /// T-48: the Android `applicationId` of THIS variant. Only the Play
   /// "manage subscription" deep link reads it, and pointing it at the wrong
   /// package sends the subscriber to a page about an app they do not have —
@@ -58,6 +65,7 @@ class Env {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1cm9hbm90ZmpjZ3ZiZm1hY3VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTIwNDcsImV4cCI6MjA5NjU4ODA0N30.hRU5jhn1pJQeUVpvnAp4IGBJ5Is_pCwlIfR5hdK9Mi0',
     // No website id: analytics is OFF on dev, by decision.
     analyticsHostname: 'dev.app.entrelares.app',
+    webHostname: 'qa.entrelares.app',
     androidPackage: 'com.entrelares.flutter',
   );
 
@@ -72,15 +80,27 @@ class Env {
     // the two clients share a dashboard and the `channel` prop separates them.
     umamiWebsiteId: '6fdd6c5a-4bce-449f-8188-3b7399a859d8',
     analyticsHostname: 'app.entrelares.app',
+    webHostname: 'web.entrelares.app',
     androidPackage: 'com.entrelares.app',
   );
 
-  /// Anything that is not the `prod` flavor falls back to dev: `flutter test`
-  /// and flavor-less targets must never touch production.
-  static const current = appFlavor == 'prod' ? prod : dev;
+  /// How the WEB build says "production". `flutter build web` accepts no
+  /// `--flavor` — on web [appFlavor] is always null — so the flavor alone
+  /// would resolve the web channel to dev, and the production hostname would
+  /// talk to the QA project. The deploy passes
+  /// `--dart-define=APP_ENV=prod`, and `web_channel_test` fails the build if
+  /// that define ever drops out of the workflow.
+  static const _appEnv = String.fromEnvironment('APP_ENV');
+
+  /// Anything that does not explicitly say `prod` falls back to dev:
+  /// `flutter test` and flavor-less targets must never touch production.
+  /// Mirror of `isProductionTarget` (core) — inlined because [current] has to
+  /// be a compile-time constant, and covered there by its own suite.
+  static const current =
+      appFlavor == 'prod' || _appEnv == 'prod' ? prod : dev;
 
   /// Mirrors `pubspec.yaml`'s `version:` — the web's `AppVersion.Display`.
   /// Only the F-17 export reads it, and a stale value there would misdate an
   /// LGPD record, so `env_version_test.dart` fails the build if the two drift.
-  static const String appVersion = '0.2.42+44';
+  static const String appVersion = '0.2.43+45';
 }

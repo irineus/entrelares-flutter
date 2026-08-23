@@ -1,4 +1,8 @@
 # T-54 — the repo's gate: analyze + tests on every push/PR.
+# T-53 stage 4 added the `deploy-web` job at the bottom: the web channel is
+# PUBLISHED from here, and only behind a green gate (`needs: verify`), which is
+# the same order the app repo's deploy.yml enforces — nothing reaches a user
+# that the suites have not seen.
 # The APK build and the E2E emulator lane stay OUT of the gate on purpose: both
 # are minutes-expensive and the account's 2000 min/mo are shared with the
 # product repos (same constraint that shaped T-50). The E2E lane runs daily on
@@ -76,7 +80,7 @@ jobs:
       - name: Web — release build + first-load weight
         working-directory: apps/entrelares_app
         run: |
-          flutter build web --release
+          flutter build web --release --no-web-resources-cdn
           echo "### Web first-load weight (gzip)" >> "$GITHUB_STEP_SUMMARY"
           for f in build/web/flutter_bootstrap.js build/web/main.dart.js build/web/canvaskit/canvaskit.wasm; do
             if [ -f "$f" ]; then
@@ -192,3 +196,50 @@ jobs:
           name: app-dev-arm64-v8a-debug
           path: apps/entrelares_app/build/app/outputs/flutter-apk/app-*-debug.apk
           retention-days: 1
+
+  # ── T-53 stage 4 — the web channel ──────────────────────────────────────
+  # Flutter Web REPLACES the Blazor PWA (tension 1), so this repo owns the
+  # deploy of `web.entrelares.app`. Cloudflare Pages, the same platform and the
+  # same account the Blazor app has always used, in its OWN project so the two
+  # clients can be swapped by moving a custom domain — which is what keeps the
+  # rollback of the cutover a dashboard action instead of a release.
+  #
+  # Three flags carry the whole cutover contract and none of them is optional:
+  #   --dart-define=APP_ENV=prod  `flutter build web` accepts NO `--flavor`, so
+  #                               without this the production hostname would be
+  #                               built against the QA project (`web_channel_test`
+  #                               fails the build if it disappears).
+  #   --no-web-resources-cdn      CanvasKit from THIS origin: no gstatic request
+  #                               on the first load, and a CSP that needs no
+  #                               third-party host.
+  #   --release                   the only build a user may ever receive.
+  deploy-web:
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          channel: stable
+          cache: true
+      - name: Build web (production config)
+        working-directory: apps/entrelares_app
+        run: |
+          flutter pub get
+          flutter build web --release --no-web-resources-cdn --dart-define=APP_ENV=prod
+      # Wrangler, as in the app repo. The Pages project name is IMMUTABLE once
+      # created (a lesson the F-54 rebrand paid for), so it is pinned here and
+      # created by the owner before the first run.
+      - name: Install Wrangler
+        run: npm install -g wrangler
+      - name: Publish to Cloudflare Pages
+        working-directory: apps/entrelares_app
+        run: wrangler pages deploy build/web --project-name=entrelares-web --branch=main --commit-dirty=true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

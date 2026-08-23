@@ -1,23 +1,36 @@
 {
     "name": "Entrelares",
     "short_name": "Entrelares",
-    "start_url": ".",
+    "id": "/",
+    "start_url": "/",
+    "scope": "/",
+    "lang": "pt-BR",
+    "dir": "ltr",
     "display": "standalone",
+    "orientation": "portrait-primary",
     "background_color": "#F9FAFB",
     "theme_color": "#4F46E5",
-    "description": "Entrelares — duas casas, uma mesma infância.",
-    "orientation": "portrait-primary",
+    "description": "Calendário de guarda compartilhada para pais separados: veja quem está com a criança hoje, o que vem a seguir e combine trocas de dias com aprovação dos dois lados.",
+    "categories": ["lifestyle", "productivity"],
     "prefer_related_applications": false,
+    "related_applications": [
+        {
+            "platform": "play",
+            "id": "com.entrelares.app"
+        }
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-512.png",
             "sizes": "512x512",
-            "type": "image/png"
+            "type": "image/png",
+            "purpose": "any"
         },
         {
             "src": "icons/Icon-maskable-192.png",
@@ -30,6 +43,50 @@
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "maskable"
+        }
+    ],
+    "screenshots": [
+        {
+            "src": "https://entrelares.app/img/screenshots/today-calendar-meu-dia.png",
+            "type": "image/png",
+            "sizes": "1080x1920",
+            "form_factor": "narrow",
+            "label": "Hoje: seu dia com a criança"
+        },
+        {
+            "src": "https://entrelares.app/img/screenshots/today-calendar-dia-do-outro.png",
+            "type": "image/png",
+            "sizes": "1080x1920",
+            "form_factor": "narrow",
+            "label": "Hoje: dia do outro responsável"
+        },
+        {
+            "src": "https://entrelares.app/img/screenshots/editor-dia.png",
+            "type": "image/png",
+            "sizes": "1080x1920",
+            "form_factor": "narrow",
+            "label": "Editor do dia"
+        },
+        {
+            "src": "https://entrelares.app/img/screenshots/troca-aguardando-aprovacao.png",
+            "type": "image/png",
+            "sizes": "1080x1920",
+            "form_factor": "narrow",
+            "label": "Troca de dia aguardando aprovação"
+        },
+        {
+            "src": "https://entrelares.app/img/screenshots/calendario-tres-cuidadores.png",
+            "type": "image/png",
+            "sizes": "1080x1920",
+            "form_factor": "narrow",
+            "label": "Calendário com três cuidadores"
+        },
+        {
+            "src": "https://entrelares.app/img/screenshots/historico-auditoria.png",
+            "type": "image/png",
+            "sizes": "1080x1920",
+            "form_factor": "narrow",
+            "label": "Histórico com trilha de auditoria"
         }
     ]
 }

@@ -1,0 +1,53 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Security headers — apply to all routes
+# ═══════════════════════════════════════════════════════════════════════════════
+# Ported from the Blazor PWA's own `_headers` (T-53 stage 4: Flutter Web takes
+# over the hostname, so it also takes over the promises the hostname made).
+# The CSP is NOT a copy — the engine is different:
+#   * `wasm-unsafe-eval` + `blob:` in script-src/worker-src: CanvasKit compiles
+#     WebAssembly and Flutter spawns workers from blob URLs.
+#   * `'unsafe-eval'` is NOT here — Blazor WASM needed it, CanvasKit does not.
+#   * canvaskit is served from THIS origin (the deploy builds with
+#     `--no-web-resources-cdn`), so no gstatic host is allowed and the first
+#     load has no third-party request.
+#   * connect-src keeps exactly the three the app talks to: Supabase (REST +
+#     Realtime socket) and the Umami collector.
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; child-src 'self' blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cloud.umami.is; frame-ancestors 'none'
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Cache control
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# The TOMBSTONE of the Blazor service worker, and the reason the cutover
+# reaches installed PWAs at all: the browser re-fetches this URL on its update
+# check, and it must never come from a cache. See service-worker.js.
+/service-worker.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Flutter's own service worker and the bootstrap that carries its version. A
+# stale copy of either pins the app shell to an old build.
+/flutter_service_worker.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/flutter_bootstrap.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# The app shell must be fresh so the service worker can always serve the
+# correct version.
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/manifest.json
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Digital Asset Links — Android re-reads it to verify App Links. Served as
+# JSON, never as a download, and never stale for longer than a day.
+/.well-known/assetlinks.json
+  Content-Type: application/json
+  Cache-Control: public, max-age=3600
