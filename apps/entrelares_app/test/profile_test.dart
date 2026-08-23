@@ -50,6 +50,7 @@ Future<void> pumpProfile(
   SudoService? sudo,
   AppLanguage language = AppLanguage.ptBr,
   List<String>? deliveredExports,
+  Future<void> Function(String, String)? deliverExport,
 }) async {
   await tester.binding.setSurfaceSize(const Size(800, 2400));
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -63,8 +64,8 @@ Future<void> pumpProfile(
         profileId: profileId,
         // The real delivery needs a temp directory and the share channel;
         // what the test cares about is the payload reaching it.
-        deliverExport: (fileName, json) async =>
-            deliveredExports?.add(json),
+        deliverExport: deliverExport ??
+            (fileName, json) async => deliveredExports?.add(json),
       ),
     ),
   ));
@@ -329,6 +330,27 @@ void main() {
       expect(delivered, hasLength(1));
       expect(delivered.single, contains('"exportInfo"'));
       expect(ds.accountActions, contains('data_exported'));
+    });
+
+    testWidgets('a delivery that fails says WHY, with no placeholder left',
+        (tester) async {
+      // Two defects in one screenshot, both found by the web QA: the export
+      // failed on the web (the native delivery needs dart:io) and the failure
+      // sentence printed its own `{0}` to the user, because the call site read
+      // the catalog key instead of formatting it.
+      final ds = source();
+      await pumpProfile(tester, ds,
+          deliverExport: (_, _) async => throw Exception('sem canal de arquivo'));
+
+      await tester.tap(find.text(l[K.profExportAction]));
+      await tester.pumpAndSettle();
+      await confirmSudo(tester);
+
+      final snack = find.textContaining('sem canal de arquivo');
+      expect(snack, findsOneWidget,
+          reason: "the server's own words reach the reader (pilot lesson 4)");
+      expect(find.textContaining('{0}'), findsNothing,
+          reason: 'the placeholder is filled, never printed');
     });
 
     testWidgets('dismissing the prompt reads nothing at all', (tester) async {

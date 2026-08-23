@@ -1,10 +1,6 @@
-import 'dart:io';
-
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import '../widgets/ui/ui.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
@@ -15,6 +11,7 @@ import '../models/member.dart';
 import '../models/role.dart';
 import '../services/custody_data_source.dart';
 import '../services/export_service.dart';
+import '../services/file_delivery.dart';
 import '../services/sudo_service.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
@@ -355,23 +352,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted || !ran) return;
       await widget.dataSource.logAccountAction('data_exported');
       if (mounted) showAppSnack(context, l[K.profToastExported]);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      showAppSnack(context, l[K.profErrExport], type: AppSnackType.error);
+      // The catalog sentence carries a `{0}` for the reason — reading it with
+      // `l[...]` printed the placeholder itself to the user, and swallowing
+      // the exception hid the one clue about what failed (pilot lesson 4:
+      // never collapse heterogeneous failures into one message).
+      showAppSnack(context, l.format(K.profErrExport, [e.toString()]),
+          type: AppSnackType.error);
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
   }
 
-  /// The native half of the F-17 redesign: the browser's `<a download>` has no
-  /// equivalent here, and the share sheet is better anyway — the file can go
-  /// straight to Drive, e-mail or a chat instead of into a downloads folder.
-  Future<void> _shareFile(String fileName, String json) async {
-    final directory = await getTemporaryDirectory();
-    final file = File('${directory.path}/$fileName');
-    await file.writeAsString(json);
-    await Share.shareXFiles([XFile(file.path, mimeType: 'application/json')]);
-  }
+  /// Delivery is per PLATFORM, and that is not a detail: the native half
+  /// (share sheet over a temp file) needs `dart:io`, so on the web every
+  /// export used to die in the generic failure snack. See `file_delivery.dart`.
+  Future<void> _shareFile(String fileName, String json) =>
+      deliverTextFile(fileName, json, mimeType: 'application/json');
 
   Future<void> _leaveFamily(Localization l) async {
     if (_leaving) return;
