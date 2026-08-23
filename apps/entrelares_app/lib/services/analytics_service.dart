@@ -31,7 +31,10 @@ class AnalyticsService {
   final String host;
 
   /// What Umami reports as the site — the app declares its own so store
-  /// traffic is separable from `web.entrelares.app` in the same dashboard.
+  /// traffic is separable from the web channel in the same dashboard. On the
+  /// WEB build it is the hostname the browser is actually on, which since the
+  /// T-53 cutover is the one the Blazor PWA reported before it: same site,
+  /// unbroken series, and `channel` telling the two clients apart.
   final String hostname;
 
   /// The reader's language and the device screen: non-identifying device
@@ -50,7 +53,10 @@ class AnalyticsService {
     http.Client? client,
   })  : websiteId = (websiteId ?? Env.current.umamiWebsiteId).trim(),
         host = (host ?? Env.current.umamiHost).trim(),
-        hostname = hostname ?? Env.current.analyticsHostname,
+        hostname = hostname ??
+            (kIsWeb
+                ? Env.current.webHostname
+                : Env.current.analyticsHostname),
         _client = client ?? http.Client();
 
   /// True when a website id is configured; false makes every call a no-op.
