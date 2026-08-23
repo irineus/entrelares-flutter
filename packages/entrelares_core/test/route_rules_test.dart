@@ -120,4 +120,86 @@ void main() {
       expect(RouteRules.isRestorable('/family'), isFalse);
     });
   });
+
+  group('a reload, once the gate answers', () {
+    // The web QA finding: with a session, the remembered destination was
+    // computed and then thrown away, so every F5 landed on the calendar.
+    // Android never exercised it — there is no reload there, and the App
+    // Links that arrive cold aim at public routes.
+    test('an authenticated reader lands back where they were', () {
+      expect(
+        RouteRules.redirect(
+          phase: AuthPhase.authed,
+          location: RouteRules.splash,
+          pendingLocation: '/family',
+        ),
+        '/family',
+      );
+    });
+
+    test('the query survives with it', () {
+      expect(
+        RouteRules.redirect(
+          phase: AuthPhase.authed,
+          location: RouteRules.splash,
+          pendingLocation: '/reports?tab=audit',
+        ),
+        '/reports?tab=audit',
+      );
+    });
+
+    test('a screen that makes no sense with a session is never restored', () {
+      for (final anonOnly in ['/login', '/register', '/reset-password']) {
+        expect(
+          RouteRules.redirect(
+            phase: AuthPhase.authed,
+            location: RouteRules.splash,
+            pendingLocation: anonOnly,
+          ),
+          RouteRules.home,
+          reason: '$anonOnly is already answered for whoever has a session',
+        );
+      }
+    });
+
+    test('with nothing remembered, home — as before', () {
+      expect(
+        RouteRules.redirect(
+            phase: AuthPhase.authed, location: RouteRules.splash),
+        RouteRules.home,
+      );
+    });
+
+    test('a reader already on a real screen is left alone', () {
+      expect(
+        RouteRules.redirect(
+          phase: AuthPhase.authed,
+          location: '/family',
+          pendingLocation: '/reports',
+        ),
+        isNull,
+      );
+    });
+
+    test('the ANONYMOUS half is untouched: still public destinations only', () {
+      // The guard that keeps a deep link from handing a guarded screen to a
+      // visitor with no session (S-02).
+      expect(
+        RouteRules.redirect(
+          phase: AuthPhase.anon,
+          location: '/family',
+          pendingLocation: '/family',
+        ),
+        RouteRules.login,
+      );
+      expect(
+        RouteRules.redirect(
+          phase: AuthPhase.anon,
+          location: '/family',
+          pendingLocation: '/register?invite=abc',
+        ),
+        '/register?invite=abc',
+      );
+    });
+  });
 }

@@ -52,18 +52,40 @@ abstract final class RouteRules {
   static bool isPublic(String location) => publicRoutes.contains(location);
 
   /// Whether a remembered FULL uri (path plus query — the invite token lives in
-  /// the query) may be restored once the gate has answered.
+  /// the query) may be restored for someone who turned out to have NO session.
+  /// Public only: restoring a guarded screen for an anonymous visitor would be
+  /// handing over exactly what S-02 exists to refuse.
   static bool isRestorable(String uri) {
     final path = Uri.tryParse(uri)?.path;
     return path != null && isPublic(path);
   }
 
+  /// The same question for someone the gate confirmed as AUTHENTICATED — and
+  /// the answer is almost the opposite: any screen except the ones that make
+  /// no sense with a session (a login form is already answered).
+  ///
+  /// This is what makes F5 restore the screen the reader was on. On Android
+  /// nothing exercised it: there is no reload, and the App Links that arrive
+  /// cold aim at public routes. On the web EVERY reload goes through the gate,
+  /// so without this an authenticated reader who refreshed `/family` was
+  /// silently returned to the calendar — the destination remembered, then
+  /// thrown away one phase later.
+  static bool isRestorableWhenAuthed(String uri) {
+    final path = Uri.tryParse(uri)?.path;
+    return path != null &&
+        path.isNotEmpty &&
+        !anonymousOnlyRoutes.contains(path);
+  }
+
   /// Where the router should send this visitor; null means "stay here".
   ///
-  /// [pendingLocation] is the full URI an App Link asked for before the gate
-  /// answered. It is only ever honoured for a PUBLIC destination: a deep link
-  /// into the app proper still has to pass through login, and restoring it
-  /// blindly would hand an anonymous visitor a guarded screen.
+  /// [pendingLocation] is the full URI an App Link — or a browser reload —
+  /// asked for before the gate answered. Who it is honoured for depends on the
+  /// answer the gate gave: for an ANONYMOUS visitor only a public destination
+  /// (restoring a guarded screen would hand over exactly what S-02 refuses),
+  /// and for an AUTHENTICATED one anything that is not an anonymous-only
+  /// screen — that second half is what makes a reload land where the reader
+  /// was.
   static String? redirect({
     required AuthPhase phase,
     required String location,
@@ -76,7 +98,11 @@ abstract final class RouteRules {
             : (pendingLocation != null && isRestorable(pendingLocation)
                 ? pendingLocation
                 : login),
-        AuthPhase.authed =>
-          anonymousOnlyRoutes.contains(location) ? home : null,
+        AuthPhase.authed => anonymousOnlyRoutes.contains(location)
+            ? (pendingLocation != null &&
+                    isRestorableWhenAuthed(pendingLocation)
+                ? pendingLocation
+                : home)
+            : null,
       };
 }
