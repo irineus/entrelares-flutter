@@ -18,7 +18,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # of the product and file versions while build-number is used as the build suffix.
 # versionName / versionCode. Bump on every functional change handed to the
 # owner, same rule as the product repos.
-version: 0.2.44+46
+version: 0.2.45+47
 
 environment:
   sdk: ^3.12.2
@@ -35,6 +35,10 @@ dependencies:
   # U-13 port: Material's own strings (dialogs, a11y labels) follow the
   # session language; the app catalog stays in entrelares_core.
   flutter_localizations:
+    sdk: flutter
+  # T-53 stage 4: `usePathUrlStrategy()` — real paths on the web channel. Ships
+  # with the SDK and stubs out off the web.
+  flutter_web_plugins:
     sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
@@ -58,8 +62,12 @@ dependencies:
   share_plus: ^10.1.4
   # F-17 export: the share sheet hands over a FILE, so the JSON is written to
   # the app's own cache directory first (never external storage — no extra
-  # permission, and the OS reclaims it).
+  # permission, and the OS reclaims it). Native half only — the web half is an
+  # `<a download>` built with `package:web` (see `services/file_delivery.dart`).
   path_provider: ^2.1.5
+  # The web half of that split: Blob + <a download>, the same delivery the
+  # Blazor app always had.
+  web: ^1.1.0
   # F-33 redesign: the browser's print() does not exist in a native app, so the
   # report is a REAL PDF built on the device. `pdf` composes the document (pure
   # Dart — the composition is unit-testable without a device) and `printing`

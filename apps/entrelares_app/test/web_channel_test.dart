@@ -153,6 +153,16 @@ void main() {
     });
   });
 
+  group('the URL strategy', () {
+    test('the web channel serves real paths, not `/#/`', () {
+      // A hash router would make `_redirects` pointless AND would drop the
+      // token of an invitation link, which lives in the PATH — the failure
+      // would only show up after the domain move, on a real invitation.
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(main, contains('usePathUrlStrategy()'));
+    });
+  });
+
   group('the deploy workflow', () {
     late String workflow;
 

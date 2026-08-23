@@ -5,6 +5,9 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+// T-53 stage 4: real paths instead of `/#/…` on the web. The library resolves
+// to a non-web STUB off the web, so the call below is safe on every platform.
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -43,6 +46,14 @@ import 'widgets/onboarding.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The web channel serves REAL paths (`/family`), not `/#/family`. Three
+  // things ride on it: F5 restores the screen the reader was on, the URLs
+  // match the ones the Blazor app has always published (so a bookmark survives
+  // the cutover), and — the one that would have hurt — an invitation link
+  // arriving by e-mail carries its token in the PATH, which a hash router
+  // never sees. Cloudflare answers every path with index.html
+  // (`web/_redirects`), which is what makes this safe to turn on.
+  usePathUrlStrategy();
   // publishableKey is just the `apikey` header value — it accepts the legacy
   // anon JWT dev still uses (until S-17) as well as the new sb_publishable_…
   // key prod already has, so the S-16 shape ports for free (stage 0).
@@ -109,6 +120,14 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   final _refresh = _RouterRefresh();
   _AuthPhase _phase = _AuthPhase.gate;
   SessionExpiredReason _expiredReason = SessionExpiredReason.none;
+
+  /// True while a sign-out the USER asked for is in flight. Without it the
+  /// `signedOut` listener cannot tell "you pressed Sair" from "your session
+  /// died" — and since the auth event can land AFTER `_signOut` returns,
+  /// pressing Sair announced "sua sessão anterior expirou" on the login
+  /// screen: a lie, and precisely the sentence that makes someone believe
+  /// they were kicked out.
+  bool _userSignOut = false;
   StreamSubscription<AuthState>? _authSub;
 
   // S-04 — inactivity timeout (mirror in InactivityPolicy). The web resets on
@@ -407,10 +426,12 @@ class _EntrelaresAppState extends State<EntrelaresApp>
         // Pilot lesson 1.1 (second half): when the session dies MID-USE,
         // return to login instead of letting every call fail 42501.
         case AuthChangeEvent.signedOut:
-          if (_expiredReason == SessionExpiredReason.none &&
-              _phase == _AuthPhase.authed) {
-            _expiredReason = SessionExpiredReason.restored;
-          }
+          _expiredReason = reasonForSignedOut(
+            userInitiated: _userSignOut,
+            current: _expiredReason,
+            wasAuthed: _phase == _AuthPhase.authed,
+          );
+          _userSignOut = false;
           _setPhase(_AuthPhase.anon);
         // The recovery deep link's session was just created from the e-mail
         // tokens — land on the new-password form wherever the app was.
@@ -513,6 +534,9 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   }
 
   Future<void> _signOut() async {
+    // Set BEFORE the call: the auth event may arrive before or after the
+    // await returns, and only this flag makes that order irrelevant.
+    _userSignOut = true;
     await _gate.signOutSafely();
     _identity.clear();
     // Lesson 1.3: navigate ALWAYS (the auth listener also fires on success).

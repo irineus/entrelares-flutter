@@ -16,6 +16,23 @@ import '../widgets/app_splash.dart';
 /// (the web's `session_expired` sessionStorage flag).
 enum SessionExpiredReason { none, restored, inactivity }
 
+/// What a `signedOut` auth event means for the login screen's banner — the
+/// decision that told people "sua sessão anterior expirou" when all they had
+/// done was press Sair.
+///
+/// It lives next to the enum, and as a pure function, because the bug was NOT
+/// in the branch: it was that the branch ran from an event whose arrival order
+/// nobody controls. Pure, it can be asserted for all four combinations without
+/// a Supabase client; wired, `main.dart` only has to pass the flag.
+SessionExpiredReason reasonForSignedOut({
+  required bool userInitiated,
+  required SessionExpiredReason current,
+  required bool wasAuthed,
+}) =>
+    !userInitiated && current == SessionExpiredReason.none && wasAuthed
+        ? SessionExpiredReason.restored
+        : current;
+
 class LoginScreen extends StatefulWidget {
   /// Throws on failure; the screen translates the error for display.
   final Future<void> Function(String email, String password) onSignIn;

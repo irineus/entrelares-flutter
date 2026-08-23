@@ -352,4 +352,51 @@ void main() {
       expect(find.text(pt[K.updatePwdTitle]), findsNothing);
     });
   });
+
+  group('reasonForSignedOut', () {
+    test('pressing Sair never announces an expired session', () {
+      // The defect the web QA found: the auth event can land after `_signOut`
+      // already reset the reason, and the login screen greeted a deliberate
+      // logout with "sua sessão anterior expirou".
+      expect(
+        reasonForSignedOut(
+            userInitiated: true,
+            current: SessionExpiredReason.none,
+            wasAuthed: true),
+        SessionExpiredReason.none,
+      );
+    });
+
+    test('a session dying mid-use still says so', () {
+      expect(
+        reasonForSignedOut(
+            userInitiated: false,
+            current: SessionExpiredReason.none,
+            wasAuthed: true),
+        SessionExpiredReason.restored,
+      );
+    });
+
+    test('a reason already decided is never overwritten', () {
+      // The inactivity timer sets its own reason before signing out; the
+      // event that follows must not downgrade it to the generic one.
+      expect(
+        reasonForSignedOut(
+            userInitiated: false,
+            current: SessionExpiredReason.inactivity,
+            wasAuthed: true),
+        SessionExpiredReason.inactivity,
+      );
+    });
+
+    test('a sign-out while already anonymous says nothing', () {
+      expect(
+        reasonForSignedOut(
+            userInitiated: false,
+            current: SessionExpiredReason.none,
+            wasAuthed: false),
+        SessionExpiredReason.none,
+      );
+    });
+  });
 }
