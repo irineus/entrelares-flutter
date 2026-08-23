@@ -217,6 +217,11 @@ jobs:
     if: github.event_name == 'push' && github.ref_name == 'main'
     needs: verify
     runs-on: ubuntu-latest
+    # Job level on purpose: this is what the publish step reads in its own
+    # `if`, and a step cannot reliably test the `env:` it declares itself.
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
       - name: Read Flutter version from .fvmrc
@@ -237,9 +242,19 @@ jobs:
       # created by the owner before the first run.
       - name: Install Wrangler
         run: npm install -g wrangler
+      # Self-DISARMING while the Cloudflare credentials do not exist in this
+      # repo — the same shape the app repo gives `E2E_ASAAS_WEBHOOK_TOKEN`: an
+      # absent secret arrives empty and the step skips instead of painting
+      # `main` red for a piece of ops that has not happened yet. The build
+      # above still runs on every push, so the channel cannot rot silently.
+      # (`secrets` is not readable from a job-level `if`; `env` is, from a
+      # step-level one.)
       - name: Publish to Cloudflare Pages
         working-directory: apps/entrelares_app
+        if: env.CLOUDFLARE_API_TOKEN != ''
         run: wrangler pages deploy build/web --project-name=entrelares-web --branch=main --commit-dirty=true
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Say why nothing was published
+        if: env.CLOUDFLARE_API_TOKEN == ''
+        run: |
+          echo "### Canal web: build OK, publicação PULADA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Faltam os secrets \`CLOUDFLARE_API_TOKEN\` e \`CLOUDFLARE_ACCOUNT_ID\` neste repo (e o projeto Pages \`entrelares-web\`)." >> "$GITHUB_STEP_SUMMARY"
