@@ -211,9 +211,18 @@ void main() {
       expect(workflow, contains('--no-web-resources-cdn'));
     });
 
-    test('publishing waits for the gate, and only from main', () {
+    test('publishing waits for BOTH gates, and only from main', () {
       final job = workflow.substring(workflow.indexOf('  deploy-web:'));
-      expect(job, contains('needs: verify'));
+      // The gate stopped being a single job on 24/08/2026, when the database
+      // suite moved into this repo: `verify` runs the Flutter lanes and
+      // `db-gate` runs the 221 RLS/RPC/trigger tests. Publishing behind only one
+      // of them would ship the web channel with the other half unchecked — so
+      // this asserts each dependency BY NAME instead of matching the literal
+      // `needs:` line, which is what broke when the second job arrived.
+      final needs = RegExp(r'needs:\s*(\[[^\]]*\]|\S+)').firstMatch(job)?.group(1);
+      expect(needs, isNotNull, reason: 'deploy-web must declare what it waits for');
+      expect(needs, contains('verify'));
+      expect(needs, contains('db-gate'));
       expect(job, contains("github.ref_name == 'main'"));
       expect(job, contains('wrangler pages deploy build/web'));
     });
