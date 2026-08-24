@@ -42,7 +42,16 @@ class FamilyDeletionRequest {
         familyId: json['family_id'] as int?,
         requestedBy: json['requested_by'] as int,
         scheduledFor: DateTime.parse(json['scheduled_for'] as String).toUtc(),
-        requestedAt: DateTime.parse(json['created_at'] as String).toUtc(),
+        // `requested_at`, NOT `created_at` — the table has no such column.
+        // The cast on a missing key threw `type 'Null' is not a subtype of type
+        // 'String'`, which meant the Família screen crashed for EVERY family
+        // with a deletion request pending: `fetchPendingFamilyDeletion` selects
+        // the whole row and parses it here, and the banner renders
+        // `requestedAt`. Nothing in the app could have caught it — the fixtures
+        // build the object in memory — and the database gate found it on its
+        // first run against the real table (T-56 PR 7, 24/08/2026). This is
+        // exactly the property the shared-contract design was for.
+        requestedAt: DateTime.parse(json['requested_at'] as String).toUtc(),
         status: (json['status'] as String?) ?? 'pending',
       );
 }
