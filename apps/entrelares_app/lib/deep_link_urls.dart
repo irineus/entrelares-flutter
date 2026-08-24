@@ -16,6 +16,16 @@ abstract final class DeepLinkUrls {
   /// clicked, and that click happens in whatever mail client the person uses,
   /// often on another device.
   static const String login = '$webOrigin/login';
-  static const String privacy = '$webOrigin/privacy';
-  static const String terms = '$webOrigin/terms';
+
+  /// The LANDING's origin. Legal pages live there, and that is not a detail of
+  /// taste: `webOrigin` is the address changing hands in the cutover, and this
+  /// app has no `/privacy` route of its own (lote 4: one copy of the legal
+  /// text, opened in the browser). Pointed at `webOrigin`, these links worked
+  /// only for as long as the BLAZOR app answered there — the moment the domain
+  /// moved they would land on this app, which has nothing to show, and the
+  /// policy would become unreachable from inside the product. The landing is a
+  /// separate stack that is not moving.
+  static const String landingOrigin = 'https://entrelares.app';
+  static const String privacy = '$landingOrigin/privacidade';
+  static const String terms = '$landingOrigin/termos';
 }

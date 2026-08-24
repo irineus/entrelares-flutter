@@ -9,6 +9,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:entrelares_app/deep_link_urls.dart';
 import 'package:entrelares_app/env.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -29,6 +30,34 @@ void main() {
         reason: 'without this rule a reload of /family — or an invitation '
             'deep link — is a CDN 404 before the app boots',
       );
+    });
+  });
+
+  group('the legal pages, after the host changes hands', () {
+    test('the app links to the landing, not to the host it is taking over', () {
+      // This app has no `/privacy` route (lote 4: one copy of the text, opened
+      // in the browser). Pointing the link at the address being handed over
+      // would make the policy unreachable from inside the product the moment
+      // the domain moved — and nothing would fail until then.
+      expect(DeepLinkUrls.privacy, startsWith(DeepLinkUrls.landingOrigin));
+      expect(DeepLinkUrls.terms, startsWith(DeepLinkUrls.landingOrigin));
+      expect(DeepLinkUrls.landingOrigin, isNot(DeepLinkUrls.webOrigin));
+    });
+
+    test('and the old paths still lead somewhere', () {
+      // Links already out there — an e-mail, a bookmark, the old client —
+      // name these paths on the host this channel now answers for.
+      final rules = _web('_redirects').readAsStringSync();
+      for (final path in const ['/privacy', '/terms']) {
+        final rule = RegExp(r'^' + RegExp.escape(path) + r'\s+(\S+)\s+301',
+                multiLine: true)
+            .firstMatch(rules);
+        expect(rule, isNotNull,
+            reason: '$path must redirect, not fall into the SPA catch-all');
+        expect(rule!.group(1), startsWith(DeepLinkUrls.landingOrigin));
+      }
+      // Order is the whole trick: first match wins in `_redirects`.
+      expect(rules.indexOf('/privacy'), lessThan(rules.indexOf('/*')));
     });
   });
 
