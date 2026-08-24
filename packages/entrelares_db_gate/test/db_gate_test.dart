@@ -8,10 +8,15 @@ import 'suites/account_deletion.dart';
 import 'suites/admin_override_tier.dart';
 import 'suites/admin_rpc.dart';
 import 'suites/adversarial.dart';
+import 'suites/app_settings.dart';
 import 'suites/auto_approval.dart';
 import 'suites/caregiver_gate.dart';
 import 'suites/consent_and_retention.dart';
+import 'suites/custom_role.dart';
 import 'suites/day_protection.dart';
+import 'suites/e2e_date_allocator.dart';
+import 'suites/edge_function_auth.dart';
+import 'suites/email_quota_gate.dart';
 import 'suites/family_deletion.dart';
 import 'suites/family_isolation.dart';
 import 'suites/handoff_transition.dart';
@@ -19,6 +24,7 @@ import 'suites/invitation_lifecycle.dart';
 import 'suites/invitation_purge.dart';
 import 'suites/joined_via_invite.dart';
 import 'suites/multi_caregiver.dart';
+import 'suites/notification_params.dart';
 import 'suites/optimistic_concurrency.dart';
 import 'suites/planning_horizon_gate.dart';
 import 'suites/platform_operator.dart';
@@ -29,7 +35,9 @@ import 'suites/register_invitee.dart';
 import 'suites/resolution_log_link.dart';
 import 'suites/revert_notes.dart';
 import 'suites/rls_hardening.dart';
+import 'suites/sudo_elevation.dart';
 import 'suites/swap_message.dart';
+import 'suites/test_recipient_suppression.dart';
 
 /// **The single entrypoint of the database gate, and why it is single.**
 ///
@@ -86,4 +94,12 @@ void main() {
   adminRpcTests(fx);
   adminOverrideTierTests(fx);
   platformOperatorTests(fx);
+  sudoElevationTests(fx);
+  customRoleTests(fx);
+  appSettingsTests(fx);
+  edgeFunctionAuthTests(fx);
+  notificationParamsTests(fx);
+  emailQuotaGateTests(fx);
+  testRecipientSuppressionTests(fx);
+  e2eDateAllocatorTests(fx);
 }
