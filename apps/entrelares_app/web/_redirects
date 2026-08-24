@@ -3,4 +3,13 @@
 # without this rule a reload or a deep link is a 404 served by the CDN before
 # the app ever boots. Static files that exist are still served as themselves —
 # this is the same single rule the Blazor PWA has always shipped.
+# The legal pages the BLAZOR app served at this host, and which this app does
+# not have (lote 4: one copy of the text, opened in the browser). The app
+# itself now links straight to the landing, but every link already out there —
+# in an e-mail, a bookmark, the old client — still names these paths, and after
+# the domain move they would land here. First match wins, so these come BEFORE
+# the SPA fallback below.
+/privacy   https://entrelares.app/privacidade  301
+/terms     https://entrelares.app/termos       301
+
 /*  /index.html  200
