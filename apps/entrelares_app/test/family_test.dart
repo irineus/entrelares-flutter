@@ -3,7 +3,7 @@
 // the wire parsing. The rule itself is core (entitlement_rules_test).
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/family.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
 
 void main() {
   final now = DateTime.utc(2026, 7, 23, 12);

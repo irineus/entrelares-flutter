@@ -3,8 +3,8 @@
 // paramsJson bridge into the NotificationRenderer.
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/app_notification.dart';
-import 'package:entrelares_app/models/swap_request.dart';
+import 'package:entrelares_db_contracts/models/app_notification.dart';
+import 'package:entrelares_db_contracts/models/swap_request.dart';
 
 void main() {
   group('SwapRequest.fromJson', () {

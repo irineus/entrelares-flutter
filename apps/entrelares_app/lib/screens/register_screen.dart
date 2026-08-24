@@ -4,7 +4,7 @@ import '../widgets/ui/ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
-import '../models/invite_info.dart';
+import 'package:entrelares_db_contracts/models/invite_info.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';

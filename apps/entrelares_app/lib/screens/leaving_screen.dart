@@ -1,7 +1,7 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 
-import '../models/member.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
 import '../services/custody_data_source.dart';
 import '../services/sudo_service.dart';
 import '../widgets/app_l10n.dart';

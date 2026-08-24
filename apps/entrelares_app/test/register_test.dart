@@ -12,7 +12,7 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/invite_info.dart';
+import 'package:entrelares_db_contracts/models/invite_info.dart';
 import 'package:entrelares_app/screens/register_screen.dart';
 import 'package:entrelares_app/services/custody_data_source.dart';
 import 'package:entrelares_app/widgets/app_l10n.dart';

@@ -7,8 +7,8 @@ import '../theme/tokens.dart';
 import 'package:printing/printing.dart';
 
 import '../env.dart';
-import '../models/family.dart';
-import '../models/member.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
 import '../services/custody_data_source.dart';
 import '../services/report_pdf.dart';
 import '../widgets/app_l10n.dart';

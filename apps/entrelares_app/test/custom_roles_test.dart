@@ -9,9 +9,9 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/family.dart';
-import 'package:entrelares_app/models/member.dart';
-import 'package:entrelares_app/models/role.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
 import 'package:entrelares_app/screens/custom_roles_screen.dart';
 import 'package:entrelares_app/widgets/app_l10n.dart';
 

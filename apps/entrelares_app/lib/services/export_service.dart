@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:entrelares_core/entrelares_core.dart';
 
-import '../models/care_schedule.dart';
-import '../models/family.dart';
-import '../models/member.dart';
-import '../models/role.dart';
+import 'package:entrelares_db_contracts/models/care_schedule.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
 import 'custody_data_source.dart';
 
 /// F-17/S-13 — the LGPD data export. Port of `Entrelares/Services/ExportService.cs`.

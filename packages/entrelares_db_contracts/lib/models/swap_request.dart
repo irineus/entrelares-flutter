@@ -21,6 +21,12 @@ class SwapRequest {
   final int? resolutionLogId;
   final bool revertNotes; // F-47, frozen after insert by the DB
   final String? resolvedBy; // 'user' | 'system' (F-24 auto-approval)
+
+  /// F-24: when the 24–48 h nudge went out. The app never reads it — the
+  /// reminder is the server's business — but the gate does: it is the only
+  /// observable difference between "the cron looked at this request and decided
+  /// it was not ripe yet" and "the cron never ran".
+  final DateTime? reminderSentAt;
   final String? createdAt;
   final String? updatedAt;
   final String? resolvedAt;
@@ -42,6 +48,7 @@ class SwapRequest {
     this.resolutionLogId,
     this.revertNotes = false,
     this.resolvedBy,
+    this.reminderSentAt,
     this.createdAt,
     this.updatedAt,
     this.resolvedAt,
@@ -85,6 +92,9 @@ class SwapRequest {
         resolutionLogId: json['resolution_log_id'] as int?,
         revertNotes: (json['revert_notes'] as bool?) ?? false,
         resolvedBy: json['resolved_by'] as String?,
+        reminderSentAt: json['reminder_sent_at'] == null
+            ? null
+            : DateTime.parse(json['reminder_sent_at'] as String).toUtc(),
         createdAt: json['created_at'] as String?,
         updatedAt: json['updated_at'] as String?,
         resolvedAt: json['resolved_at'] as String?,
