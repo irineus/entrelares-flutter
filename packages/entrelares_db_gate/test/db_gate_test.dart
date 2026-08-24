@@ -16,6 +16,8 @@ import 'suites/billing_grace.dart';
 import 'suites/billing_grace_warning.dart';
 import 'suites/billing_history.dart';
 import 'suites/billing_reactivate.dart';
+import 'suites/billing_store.dart';
+import 'suites/billing_webhook.dart';
 import 'suites/caregiver_gate.dart';
 import 'suites/consent_and_retention.dart';
 import 'suites/custom_role.dart';
@@ -116,4 +118,6 @@ void main() {
   billingHistoryTests(fx);
   billingReactivateTests(fx);
   billingAvulsoTests(fx);
+  billingStoreTests(fx);
+  billingWebhookTests(fx);
 }
