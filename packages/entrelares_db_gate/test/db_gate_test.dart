@@ -4,7 +4,12 @@ library;
 import 'package:entrelares_db_gate/entrelares_db_gate.dart';
 import 'package:test/test.dart';
 
+import 'suites/adversarial.dart';
+import 'suites/caregiver_gate.dart';
+import 'suites/consent_and_retention.dart';
 import 'suites/family_isolation.dart';
+import 'suites/reconsent_gate.dart';
+import 'suites/rls_hardening.dart';
 
 /// **The single entrypoint of the database gate, and why it is single.**
 ///
@@ -36,4 +41,9 @@ void main() {
   tearDownAll(fx.dispose);
 
   familyIsolationTests(fx);
+  rlsHardeningTests(fx);
+  adversarialTests(fx);
+  consentAndRetentionTests(fx);
+  reconsentGateTests(fx);
+  caregiverGateTests(fx);
 }
