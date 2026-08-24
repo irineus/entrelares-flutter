@@ -22,7 +22,7 @@ delivered in another**:
 | **Code** of a client item (`F-`/`U-`/`T-`/`S-`) | `entrelares-flutter`, branch **`main`** |
 | **Code** of a landing item (`L-`) | `entrelares-site`, branch **`preview`** |
 | Backlog **records** + `archive/phase-*.md` | still `entrelares-app/backlog/` |
-| Migrations + Edge Functions | still `entrelares-app/supabase/` |
+| **Migrations + Edge Functions** | **here**, in `supabase/`. A PR applies them to the **dev** project before the gate runs; a merge to `main` applies them to **production** (job `db-prod`) before the web channel publishes |
 | **The DB gate** (221 C# tests over RLS/RPCs/triggers) | **here**, in `db-gate/` — job `db-gate` of `verify.yml`. A copy still exists in the app repo (the Playwright suite references it); **this one is the authority** |
 | The frozen Blazor client | `entrelares-app`, published at `legado.entrelares.app` |
 
@@ -106,8 +106,9 @@ incremental PRs (each with its docs/backlog closeout inline) and get the user's 
   ```
   That suite also holds the two source gates: `no_literal_snack_test` (catalog strings) and
   `no_color_literal_test` (U-27 — colours only in `lib/theme/tokens.dart`).
-- Migrations via `supabase migration new` in the repo that owns `supabase/` (§0); Edge
-  Functions redeploy from that repo's pipeline on the push.
+- Migrations via `supabase migration new` in `supabase/migrations/`; Edge Functions redeploy
+  from `verify.yml` — and a NEW function must be added to `.github/functions.sh`, or the
+  drift guard fails the run rather than letting it be silently never deployed.
 - **Version bump** in the SAME delivery for any functional change: `version:` in
   `apps/entrelares_app/pubspec.yaml` (`0.2.x+NN` — BOTH halves; the `+NN` is the Android
   `versionCode` and the Play Console refuses a repeated or lower one). Internal-docs-only

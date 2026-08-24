@@ -1,0 +1,151 @@
+-- =============================================================================
+-- F-32 — Freemium foundation: family plan, trial, entitlement helper + waitlist
+--
+-- This is the PLUMBING only. No feature is gated here and no billing exists yet
+-- (T-39 builds the gateway later). The individual gates (extra caregivers,
+-- planning horizon, admin override, transactional-email cap, custom roles) each
+-- ship as their own backlog item (F-37…F-41) once this foundation is in place.
+--
+-- Product decisions (locked July 2026):
+--   · Two tiers: `free` (default) and `premium`.
+--   · Every NEW family gets a 30-day Premium trial (column default) so people
+--     experience the full product before the free line settles in.
+--   · Entitlement = `plan = 'premium'` OR the trial is still running. The DB is
+--     the single source of truth; the client (EntitlementService) only mirrors
+--     this same rule for the UI.
+--   · EXISTING families are grandfathered to permanent `premium` — they adopted
+--     the product while everything was free; that includes the founder family.
+--   · Plan changes are SERVICE-ROLE only (no self-upgrade): the RPC is granted
+--     to service_role alone, so an authenticated user can never promote their
+--     own family. Billing (T-39) will call it from a trusted server context.
+-- =============================================================================
+
+-- ── 1. Plan + trial columns on families ──────────────────────────────────────
+
+ALTER TABLE public.families
+	ADD COLUMN IF NOT EXISTS plan          text NOT NULL DEFAULT 'free'
+	                         CHECK (plan IN ('free', 'premium')),
+	ADD COLUMN IF NOT EXISTS trial_ends_at timestamp with time zone
+	                         DEFAULT timezone('utc', now()) + interval '30 days';
+
+-- Grandfather every family that predates the freemium model to permanent
+-- premium (no trial clock — they simply have it). New families keep the
+-- column defaults (free + 30-day trial) set above.
+UPDATE public.families
+SET plan = 'premium', trial_ends_at = NULL
+WHERE created_at < timezone('utc', now());
+
+-- ── 2. Entitlement helper — the single source of truth ───────────────────────
+-- premium when the plan is premium OR the trial has not yet expired.
+
+CREATE OR REPLACE FUNCTION public.is_premium(p_family_id bigint)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+	SELECT EXISTS (
+		SELECT 1 FROM public.families f
+		WHERE f.id = p_family_id
+		  AND (f.plan = 'premium'
+		       OR (f.trial_ends_at IS NOT NULL AND f.trial_ends_at > timezone('utc', now())))
+	);
+$$;
+
+ALTER FUNCTION public.is_premium(bigint) OWNER TO postgres;
+
+-- Convenience: entitlement for the caller's own family (used by RLS/RPC gates).
+CREATE OR REPLACE FUNCTION public.is_premium()
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+	SELECT public.is_premium(public.get_my_family_id());
+$$;
+
+ALTER FUNCTION public.is_premium() OWNER TO postgres;
+
+GRANT EXECUTE ON FUNCTION public.is_premium(bigint) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_premium(bigint) TO service_role;
+GRANT EXECUTE ON FUNCTION public.is_premium()        TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_premium()        TO service_role;
+
+-- ── 3. set_family_plan — service-role ONLY (no self-upgrade) ──────────────────
+-- SECURITY DEFINER bypasses RLS, so the ONLY thing that keeps an authenticated
+-- user from promoting their own family is the EXECUTE grant: revoke it from
+-- everyone and grant it to service_role alone. Billing (T-39) calls this.
+
+CREATE OR REPLACE FUNCTION public.set_family_plan(p_family_id bigint, p_plan text)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+	IF p_plan NOT IN ('free', 'premium') THEN
+		RAISE EXCEPTION 'Plano inválido: %.', p_plan USING ERRCODE = 'check_violation';
+	END IF;
+
+	UPDATE public.families
+	SET plan          = p_plan,
+	    -- Leaving premium clears any lingering trial so is_premium() is honest;
+	    -- entering premium makes the trial irrelevant (kept for auditing).
+	    trial_ends_at = CASE WHEN p_plan = 'free' THEN NULL ELSE trial_ends_at END
+	WHERE id = p_family_id;
+END;
+$$;
+
+ALTER FUNCTION public.set_family_plan(bigint, text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.set_family_plan(bigint, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.set_family_plan(bigint, text) FROM anon;
+REVOKE ALL ON FUNCTION public.set_family_plan(bigint, text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.set_family_plan(bigint, text) TO service_role;
+
+-- ── 4. Premium interest — the soft waitlist ───────────────────────────────────
+-- One row per family (intent, not a queue). Any member can register it; the
+-- latest registrant/feature wins. Feeds T-37 (intent measurement) and gates
+-- nothing. Writes go through the RPC only (no INSERT policy on purpose).
+
+CREATE TABLE IF NOT EXISTS public.premium_interest (
+	id         bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+	family_id  bigint NOT NULL UNIQUE REFERENCES public.families (id) ON DELETE CASCADE,
+	profile_id bigint NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+	feature    text,
+	created_at timestamp with time zone DEFAULT timezone('utc', now()) NOT NULL
+);
+
+ALTER TABLE public.premium_interest ENABLE ROW LEVEL SECURITY;
+
+-- Members read their own family's interest row (so the UI shows the registered
+-- state); all writes go through register_premium_interest below.
+CREATE POLICY premium_interest_select ON public.premium_interest
+	FOR SELECT TO authenticated
+	USING (family_id = public.get_my_family_id());
+
+GRANT SELECT ON public.premium_interest TO authenticated;
+GRANT ALL    ON public.premium_interest TO service_role;
+
+CREATE OR REPLACE FUNCTION public.register_premium_interest(p_feature text DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+	me public.profiles%ROWTYPE;
+BEGIN
+	SELECT * INTO me FROM public.profiles WHERE user_id = auth.uid();
+	IF me.id IS NULL THEN
+		RAISE EXCEPTION 'Perfil não encontrado.' USING ERRCODE = 'check_violation';
+	END IF;
+
+	INSERT INTO public.premium_interest (family_id, profile_id, feature)
+	VALUES (me.family_id, me.id, NULLIF(trim(p_feature), ''))
+	ON CONFLICT (family_id) DO UPDATE
+		SET profile_id = EXCLUDED.profile_id,
+		    feature    = EXCLUDED.feature,
+		    created_at = timezone('utc', now());
+END;
+$$;
+
+ALTER FUNCTION public.register_premium_interest(text) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.register_premium_interest(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.register_premium_interest(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.register_premium_interest(text) TO service_role;

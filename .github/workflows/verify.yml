@@ -114,7 +114,7 @@ jobs:
   # them side by side.
   db-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     # Serialized across the whole repo, unlike the per-ref group of the workflow.
     # The suite is safe to run twice at once for FAMILIES (each run invents its own
     # `E2E-<runId>` and the orphan sweep spares anything younger than 2h), but the
@@ -123,8 +123,47 @@ jobs:
     concurrency:
       group: db-gate
       cancel-in-progress: false
+    # Job level so the steps can read them in their own `if` — `secrets` is not
+    # readable from an `if`, `env` is (the same shape `deploy-web` uses).
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_DEV }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF_DEV }}
     steps:
       - uses: actions/checkout@v4
+
+      # ── T-29, kept: the gate runs against the schema the PR is proposing ────
+      # In the app repo this was a separate step before the suite; here it is a
+      # step of the SAME job on purpose. Making it a job would mean the gate had
+      # to `needs:` it, and a `needs:` on a job that skips (push, schedule) skips
+      # the dependent too unless every edge is wrapped in `always()` — a footgun
+      # for something whose only requirement is "before the suite, same runner".
+      #
+      # PULL REQUESTS ONLY: the PR is this repo's staging stage (there is no `dev`
+      # branch — a merge to `main` publishes production). By the time a change is
+      # on `main`, its PR already put the schema on dev.
+      - name: Instalar Supabase CLI
+        if: github.event_name == 'pull_request' && env.SUPABASE_ACCESS_TOKEN != ''
+        uses: supabase/setup-cli@v3
+        with:
+          # PINNED, like the app repo: resolving "latest" spends GitHub API quota
+          # and has failed runs on rate limit. Bump deliberately, never implicitly.
+          version: 2.105.0
+
+      - name: Aplicar migrations e functions no DEV (antes do gate)
+        if: github.event_name == 'pull_request' && env.SUPABASE_ACCESS_TOKEN != ''
+        run: |
+          set -euo pipefail
+          source .github/functions.sh
+          retry supabase link --project-ref "$PROJECT_REF"
+          retry supabase db push
+          deploy_functions "$PROJECT_REF"
+
+      - name: Dizer por que o schema não foi aplicado
+        if: github.event_name == 'pull_request' && env.SUPABASE_ACCESS_TOKEN == ''
+        run: |
+          echo "### Schema NÃO aplicado no dev — o gate rodou contra o schema antigo" >> "$GITHUB_STEP_SUMMARY"
+          echo "Faltam \`SUPABASE_ACCESS_TOKEN_DEV\`, \`SUPABASE_DB_PASSWORD_DEV\` e \`SUPABASE_PROJECT_REF_DEV\` neste repo. Enquanto isso, quem aplica migrations é o \`entrelares-app\`." >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-dotnet@v6
         with:
@@ -245,6 +284,55 @@ jobs:
           path: apps/entrelares_app/build/app/outputs/flutter-apk/app-*-debug.apk
           retention-days: 1
 
+  # ── Production database ──────────────────────────────────────────────────
+  # T-29's order, preserved across the move: migrations → functions → app. This
+  # job sits between the gates and `deploy-web`, so a failed `db push` stops the
+  # publish and the environment is never left with a new app over an old schema.
+  #
+  # This is where this repo gained write access to the PRODUCTION database
+  # (24/08/2026, owner decision — `docs/arquivamento-app.md`). It runs only from
+  # `main`, only after BOTH gates are green, and the credentials are three secrets
+  # that exist nowhere else in the workflow.
+  db-prod:
+    if: github.event_name == 'push' && github.ref_name == 'main'
+    needs: [verify, db-gate]
+    runs-on: ubuntu-latest
+    env:
+      # Account-scoped tokens; two named ones (ci-qa/ci-prod) give separate
+      # revocation and audit per pipeline.
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN_PROD }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
+      PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF_PROD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Supabase CLI
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        uses: supabase/setup-cli@v3
+        with:
+          version: 2.105.0
+
+      - name: Aplicar migrations e functions em PRODUÇÃO
+        if: env.SUPABASE_ACCESS_TOKEN != ''
+        run: |
+          set -euo pipefail
+          source .github/functions.sh
+          retry supabase link --project-ref "$PROJECT_REF"
+          retry supabase db push
+          deploy_functions "$PROJECT_REF"
+
+      # Self-disarming until the owner moves the credentials, so `main` does not
+      # go red for a piece of ops that has not happened yet. The note is loud on
+      # purpose: while this step is the one that runs, schema and app do NOT
+      # travel together, and the `entrelares-app` pipeline is still what applies
+      # migrations to production.
+      - name: Dizer por que o banco de produção não foi tocado
+        if: env.SUPABASE_ACCESS_TOKEN == ''
+        run: |
+          echo "### Banco de PRODUÇÃO não tocado por este repo" >> "$GITHUB_STEP_SUMMARY"
+          echo "Faltam \`SUPABASE_ACCESS_TOKEN_PROD\`, \`SUPABASE_DB_PASSWORD_PROD\` e \`SUPABASE_PROJECT_REF_PROD\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "Enquanto isso quem aplica migrations em produção é o \`entrelares-app\`, e **schema e app não viajam juntos** — ver \`docs/arquivamento-app.md\`." >> "$GITHUB_STEP_SUMMARY"
+
   # ── T-53 stage 4 — the web channel ──────────────────────────────────────
   # Flutter Web REPLACES the Blazor PWA (tension 1), so this repo owns the
   # deploy of `web.entrelares.app`. Cloudflare Pages, the same platform and the
@@ -265,8 +353,10 @@ jobs:
     if: github.event_name == 'push' && github.ref_name == 'main'
     # Both gates, not one: since the DB gate moved here, publishing behind only the
     # Flutter suites would ship the web channel without the database rules ever
-    # having been checked.
-    needs: [verify, db-gate]
+    # having been checked. And `db-prod` before it, which is T-29's order —
+    # migrations → functions → app — so the channel never serves an app whose
+    # schema failed to apply.
+    needs: [verify, db-gate, db-prod]
     runs-on: ubuntu-latest
     # Job level on purpose: this is what the publish step reads in its own
     # `if`, and a step cannot reliably test the `env:` it declares itself.

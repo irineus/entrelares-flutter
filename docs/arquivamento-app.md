@@ -66,13 +66,40 @@ fica descoberto durante a travessia.
 |---|---|---|
 | **1** ✅ | flutter | **Ferramental de sessão** (PR #57, 24/08/2026): `tool/notion_mirror.py` enxerga os três repos e agrega entregas cross-repo; a skill `next-item` muda de casa e de rota; este documento |
 | **2** ✅ | flutter | **O gate de banco muda de casa, ainda em C#** (24/08/2026): `db-gate/` — `Entrelares.DbContracts` (15 modelos + 2 helpers, 1.010 linhas) e a suíte intacta (52 arquivos, 7.419 linhas, 221 testes, 42 classes), mais o job `db-gate` no `verify.yml` bloqueando o `deploy-web` |
-| **3** | flutter | **Banco e ops**: `supabase/` inteiro (70 migrations, 13 functions, o runbook), o deploy PR→dev / main→prod na ordem migrations → functions → app, mais `backup.yml` e `keepalive-dev.yml`. Owner: 6 secrets novos (3 de produção) + `R2_*` + `BACKUP_PASSPHRASE` |
+| **3** ✅ | flutter | **Banco e ops** (24/08/2026): `supabase/` inteiro (70 migrations, 12 functions, o runbook de 1.442 linhas), o deploy PR→dev / `main`→prod na ordem migrations → functions → app, mais `backup.yml` e `keepalive-dev.yml`. Tudo **auto-desarmante**: entra sem os secrets e só passa a valer quando o owner os define |
 | **4a** | flutter | **A memória, parte mecânica**: `backlog/` inteiro, `docs/`, `database/`, `GitHelp.md`, e o changelog do README do app como história congelada |
 | **4b** | flutter | **A memória, parte de julgamento**: triagem do `CLAUDE.md` do app (invariantes de produto vêm; *gotchas* do Blazor ficam), revogação datada da regra do backlog, e o mirror passando a ler os registros daqui |
 | **5** | flutter | **Spike do gate de fluxo**: veredito com número sobre `flutter drive` + chromedriver — o que sobe no navegador, o que falha por plugin nativo, quantos minutos custa |
 | **6…N** | flutter | **O port do gate para Dart**, suíte por suíte. O primeiro PR leva o `E2EFamilyFixture` (385 linhas, ~30% do risco) e uma suíte pequena como prova; o último apaga `db-gate/` e o lane `dotnet`. Estimativa: 6–9 PRs |
 | **F** | app | **O esvaziamento, num toque só**: remove o que migrou, README curto apontando para cá, `deploy.yml` reduzido à metade que publica o `legado.`. Não arquiva ainda |
 | **∅** | app | **No dia do desligamento** (condição da decisão 7, sem código novo): tira domínio e projeto Pages, apaga a metade Blazor do `deploy.yml`, apaga `E2ETests` + `IntegrationTests`, arquiva |
+
+## O que o owner precisa fazer para o PR 3 valer
+
+O código entrou desarmado: sem os secrets, cada passo **pula com nota no summary** em vez de
+pintar o `main` de vermelho. Enquanto estiver assim, quem aplica migrations continua sendo o
+`entrelares-app`, e **schema e app não viajam juntos**.
+
+| Secret | Para quê |
+|---|---|
+| `SUPABASE_ACCESS_TOKEN_DEV`, `SUPABASE_DB_PASSWORD_DEV`, `SUPABASE_PROJECT_REF_DEV` | O PR aplicar schema/functions no projeto de QA **antes** do gate rodar |
+| `SUPABASE_ACCESS_TOKEN_PROD`, `SUPABASE_DB_PASSWORD_PROD`, `SUPABASE_PROJECT_REF_PROD` | O `main` aplicar em **produção** (job `db-prod`) |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `BACKUP_PASSPHRASE` | O backup semanal cifrado |
+
+**E, no mesmo momento, desligar as cópias antigas** — sem tocar em código nem gastar promoção:
+
+```
+gh workflow disable backup.yml -R irineus/entrelares-app
+gh workflow disable keepalive-dev.yml -R irineus/entrelares-app
+```
+
+Não basta apagar os secrets lá: o `backup.yml` daquele repo **falha** com secrets ausentes,
+por decisão de projeto, então apagar só trocaria "dois backups por semana" por "um vermelho
+por semana". `gh workflow disable` desarma na fonte.
+
+O `keepalive-dev.yml` daqui **não precisa de secret nenhum novo**: a URL do dev é pública
+(a mesma do `env.dart`) e a `SUPABASE_SERVICE_ROLE_DEV` já existe neste repo — ele passa a
+valer no merge.
 
 ## Pontas soltas registradas
 
