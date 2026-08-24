@@ -7,7 +7,11 @@ import 'package:test/test.dart';
 import 'suites/adversarial.dart';
 import 'suites/caregiver_gate.dart';
 import 'suites/consent_and_retention.dart';
+import 'suites/day_protection.dart';
 import 'suites/family_isolation.dart';
+import 'suites/handoff_transition.dart';
+import 'suites/optimistic_concurrency.dart';
+import 'suites/planning_horizon_gate.dart';
 import 'suites/reconsent_gate.dart';
 import 'suites/rls_hardening.dart';
 
@@ -46,4 +50,8 @@ void main() {
   consentAndRetentionTests(fx);
   reconsentGateTests(fx);
   caregiverGateTests(fx);
+  dayProtectionTests(fx);
+  handoffTransitionTests(fx);
+  planningHorizonGateTests(fx);
+  optimisticConcurrencyTests(fx);
 }
