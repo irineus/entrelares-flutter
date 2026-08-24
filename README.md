@@ -36,6 +36,9 @@ cd apps/entrelares_app && fvm flutter run -d web-server --web-port 8080
 # E2E (lote 3): app real em emulador contra o projeto dev — exige a service_role key
 cd apps/entrelares_app && fvm flutter test integration_test/swap_workflow_test.dart \
   --flavor dev --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
+# Espelho do board no Notion: lê os TRÊS repos (este, entrelares-app e entrelares-site,
+# encontrados por padrão como irmãos deste checkout) e gera o corpo das páginas.
+python tool/notion_mirror.py -o mirror.json
 ```
 
 **Flavors (estágio 3):** todo build Android exige `--flavor dev` ou `--flavor prod` —

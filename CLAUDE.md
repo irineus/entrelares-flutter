@@ -22,6 +22,14 @@ backlog trailer convention, working agreement) — they all apply here. This fil
 what is Flutter-specific. Backlog + board live in the app repo / Notion; this repo never
 carries its own backlog.
 
+**That last rule is scheduled to be revoked.** Since 24/08/2026 the `entrelares-app` repo is
+being **emptied and archived** — everything about the application moves here, including the
+backlog, the database and the DB gate. The decisions, what was measured to reach them and
+the PR-by-PR plan live in [`docs/arquivamento-app.md`](docs/arquivamento-app.md); the rule
+above stays true (and the app repo stays the authority it names) until the PR that moves the
+records lands, and that doc is what says when. **While the move is under way, `.claude/skills/next-item/SKILL.md` §0 carries
+the table of what still lives where** — check it before assuming a path.
+
 ## Locked decisions
 | Decision | Value |
 |---|---|
