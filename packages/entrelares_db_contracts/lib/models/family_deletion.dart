@@ -25,6 +25,17 @@ class FamilyDeletionRequest {
   /// refusal or a withdrawal ends the request outright.
   final String status;
 
+  /// Who ended it — the refuser, or the requester who withdrew. The banner does
+  /// not name them; the gate asserts on it, because "the request ended" and
+  /// "the RIGHT person ended it" are different rules and only one of them is
+  /// about consent.
+  final int? resolvedBy;
+
+  /// When the D-3 reminder went out. It must fire exactly ONCE: a second notice
+  /// on a 30-day window is noise, and the column is what makes the cron
+  /// idempotent.
+  final DateTime? reminderSentAt;
+
   const FamilyDeletionRequest({
     required this.id,
     this.familyId,
@@ -32,6 +43,8 @@ class FamilyDeletionRequest {
     required this.scheduledFor,
     required this.requestedAt,
     required this.status,
+    this.resolvedBy,
+    this.reminderSentAt,
   });
 
   bool get isPending => status == 'pending';
@@ -53,6 +66,10 @@ class FamilyDeletionRequest {
         // exactly the property the shared-contract design was for.
         requestedAt: DateTime.parse(json['requested_at'] as String).toUtc(),
         status: (json['status'] as String?) ?? 'pending',
+        resolvedBy: json['resolved_by'] as int?,
+        reminderSentAt: json['reminder_sent_at'] == null
+            ? null
+            : DateTime.parse(json['reminder_sent_at'] as String).toUtc(),
       );
 }
 
