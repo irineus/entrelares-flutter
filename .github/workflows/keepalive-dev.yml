@@ -1,0 +1,88 @@
+name: Keep-alive do projeto DEV
+
+# Projetos Supabase no plano Free PAUSAM após 7 dias sem atividade de banco. O
+# projeto DEV (buroanotfjcgvbfmacuh) serve o app de QA (deploy de `dev`) e as
+# suítes de regressão da CI — se ninguém der push por uma semana (férias,
+# feriado), ele pausa e o QA cai até alguém religar no Dashboard. Este workflow
+# faz um ping leve no PostgREST do DEV duas vezes por semana para zerar o
+# contador de inatividade e manter o projeto sempre ativo.
+#
+# MOVIDO para cá em 24/08/2026 junto com o banco (`docs/arquivamento-app.md`):
+# ele protege o projeto de QA contra o qual o gate de banco roda, então precisa
+# viver no repo que roda o gate. Arquivar um repo desliga seus agendamentos.
+#
+# O gatilho `schedule` só dispara a partir do DEFAULT branch — aqui é `main`, então
+# ele entra no automático assim que este arquivo é mesclado, sem promoção. A cópia
+# do `entrelares-app` continua viva até você desligá-la lá
+# (`gh workflow disable keepalive-dev.yml -R irineus/entrelares-app`); dois pings
+# no mesmo projeto não fazem mal, só ruído.
+#
+# NÃO altera comportamento do app — é infraestrutura/ops (como backup.yml),
+# então não exige bump de versão.
+
+on:
+  schedule:
+    # Segundas e quintas às 08:37 UTC. Gap máximo entre pings ~4 dias, folga
+    # confortável sobre o limite de 7 dias do auto-pause. Minuto :37 (fora do
+    # topo da hora) porque no repo privado/Free o GitHub descarta crons em :00
+    # (mesma razão do backup semanal em `37 4`).
+    - cron: '37 8 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keepalive-dev
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping no PostgREST do DEV
+        env:
+          # PUBLIC, not a secret: this is the same dev project URL that is
+          # hardcoded in `apps/entrelares_app/lib/env.dart` (the anon/public
+          # config has zero privilege by construction — T-44). Keeping it as a
+          # secret would have made this workflow need one more piece of the
+          # handover than it actually does.
+          SUPABASE_URL: https://buroanotfjcgvbfmacuh.supabase.co
+          # service_role, NÃO a anon key: este app é 100% RLS-locked e o papel
+          # `anon` não tem SELECT em tabelas de referência (roles etc.), então um
+          # ping anônimo sempre volta 401 (permission denied). O service_role
+          # bypassa RLS/grants e garante uma leitura real no banco — o que de fato
+          # zera o timer de auto-pause — respondendo HTTP 200.
+          SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
+        run: |
+          set -euo pipefail
+          # Consulta trivial (select=id&limit=1): o que importa é a requisição
+          # CHEGAR ao banco e zerar o timer de auto-pause do plano Free.
+          #
+          # O formato da chave decide os headers (S-16):
+          #
+          #  · Chave LEGADA (JWT HS256): service_role NOS DOIS headers. O PostgREST
+          #    deriva o PAPEL do JWT em `Authorization: Bearer`; o `apikey` é só o
+          #    gate do Kong. Sem o Bearer ele cai em `anon` — que neste app 100%
+          #    RLS-locked não tem SELECT nem em `roles` → 401 (lição do T-44).
+          #  · Chave NOVA (`sb_secret_…`): só `apikey`. Ela não é JWT, então a
+          #    plataforma resolve o papel a partir da própria chave e RECUSA a
+          #    requisição se ela vier no Authorization.
+          #
+          # Tratar os dois casos é o que permite rotacionar o secret sem uma janela
+          # em que este job fica vermelho.
+          #
+          # -f: falha o job (vermelho) em HTTP >= 400 → sinaliza URL/chave erradas.
+          # --retry: evita vermelho por falha transitória de rede.
+          auth_header=()
+          case "$SUPABASE_KEY" in
+            sb_*) echo "Chave no formato novo — apenas o header apikey" ;;
+            *)    echo "Chave legada (JWT) — apikey + Authorization"
+                  auth_header=(-H "Authorization: Bearer $SUPABASE_KEY") ;;
+          esac
+          code=$(curl -fsS -o /dev/null -w '%{http_code}' \
+            --retry 3 --retry-delay 5 --retry-all-errors --max-time 30 \
+            "$SUPABASE_URL/rest/v1/roles?select=id&limit=1" \
+            -H "apikey: $SUPABASE_KEY" \
+            "${auth_header[@]}")
+          echo "Keep-alive DEV OK — HTTP $code"

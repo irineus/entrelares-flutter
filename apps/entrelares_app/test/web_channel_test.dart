@@ -223,6 +223,11 @@ void main() {
       expect(needs, isNotNull, reason: 'deploy-web must declare what it waits for');
       expect(needs, contains('verify'));
       expect(needs, contains('db-gate'));
+      // T-29's order, which survived the database moving into this repo:
+      // migrations → functions → app. Publishing before `db-prod` would let the
+      // channel serve an app whose schema failed to apply.
+      expect(needs, contains('db-prod'),
+          reason: 'the web channel must publish AFTER the production schema');
       expect(job, contains("github.ref_name == 'main'"));
       expect(job, contains('wrangler pages deploy build/web'));
     });
