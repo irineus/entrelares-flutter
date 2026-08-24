@@ -242,20 +242,39 @@ Blazor, o SW do Flutter é substituído pelo caminho simétrico.
    projeto `entrelares-app`. Sem migração, sem dado, sem release — o banco nunca bifurcou
    (item 1 do plano acima).
 
-### Onde o rollback morre
+### Onde o rollback morre — ACONTECEU em 24/08/2026
 
-No **desligamento do Blazor**, que é a ÚLTIMA ação do estágio e não tem data marcada
-aqui: acontece quando o owner constatar que ninguém mais chega pelo `legado.`. Nesse dia,
-e só nesse dia:
+> **Esta seção é história, e uma das suas frases foi REVOGADA um dia depois de escrita.** O que
+> aconteceu de fato está no **T-56** ([`arquivamento-app.md`](arquivamento-app.md), e o registro
+> em [`../backlog/archive/phase-7.md`](../backlog/archive/phase-7.md)). O texto original fica
+> abaixo porque a revogação só se lê com ele.
 
-- remover o domínio `legado.entrelares.app` e o projeto Pages `entrelares-app`;
-- retirar do `deploy.yml` a metade que publica o cliente Blazor — **o repo `entrelares-app`
-  NÃO é aposentado**: ele continua sendo o repo do banco, das Edge Functions, do backlog e
-  do gate de integração;
-- **só então** aposentar a suíte Playwright (`Entrelares.E2ETests`), que testa a UI que
-  deixou de existir. Até lá ela continua sendo o gate de fluxo da promoção para
-  produção — a lane `integration_test` do repo Flutter é agendada, não roda por push, e
-  retirar o Playwright antes deixaria a promoção sem gate de fluxo nenhum.
+O desligamento veio no dia seguinte ao corte, não por medição: **o owner declarou a rota de
+rollback desnecessária em 24/08/2026**. Dos três marcadores previstos abaixo, dois se cumpriram
+como escritos (domínio e projeto Pages; a metade do `deploy.yml` que publicava) e **o terceiro
+foi invertido**: a suíte Playwright e a de integração C# saíram ANTES, no esvaziamento, porque o
+repo Flutter ganhou gate de fluxo próprio (`web-e2e`) e gate de banco próprio — a premissa de
+"até lá ela continua sendo o gate de fluxo" expirou quando esses dois passaram a existir aqui.
+
+**A frase revogada é a do meio.** "O repo `entrelares-app` NÃO é aposentado" valia enquanto este
+repositório era a aposta e o Blazor era o produto; o cutover inverteu os dois papéis no dia
+seguinte, e manter o banco, o gate e a memória escrita num repositório que ninguém mais abre é o
+caminho mais curto para perdê-los. Decisão nova do owner, 24/08/2026 — é o T-56 inteiro.
+
+*Texto original, para leitura da revogação:*
+
+> No **desligamento do Blazor**, que é a ÚLTIMA ação do estágio e não tem data marcada
+> aqui: acontece quando o owner constatar que ninguém mais chega pelo `legado.`. Nesse dia,
+> e só nesse dia:
+>
+> - remover o domínio `legado.entrelares.app` e o projeto Pages `entrelares-app`;
+> - retirar do `deploy.yml` a metade que publica o cliente Blazor — **o repo `entrelares-app`
+>   NÃO é aposentado**: ele continua sendo o repo do banco, das Edge Functions, do backlog e
+>   do gate de integração;
+> - **só então** aposentar a suíte Playwright (`Entrelares.E2ETests`), que testa a UI que
+>   deixou de existir. Até lá ela continua sendo o gate de fluxo da promoção para
+>   produção — a lane `integration_test` do repo Flutter é agendada, não roda por push, e
+>   retirar o Playwright antes deixaria a promoção sem gate de fluxo nenhum.
 
 ## Registro das entregas do estágio
 

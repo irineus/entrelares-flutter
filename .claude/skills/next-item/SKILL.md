@@ -25,11 +25,12 @@ delivered in another**:
 | **Migrations + Edge Functions** | **here**, in `supabase/`. A PR applies them to the **dev** project before the gate runs; a merge to `main` applies them to **production** (job `db-prod`) before the web channel publishes |
 | **The DB gate** (225 tests over RLS/RPCs/triggers) | **here**, in `packages/entrelares_db_gate/` — job `db-gate` of `verify.yml`. Pure Dart since T-56 PR 16 (24/08/2026), and the only copy: the app repo's C# suites went with the emptying |
 | **Play listing + brand masters** | **here**, in `store/` (T-56 PR 4c) — the TWA/Bubblewrap project stayed behind, and retiring that package is **T-52** |
-| The frozen Blazor client | `entrelares-app`, published at `legado.entrelares.app` — **and nothing else**: since the emptying (24/08/2026) that repo holds the client, its unit suite and a `deploy.yml` that only publishes. Nothing there needs to be read to work here |
+| The old Blazor client | `entrelares-app`, **shut down and archived** (24/08/2026). It holds the frozen client and its unit suite, nothing else, and nothing is deployed from it. Nothing there needs to be read to work here |
 
-What is still in flight is the **Blazor shutdown**, which has no date — the port of the
-database gate to Dart closed on 24/08/2026 (T-56, PRs 6 to 16). The plan, the
-measurements and the PR-by-PR record are in
+**T-56 is CLOSED (24/08/2026)** — the table above is the settled layout, not a transition. What
+remains is a short list of owner console actions (delete the `master` ruleset in the old repo,
+promote `dev`→`master`, drop the Cloudflare domain and Pages project, archive), none of which
+moves a file. The plan, the measurements and the PR-by-PR record are in
 [`docs/arquivamento-app.md`](../../../docs/arquivamento-app.md). **If a row above no longer
 matches reality, that doc is the authority and this table is stale: fix it in the same
 delivery.**

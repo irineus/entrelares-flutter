@@ -1,9 +1,16 @@
 # Arquivamento do `entrelares-app`
 
-**Aberto em 24/08/2026.** Objetivo: tornar o repositório `entrelares-app` **arquivado** —
-sem precisar ser atualizado e, principalmente, **sem precisar ser consultado**. Tudo que diz
-respeito ao aplicativo Entrelares passa a viver aqui, no `entrelares-flutter`. O
+**Aberto e FECHADO em 24/08/2026.** Objetivo: tornar o repositório `entrelares-app`
+**arquivado** — sem precisar ser atualizado e, principalmente, **sem precisar ser consultado**.
+Tudo que diz respeito ao aplicativo Entrelares passa a viver aqui, no `entrelares-flutter`. O
 `entrelares-site` continua existindo e responde por tudo do site.
+
+> **Estado em 24/08/2026, fim do dia:** as dezessete fatias entraram, incluindo a última — o
+> **desligamento do cliente Blazor**, que o plano deixava sem data. Ele não chegou pela medição
+> da decisão 7: o owner declarou a rota de rollback desnecessária, que é a decisão que a medição
+> existia para provocar. O que resta são **ações de console do owner**, listadas em
+> [§ O que falta, e é do owner](#o-que-falta-e-é-do-owner) — nenhuma delas é código, e nada está
+> em risco enquanto esperam.
 
 > **Este documento REVOGA uma decisão escrita.** O plano de cutover
 > (`entrelares-app/docs/flutter-cutover.md`, § *"Onde o rollback morre"*, 23/08/2026) diz:
@@ -40,8 +47,8 @@ Três medições, feitas e não estimadas, porque as três decisões mais caras 
 | 4 | **A memória (backlog, archive, docs) vem para cá**, e a regra "este repo nunca carrega backlog próprio" é revogada com data e motivo | A regra nasceu quando este repo era spike; a premissa expirou em 23/08 |
 | 5 | **O deploy do banco vem para cá**: PR aplica no projeto dev, merge em `main` aplica em prod | Preserva o invariante T-29 (schema e app viajam no mesmo push) e assume o mesmo risco que o app já assume: `main` é produção, sem janela |
 | 6 | **`backup.yml` e `keepalive-dev.yml` vêm junto; `publish-release.yml` morre** | Arquivar um repo desliga seus workflows agendados — o backup semanal cifrado de PRODUÇÃO morreria com ele |
-| 7 | **O desligamento do Blazor tem condição medida**: N dias consecutivos sem acesso a `legado.entrelares.app` | Troca "quando o owner constatar" por um gatilho verificável; sem isso o passo final não chega |
-| 8 | **Os commits presos em `dev` são promovidos** assim que o E2E fechar | É a última promoção do Blazor |
+| 7 | ~~**O desligamento do Blazor tem condição medida**: N dias consecutivos sem acesso a `legado.entrelares.app`~~ **Ultrapassada em 24/08/2026** | Ela trocava "quando o owner constatar" por um gatilho verificável, para que o passo final não ficasse à deriva. Funcionou como pretendido e nunca precisou disparar: o owner constatou no mesmo dia. Uma condição medida é um seguro contra a decisão que não vem — não um requisito da decisão que vem |
+| 8 | **Os commits presos em `dev` são promovidos** assim que o E2E fechar | É a última promoção do Blazor. **Bloqueada em 24/08/2026** por um ruleset que exige o status check `deploy` — o check da esteira que o desligamento remove; ver § O que falta |
 
 ## O princípio que ordena a execução
 
@@ -73,7 +80,8 @@ fica descoberto durante a travessia.
 | **4c** ✅ | flutter | **A presença de loja** (24/08/2026): `store/` — a cópia das listagens (PT-BR + en-US), os dois masters da marca, `brand-icons.py` (reapontado para os sete arquivos que este repo consome, e **verificado**: reproduz os sete byte a byte), o gráfico de destaque com seu gerador e um `README.md` triado. Ficou para trás o pacote TWA (`twa-manifest.json`, Bubblewrap, o `store/.gitignore` que só listava saída de build). Devia ter vindo no 4a e não veio — o item estava escrito e foi esquecido; é o achado que fez o PR F conferir o repositório inteiro em vez de conferir a lista |
 | **6…16** ✅ | flutter | **O port do gate para Dart** (24/08/2026), suíte por suíte — o fatiamento detalhado está na seção seguinte. O PR 6 levou a fundação (contratos erguidos, clientes por identidade, fixture) e uma suíte real como prova; o 16 apagou `db-gate/` e o lane `dotnet`. As 225 asserções são todas Dart |
 | **F** ✅ | app | **O esvaziamento, num toque só** (24/08/2026, [`entrelares-app` #309](https://github.com/irineus/entrelares-app/pull/309)): 242 arquivos, −46.941 linhas. Sobra o cliente Blazor, sua suíte unitária e um `deploy.yml` reduzido à metade que publica — o deploy de QA que seguiu o merge fechou **verde em 1 min 39 s**, contra os ~15 min do gate antigo. Saíram também, por decisão do owner, as DUAS suítes C# e o `dependabot.yml`; o que ficou para trás e por quê está no registro do T-56. Não arquiva ainda |
-| **∅** | app | **No dia do desligamento** (condição da decisão 7, sem código novo): tira domínio e projeto Pages, apaga a metade Blazor do `deploy.yml`, apaga `E2ETests` + `IntegrationTests`, arquiva |
+| **G** ✅ | app | **O desligamento** (24/08/2026, [`entrelares-app` #310](https://github.com/irineus/entrelares-app/pull/310)): sai o `deploy.yml` inteiro — a metade que publicava —, sai o modelo de PR que ainda instruía um fluxo sem deploy atrás dele, e os dois documentos passam a descrever um arquivo em vez de um cliente publicado. `E2ETests` e `IntegrationTests` já tinham saído no PR F. Com ele morrem o alias de QA `qa.entrelares.app` e a última esteira fora daqui que ainda alcançava produção |
+| **∅** | app | **O que sobra é console do owner**: apagar o ruleset do `master`, promover `dev`→`master`, tirar domínio e projeto Pages no Cloudflare, arquivar. Ver § O que falta |
 
 ## O port do gate para Dart (PRs 6 a 16)
 
@@ -182,40 +190,97 @@ gate roda contra o banco de verdade, e um sobre método.
 
 Uma consequência de escopo, para não ficar implícita: **a autorização de merge desta seção morre
 aqui**. Do próximo item em diante vale de novo a regra do `CLAUDE.md` — PR e squash-merge só com
-o OK explícito do owner.
+o OK explícito do owner. (Os dois PRs que fecharam o item — o dos espelhos aqui e o do
+desligamento lá — foram autorizados um a um, não por ela.)
 
-O que a travessia **não** resolveu, e continua aberto no registro do T-56: os quatro espelhos
-C#↔Deno (`RoleCatalogMirrorTests`, `EmailDateFormatMirrorTests`, `AuthMailMirrorTests`,
-`NotificationParamsCoverageTests`) foram embora com o esvaziamento e **não têm equivalente em
-Dart**. Nada está quebrado; o que falta é o alarme, que é exatamente o modo de falha que esses
-testes existiam para descrever.
+~~O que a travessia **não** resolveu: os quatro espelhos C#↔Deno.~~ **Resolvido no mesmo dia**,
+depois do desligamento — `packages/entrelares_core/test/mirrors/`. Ficaram no pacote CORE, e não
+no app, porque não precisam de Flutter e o lane do core roda primeiro: um drift fica vermelho no
+job mais barato do run.
 
-## O que o owner precisa fazer para o PR 3 valer
+**E o port de um deles achou uma metade faltando, que é o argumento inteiro para tê-los
+reposto.** O `AuthMailMirrorTests` afirmava que o cliente escreve `?lang=` no `redirect_to` do
+reset; o app Flutter nunca escreveu. Nada estava quebrado, e é exatamente por isso que
+atravessou o cutover sem ninguém notar: a `send-auth-email` tem o `profiles.language_detected`
+como terceiro sinal e o app escreve essa coluna, então quem já entrou uma vez continuava
+recebendo o idioma certo. Mas o sinal 2 é o único que serve para quem **não consegue entrar** —
+que é a definição de quem pede uma redefinição de senha — e estava sempre ausente. Reposto com
+`DeepLinkUrls.updatePasswordFor(idioma)` e a chave compartilhada em `AuthMail.languageQueryParam`.
+A pior hipótese foi conferida contra o CÓDIGO e não herdada do registro do Blazor: se a
+allow-list de Redirect URLs não casar com query string, o GoTrue cai no Site URL — e o
+`AuthChangeEvent.passwordRecovery` roteia para `/update-password` de onde o app estiver.
 
-O código entrou desarmado: sem os secrets, cada passo **pula com nota no summary** em vez de
-pintar o `main` de vermelho. Enquanto estiver assim, quem aplica migrations continua sendo o
-`entrelares-app`, e **schema e app não viajam juntos**.
+O espelho do reset é a única tradução que FORTALECE o original: o C# fixava um método pelo nome
+e este app tem dois pontos de reset, então a versão Dart lê todos os call sites de
+`resetPasswordForEmail` sob `lib/`. Os quatro foram medidos antes de merecerem confiança, com
+cinco sondas vermelhas de propósito — mesma disciplina do gate de fluxo do PR 5.
 
-| Secret | Para quê |
-|---|---|
-| `SUPABASE_ACCESS_TOKEN_DEV`, `SUPABASE_DB_PASSWORD_DEV`, `SUPABASE_PROJECT_REF_DEV` | O PR aplicar schema/functions no projeto de QA **antes** do gate rodar |
-| `SUPABASE_ACCESS_TOKEN_PROD`, `SUPABASE_DB_PASSWORD_PROD`, `SUPABASE_PROJECT_REF_PROD` | O `main` aplicar em **produção** (job `db-prod`) |
-| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `BACKUP_PASSPHRASE` | O backup semanal cifrado |
+## O armamento do PR 3 — FEITO (conferido em 24/08/2026)
 
-**E, no mesmo momento, desligar as cópias antigas** — sem tocar em código nem gastar promoção:
+O código do PR 3 entrou desarmado: sem os secrets, cada passo pulava com nota no summary em vez
+de pintar o `main` de vermelho. **O owner armou tudo no mesmo dia**, e isto foi conferido contra
+o CI, não contra a memória:
 
+- o job **`db-prod` rodou verde** no push de `main` que fechou o PR 16 — logo os três secrets de
+  produção existem e é este repo que aplica schema em produção;
+- o **`backup.yml` daqui fechou verde** num `workflow_dispatch` — logo os quatro secrets do R2
+  existem;
+- as duas cópias antigas estão **`disabled_manually`** no `entrelares-app` desde 24/08 — o
+  handover foi `gh workflow disable`, não apagar secrets, porque aquele `backup.yml` **falha**
+  com secret ausente por decisão de projeto e apagá-los trocaria "dois backups por semana" por
+  "um vermelho por semana".
+
+O `keepalive-dev.yml` daqui não precisou de secret novo: a URL do dev é pública (a mesma do
+`env.dart`) e a `SUPABASE_SERVICE_ROLE_DEV` já existia aqui.
+
+## O que falta, e é do owner
+
+Quatro ações de console, nenhuma delas código. **Nada está em risco enquanto esperam**: arquivar
+torna o repositório somente-leitura, e o próprio ruleset já impede qualquer push naquele branch.
+
+**1. Apagar o ruleset do `master` do `entrelares-app`.** A promoção da decisão 8 foi RECUSADA
+por ele: exige o status check **`deploy`**, que é produzido pela esteira que o desligamento
+remove. É um cadeado que sobreviveu à porta — ele protegia uma produção que o desligamento
+acabou de aposentar, e satisfazê-lo significaria recolocar uma esteira num arquivo.
+→ https://github.com/irineus/entrelares-app/settings/rules — abrir o ruleset que cobre
+`refs/heads/master`, botão **Delete ruleset** (ou desmarcar *Require status checks to pass* e
+salvar, se preferir manter o registro dele).
+*Sucesso:* a tela de rules deixa de listar o ruleset ativo para `master`.
+
+**2. Promover `dev`→`master`** (a última promoção do Blazor). Depois do passo 1:
+
+```powershell
+git -C <caminho>\entrelares-app fetch origin
+git -C <caminho>\entrelares-app checkout master
+git -C <caminho>\entrelares-app merge --ff-only origin/dev
+git -C <caminho>\entrelares-app push origin master
 ```
-gh workflow disable backup.yml -R irineus/entrelares-app
-gh workflow disable keepalive-dev.yml -R irineus/entrelares-app
-```
 
-Não basta apagar os secrets lá: o `backup.yml` daquele repo **falha** com secrets ausentes,
-por decisão de projeto, então apagar só trocaria "dois backups por semana" por "um vermelho
-por semana". `gh workflow disable` desarma na fonte.
+*Sucesso:* `git log --oneline -1 origin/master` mostra
+`chore: o cliente Blazor desliga — a rota de rollback deixa de existir (#310)`. Não haverá run
+de Actions: o `deploy.yml` sai neste mesmo commit.
+*Por que importa mesmo com o repo indo para o arquivo:* o `master` de hoje ainda carrega o
+`deploy.yml` PRÉ-esvaziamento, com os passos *"Aplicar migrations e functions em PRODUÇÃO"*
+apontando para um `supabase/` parado desde o PR 3. É o risco de dois escritores que a decisão 5
+existe para impedir, e ele só morre quando aquele branch deixa de carregar aquele arquivo.
 
-O `keepalive-dev.yml` daqui **não precisa de secret nenhum novo**: a URL do dev é pública
-(a mesma do `env.dart`) e a `SUPABASE_SERVICE_ROLE_DEV` já existe neste repo — ele passa a
-valer no merge.
+**3. Tirar o domínio e o projeto Pages no Cloudflare.**
+→ https://dash.cloudflare.com → **Workers & Pages** → projeto **`entrelares-app`** →
+**Settings → Domains & Routes**: remover **`legado.entrelares.app`** (e o alias de QA
+**`qa.entrelares.app`**, que era alimentado pelo branch `dev`). Depois, no mesmo projeto,
+**Settings → Delete project**.
+*Sucesso:* `legado.entrelares.app` deixa de resolver para o projeto; o DNS do domínio pode ser
+removido em seguida na zona `entrelares.app`.
+*Atenção à ordem:* faça isto **depois** do passo 2, para que o commit que descreve o
+desligamento já esteja no branch que servia a produção.
+
+**4. Arquivar o repositório.**
+→ https://github.com/irineus/entrelares-app/settings → rolar até **Danger Zone** →
+**Archive this repository** → confirmar digitando `irineus/entrelares-app`.
+*Sucesso:* o repositório passa a exibir a faixa *"This repository has been archived by the
+owner"* e fica somente-leitura. Arquivar também desliga agendamentos — e é por isso que o
+`backup.yml` e o `keepalive-dev.yml` vieram para cá no PR 3, meses antes de precisarem.
+*Reversível:* desarquivar é um clique, se algum dia for preciso.
 
 ## Pontas soltas registradas
 
@@ -245,15 +310,35 @@ valer no merge.
   o pacote morto e fica para trás com o **T-52**, que segue item próprio. **A lição de método:**
   uma lista de "o que vem" escrita antes da execução não é conferência — o que confere é olhar o
   repositório de origem inteiro no fim, que é o que o PR F faz.
-- **O esvaziamento abriu uma lacuna, e ela é do port.** Quatro testes unitários saíram junto com
-  o `supabase/` que eles liam — os espelhos C#↔Deno (`RoleCatalogMirrorTests`,
-  `EmailDateFormatMirrorTests`, `AuthMailMirrorTests`) e o `NotificationParamsCoverageTests`.
-  As funções e as migrations que eles guardavam moram aqui; **os espelhos não, e ainda não têm
-  equivalente em Dart**. Nada está quebrado — o que falta é o alarme, que é exatamente o modo de
-  falha que esses testes existem para descrever: um espelho que ninguém confere apodrece calado.
+- ~~**O esvaziamento abriu uma lacuna, e ela é do port.**~~ **Fechada em 24/08/2026, no mesmo
+  dia em que abriu.** Os quatro espelhos C#↔Deno viraram suítes Dart em
+  `packages/entrelares_core/test/mirrors/`, e o port de um deles achou uma metade faltando no
+  app (o `?lang=` do reset) — o detalhe está na seção do port. A lacuna durou horas, mas vale
+  registrada: ela não apareceu na lista do que vinha, apareceu ao reler o repositório de origem
+  inteiro. É a mesma lição de método do `store/`, cobrada duas vezes no mesmo dia.
 - **O `git push` não autenticou na sessão que entregou o PR F** (leitura autorizada, escrita
   não: o proxy repassa o push cru e quem recusa é o GitHub). O esvaziamento foi entregue pela
   API — 234 deleções, uma chamada por arquivo, colapsadas pelo squash — e o conteúdo conferido
   byte a byte contra a árvore validada localmente. Fica registrado porque muda o custo de uma
   entrega: **binário não atravessa uma API que recebe conteúdo como string**, então um PR com
   assets depende de push de verdade.
+
+- **O cancelamento do `verify.yml` era do WORKFLOW, e por isso alcançava o `db-gate`.** O achado
+  ficou escrito no PR de documentação e deliberadamente não corrigido lá; foi corrigido em
+  24/08/2026, junto com os espelhos. Um job **não consegue** se eximir de um cancelamento de
+  nível de workflow, então o grupo serializado do `db-gate` — que existe justamente para duas
+  suítes nunca se sobreporem — vinha sendo morto no meio assim mesmo, e um run morto antes do
+  teardown deixa família órfã para a varredura recolher duas horas depois. O cancelamento desceu
+  para os jobs que podem pagá-lo (`verify`, `apk`, `e2e`, `web-e2e`); o `db-gate` mantém o grupo
+  de repo inteiro, e **`db-prod` e `deploy-web` passam a ENFILEIRAR** — essa última parte é mais
+  larga que o achado e foi tomada de propósito: era o grupo de workflow que os protegia, e
+  removê-lo sem repor deixaria um push concorrente capaz de interromper um deploy de produção
+  pela metade.
+
+- **Um required status check é uma dependência da EXISTÊNCIA de uma esteira.** A promoção da
+  decisão 8 foi recusada por um ruleset que exige o check `deploy` — o check da esteira que o
+  próprio desligamento remove. Não era ordem errada da entrega: qualquer ordem esbarraria nisso,
+  porque o commit que apaga a esteira é o commit que precisa do check dela. A generalização vale
+  para a próxima vez: **toda entrega que remove uma esteira deve perguntar o que ainda exige os
+  checks dela** — branch protection, ruleset, badge, automação externa. O desbloqueio é do owner
+  e está em § O que falta.
