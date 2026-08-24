@@ -387,9 +387,51 @@ problem; and this repo has no staging stage, since a merge to `main` publishes p
   24/08/2026** — the role Playwright played for the old repo's promotion, and what makes it a
   gate rather than a report.
 - The **port of the database gate to Dart**, suite by suite.
-- The **emptying** of the old repo, in a single PR.
+- ~~The **emptying** of the old repo, in a single PR.~~ **Done 24/08/2026** (`entrelares-app`
+  #309, squash-merged to `dev`): 242 files, −46.941 lines. What is left there is the frozen
+  client, its unit suite and a `deploy.yml` reduced to the half that publishes — the QA deploy
+  that followed the merge went green in **1 min 39 s**, against the ~15 min of the old gate.
+  Three things that were NOT in the plan are recorded in **What stayed behind, and why** below.
 - The **Blazor shutdown**, which is when the rollback dies — triggered by a measured condition
   (N days without a hit on `legado.entrelares.app`), never by a date.
+
+**What stayed behind, and why (the emptying, 24/08/2026)**
+- **`Entrelares/` and `Entrelares.Tests`** — the client that serves the rollback route, and the
+  only suite that can still validate a change to it. Everything else went.
+- **The Playwright suite and the C# integration suite went, both of them** (owner decision,
+  24/08/2026). The plan had kept them on one sentence — *"until then it is still the flow gate
+  of the promotion to production"* — and that sentence expired the same day: this repo's own
+  flow gate (PR 5) now blocks the web publish, the database gate has lived in `db-gate/` since
+  PR 2, and the Blazor client is frozen. They left together because `Entrelares.E2ETests`
+  referenced `Entrelares.IntegrationTests` by `ProjectReference`. The cost accepted: an
+  emergency fix to the frozen client is validated by unit tests and by a human looking at
+  `legado.entrelares.app`.
+- **The test steps left `deploy.yml`, which was the point rather than a side effect.** Both
+  suites ran against the SAME dev Supabase project that `db-gate` now uses on every PR here,
+  and the T-39 billing seeds use FIXED external ids (`sub_e2e_*`): two overlapping runs delete
+  each other's rows. The migrations/functions steps went with them (schema and app travel in
+  the same push, in the repo where the app lives), and so did the unit-test step — without the
+  other two it protected nothing that repository still decides.
+- **`dependabot.yml` went too** (owner decision): a weekly NuGet/Actions PR aimed at `dev` is,
+  with no gate left, an unvalidated change to a rollback route. Security ALERTS do not come
+  from that file and are unaffected.
+- **Three defects the sweep found, none of them on the list.** The `.gitignore` still named the
+  PRE-REBRAND folder for the app settings, so since F-54 the real file — which carries the
+  environment's URL and anon key — was ignored by nobody; `SharedParentalCustody.slnx` pointed
+  at two projects that stopped existing with the same rebrand; and `tsconfig.json` +
+  `Directory.Build.props` existed only to keep `supabase/**/*.ts` out of the MSBuild TypeScript
+  compiler. The lesson is about method: a list of "what comes" written before execution is not
+  a check — what checks is reading the source repository whole, at the end.
+
+**A gap this opened, for the Dart port.** Four unit tests left with the `supabase/` they read:
+`RoleCatalogMirrorTests`, `EmailDateFormatMirrorTests`, `AuthMailMirrorTests` and
+`NotificationParamsCoverageTests`. They were the C#↔Deno mirrors — the Edge Functions cannot
+call into the client, so the role labels, the e-mail date format, the `redirect_to` language
+marker and the `params` coverage over every notification writer were duplicated ON PURPOSE, and
+those tests were what made the duplication's drift RED. The functions and the migrations now
+live here; **the mirrors do not, and have no Dart equivalent yet**. Nothing is broken today —
+what is missing is the alarm, which is exactly the failure mode those tests exist to describe:
+a mirror nobody checks rots silently.
 
 **A finding for the Dart port, paid for on 24/08/2026.** `AdversarialTests.CrossFamilyAuditLog_IsNotReadable`
 went red with `57014 — canceling statement due to statement timeout` after five suite runs in two
@@ -444,9 +486,7 @@ the bridge:
    since 23/08/2026 `web.entrelares.app` is served from this repo, so the statement that keeps a
    legacy install full-screen is published from here — the Blazor copy at
    `entrelares-app/Entrelares/wwwroot/` now serves `legado.` only and dies with it.
-3. `store/README.md` §8 — it says the legacy statement stays "until T-52 retires that package";
-   after this item, say it was retired.
-4. Nothing else has a client half left. The two Blazor arms the original record listed —
+3. Nothing else has a client half left. The two Blazor arms the original record listed —
    the `android-app://com.guardacompartilhada.app` referrer check in `index.html` and the
    transitional comment in `Helpers/StoreContext.cs` — belong to the frozen client and are
    removed by its shutdown (T-56), not by this item. The Flutter store rail reads the platform,
@@ -461,5 +501,4 @@ someone wondering why the repo names a brand that no longer exists.
 
 **Files affected**
 - `apps/entrelares_app/web/.well-known/assetlinks.json`
-- `store/README.md` (§8)
 - Play Console (owner ops, no code)
