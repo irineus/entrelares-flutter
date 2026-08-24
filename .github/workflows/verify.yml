@@ -117,16 +117,17 @@ jobs:
   # MIRRORS, the database ENFORCES — and it moved here from `entrelares-app`,
   # which is being archived (`docs/arquivamento-app.md`).
   #
-  # It arrived in C# and is being PORTED to Dart suite by suite (T-56). While
-  # that is under way this job runs BOTH halves: the C# suite for what has not
-  # crossed yet, the Dart one for what has. Each PR of the port translates a
-  # group and deletes the C# classes it replaced in the same commit, so the gate
-  # is never uncovered — and the two counts always sum to 225, which is the
-  # arithmetic that says nothing was lost on the way.
+  # It arrived in C# and was PORTED to Dart suite by suite (T-56, PRs 6-16,
+  # closed 24/08/2026). Each PR of that crossing translated a group and deleted
+  # the C# classes it replaced IN THE SAME COMMIT, so the gate was never
+  # uncovered, and `C# + Dart` stayed at 225 on every one of them — which is the
+  # arithmetic that said nothing was lost on the way. The C# half, the .NET
+  # toolchain step and the sum that watched them are gone with PR 16; the 225
+  # are now all Dart, and `dart test`'s own report is the count.
   #
   # Runs on the same events as `verify` (and blocks `deploy-web` alongside it),
-  # but in its own job: it needs .NET and its own Supabase serialization, so it
-  # costs nothing to run beside the Flutter lane.
+  # but in its own job: it carries its own Supabase serialization, so it costs
+  # nothing to run beside the Flutter lane.
   db-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -180,32 +181,6 @@ jobs:
           echo "### Schema NÃO aplicado no dev — o gate rodou contra o schema antigo" >> "$GITHUB_STEP_SUMMARY"
           echo "Faltam \`SUPABASE_ACCESS_TOKEN_DEV\`, \`SUPABASE_DB_PASSWORD_DEV\` e \`SUPABASE_PROJECT_REF_DEV\` neste repo. Enquanto isso, quem aplica migrations é o \`entrelares-app\`." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: '10.0.x'
-
-      - name: DB gate (C#) — o que ainda não foi portado
-        working-directory: db-gate/Entrelares.IntegrationTests
-        env:
-          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
-          # OPTIONAL: arms the positive billing-webhook tests. A missing secret
-          # arrives empty, which the suite reads as absent and disarms those cases
-          # — the same shape `deploy-web` gives the Cloudflare credentials. Set
-          # `ASAAS_WEBHOOK_TOKEN_DEV` here to run them.
-          E2E_ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN_DEV }}
-        run: dotnet test -c Release --verbosity minimal
-
-      # ── The Dart half of the same gate (T-56, PR 6 onwards) ───────────────
-      # The two halves run side by side for the length of the port, against the
-      # SAME dev project. That is safe by construction and NOT by luck: each
-      # invents its own `E2E-<runId>` family, and both orphan sweeps spare
-      # anything younger than 2 h, so neither can rob the other. What they must
-      # NOT do is race on the T-39 billing seeds' FIXED ids — which is why they
-      # are steps of one job under one `concurrency` group rather than two jobs.
-      #
-      # Both are required: this job is red if either half is. That is the
-      # property the crossing depends on — a suite is only deleted from C# in
-      # the PR that lands its Dart equivalent, so the gate is never uncovered.
       - name: Read Flutter version from .fvmrc
         id: fvm
         run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
@@ -220,24 +195,15 @@ jobs:
         working-directory: packages/entrelares_db_gate
         env:
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
+          # OPTIONAL: arms the positive billing-webhook tests. A missing secret
+          # arrives empty, which the suite reads as absent and disarms those
+          # cases — the same shape `deploy-web` gives the Cloudflare credentials.
+          # Set `ASAAS_WEBHOOK_TOKEN_DEV` here to run them.
           E2E_ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN_DEV }}
         run: |
           dart pub get
           dart analyze --fatal-infos
           dart test --reporter expanded
-
-      # The arithmetic that says nothing was lost on the way across: the two
-      # halves must always sum to 225. It is printed, never asserted — the
-      # numbers move in opposite directions inside a single PR, and a check that
-      # fired on the intermediate state would just teach everyone to skip it.
-      - name: Somar os dois lados do gate
-        if: always()
-        run: |
-          echo "### Gate de banco — travessia T-56" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          python3 tool/count_csharp_tests.py >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          echo "O total C# + Dart deve ser 225. O número Dart sai do relatório do \`dart test\` acima." >> "$GITHUB_STEP_SUMMARY"
 
   # T-54's E2E lane (opened by lote 3, the first two-user flow). It drives the
   # REAL app on an emulator against the DEV project, with the throwaway-family

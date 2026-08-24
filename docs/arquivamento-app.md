@@ -71,7 +71,7 @@ fica descoberto durante a travessia.
 | **4b** ✅ | flutter | **A memória, parte de julgamento** (24/08/2026): sete seções triadas das 900 linhas do `CLAUDE.md` do app — convenções, working agreement, modelo de domínio, invariantes, seção legal, board/esforço e 13 *gotchas* de banco e plataforma. Ficaram para trás os que morrem com o cliente (escopos do Blazor, `RetryHelper`, gotrue-csharp, Realtime em WASM, versionamento por `csproj`, todos os de Playwright). Mais a frase do esforço, que virou falsa, e o parágrafo do roadmap que ainda chamava a 1.8.13 de produção |
 | **5** ✅ | flutter | **Gate de fluxo — entregue** (24/08/2026): os MESMOS arquivos `integration_test/` rodam num Chrome headless via `flutter drive` + chromedriver. Medido antes de confiar, porque na web o `flutter drive` imprime "All tests passed" tenha ou não executado algo: uma sonda com um teste que falha de propósito deixou o job **vermelho** nomeando o teste, e o pacote completo custa ~6 s mais que o `p0`. **144 s para os dois packs (5 testes)** contra 10–15 min do emulador. Roda em push/PR e **bloqueia a publicação web** desde 24/08/2026 (decisão do owner, sobre cinco runs verdes e uma vermelha proposital); não substitui o emulador para o que exige aparelho |
 | **4c** ✅ | flutter | **A presença de loja** (24/08/2026): `store/` — a cópia das listagens (PT-BR + en-US), os dois masters da marca, `brand-icons.py` (reapontado para os sete arquivos que este repo consome, e **verificado**: reproduz os sete byte a byte), o gráfico de destaque com seu gerador e um `README.md` triado. Ficou para trás o pacote TWA (`twa-manifest.json`, Bubblewrap, o `store/.gitignore` que só listava saída de build). Devia ter vindo no 4a e não veio — o item estava escrito e foi esquecido; é o achado que fez o PR F conferir o repositório inteiro em vez de conferir a lista |
-| **6…16** | flutter | **O port do gate para Dart**, suíte por suíte — o fatiamento detalhado está na seção seguinte. O PR 6 leva a fundação (contratos erguidos, clientes por identidade, fixture) e uma suíte real como prova; o 16 apaga `db-gate/` e o lane `dotnet` |
+| **6…16** ✅ | flutter | **O port do gate para Dart** (24/08/2026), suíte por suíte — o fatiamento detalhado está na seção seguinte. O PR 6 levou a fundação (contratos erguidos, clientes por identidade, fixture) e uma suíte real como prova; o 16 apagou `db-gate/` e o lane `dotnet`. As 225 asserções são todas Dart |
 | **F** ✅ | app | **O esvaziamento, num toque só** (24/08/2026, [`entrelares-app` #309](https://github.com/irineus/entrelares-app/pull/309)): 242 arquivos, −46.941 linhas. Sobra o cliente Blazor, sua suíte unitária e um `deploy.yml` reduzido à metade que publica — o deploy de QA que seguiu o merge fechou **verde em 1 min 39 s**, contra os ~15 min do gate antigo. Saíram também, por decisão do owner, as DUAS suítes C# e o `dependabot.yml`; o que ficou para trás e por quê está no registro do T-56. Não arquiva ainda |
 | **∅** | app | **No dia do desligamento** (condição da decisão 7, sem código novo): tira domínio e projeto Pages, apaga a metade Blazor do `deploy.yml`, apaga `E2ETests` + `IntegrationTests`, arquiva |
 
@@ -118,16 +118,16 @@ Três condições vieram junto com ela, e são o que a torna segura:
 | PR | Grupo | Linhas C# de origem |
 |---|---|---|
 | 6 ✅ | **Fundação**: `entrelares_db_contracts`, `entrelares_db_gate`, clientes por identidade, fixture completa + `FamilyIsolationTests` como prova | 856 |
-| 7 | RLS, adversarial e consentimento | 752 |
-| 8 | Regras de dia (proteção, transição T-27, horizonte, concorrência) | 647 |
-| 9 | Workflow de troca (auto-aprovação, mensagens, reversão, log) | 618 |
-| 10 | Conta e exclusão (conta, família, perfil, idioma) | 812 |
-| 11 | Convites e multi-cuidador | 628 |
-| 12 | Operador de plataforma + RPCs de admin | 698 |
-| 13 | Sudo, papéis customizados, settings, auth de functions | 997 |
-| 14 | Billing do rail web | 1.064 |
-| 15 | Billing de loja e webhook | 436 |
-| 16 | Apaga `db-gate/` e a lane `dotnet` do workflow | — |
+| 7 ✅ | RLS, adversarial e consentimento | 752 |
+| 8 ✅ | Regras de dia (proteção, transição T-27, horizonte, concorrência) | 647 |
+| 9 ✅ | Workflow de troca (auto-aprovação, mensagens, reversão, log) | 618 |
+| 10 ✅ | Conta e exclusão (conta, família, perfil, idioma) | 812 |
+| 11 ✅ | Convites e multi-cuidador | 628 |
+| 12 ✅ | Operador de plataforma + RPCs de admin | 698 |
+| 13 ✅ | Sudo, papéis customizados, settings, auth de functions | 997 |
+| 14 ✅ | Billing do rail web | 1.064 |
+| 15 ✅ | Billing de loja e webhook | 436 |
+| 16 ✅ | Apaga `db-gate/` e a lane `dotnet` do workflow | — |
 
 **Cada PR apaga as classes C# que acabou de traduzir**, no mesmo commit. É isso que impede o
 gate de ficar descoberto: uma suíte só sai de um lado quando já existe do outro. E a
@@ -150,6 +150,45 @@ foi mecânica (`flutter analyze` + `flutter test`, ambos limpos), e o app não m
 em diante. Uma única mudança de comportamento veio junto: `Member` ganhou `familyId`,
 opcional, porque o app nunca precisa dele (RLS já estreita toda leitura) e o gate precisa —
 provar que RLS vale é justamente nomear a família que uma linha declara.
+
+### O que a travessia encontrou (fechada em 24/08/2026)
+
+Os onze PRs fecharam no mesmo dia em que abriram. A aritmética fechou: **225 no começo, 225 no
+fim**, com a soma impressa no summary de cada run e repetida no corpo de cada PR. O que sobra
+registrado não é o placar, são os quatro achados — três deles coisas que só aparecem quando o
+gate roda contra o banco de verdade, e um sobre método.
+
+- **Um defeito de produção, achado pelo PR 7.** `FamilyDeletionRequest.fromJson` lia
+  `created_at`; a coluna chama `requested_at` e a tabela não tem a outra. O app parseia por essa
+  MESMA fábrica e a tela de Família renderiza `requestedAt`, então **a tela quebrava para toda
+  família com pedido de exclusão pendente** — em produção, desde o cutover. Nenhum teste de
+  widget podia pegar: eles constroem o objeto em memória, e o nome da coluna é uma afirmação
+  sobre uma tabela que ninguém estava perguntando. Isto é o argumento inteiro para um gate de
+  banco, e vale mais do que os 225 verdes.
+- **A varredura adversarial precisou de uma tradução INFIEL, de propósito.**
+  `CrossFamilyAuditLog_IsNotReadable` lia `activity_logs` sem filtro e explodia o
+  `statement_timeout` de 8 s conforme o projeto de QA acumulava linhas — o teste morria antes da
+  asserção, parecendo vazamento de RLS. A versão Dart filtra pelo id da linha da outra família e
+  afirma que veio vazio: mesma afirmação, custo constante. O cabeçalho da suíte diz isso, para
+  que a divergência não se leia como descuido.
+- **Uma armadilha de string, cara porque mentia sobre a causa.** O sufixo do `runId` era hex
+  de caixa mista; o GoTrue guarda e-mail em MINÚSCULAS, então toda busca por endereço errava —
+  e o sintoma era `Bad state: No element` num `.single`, que se lê como "a regra não disparou" e
+  é "a string não bate". O `runId` é minúsculo desde o PR 7.
+- **Analisar a árvore de trabalho não é analisar o commit.** Um PR foi vermelho porque um
+  arquivo novo ficou fora do `git add`: o `analyze` local via os dois, o CI via um. Desde então a
+  verificação é `git stash push --keep-index -u` → `analyze` → `git stash pop`, que mostra ao
+  analisador exatamente o que está no índice.
+
+Uma consequência de escopo, para não ficar implícita: **a autorização de merge desta seção morre
+aqui**. Do próximo item em diante vale de novo a regra do `CLAUDE.md` — PR e squash-merge só com
+o OK explícito do owner.
+
+O que a travessia **não** resolveu, e continua aberto no registro do T-56: os quatro espelhos
+C#↔Deno (`RoleCatalogMirrorTests`, `EmailDateFormatMirrorTests`, `AuthMailMirrorTests`,
+`NotificationParamsCoverageTests`) foram embora com o esvaziamento e **não têm equivalente em
+Dart**. Nada está quebrado; o que falta é o alarme, que é exatamente o modo de falha que esses
+testes existiam para descrever.
 
 ## O que o owner precisa fazer para o PR 3 valer
 

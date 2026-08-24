@@ -251,13 +251,11 @@ cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per
 # Canal web: os dois flags NÃO são opcionais — sem o define o build aponta para o
 # banco de QA, e sem o --no-web-resources-cdn o CanvasKit vem do gstatic.
 cd apps/entrelares_app && fvm flutter build web --release --no-web-resources-cdn --dart-define=APP_ENV=prod
-# Gate de banco (225 testes de RLS/RPC/trigger contra o projeto dev), em DUAS
-# metades enquanto o T-56 atravessa: o que já virou Dart e o que ainda é C#.
-# As duas exigem a service_role do DEV — nunca a de produção. Sem ela a suíte
-# aborta com instruções. `python3 tool/count_csharp_tests.py` conta o lado C#;
-# a soma dos dois lados tem que continuar 225.
+# Gate de banco (225 testes de RLS/RPC/trigger contra o projeto dev), Dart puro
+# desde o PR 16 do T-56. Exige a service_role do DEV — nunca a de produção. Sem
+# ela a suíte aborta com instruções em vez de rodar pela metade.
+cd packages/entrelares_db_gate && fvm dart analyze --fatal-infos
 cd packages/entrelares_db_gate && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> fvm dart test
-cd db-gate/Entrelares.IntegrationTests && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> dotnet test -c Release
 # Gate de fluxo na web: os MESMOS arquivos integration_test/ num Chrome headless.
 # Exige chromedriver no PATH (`chromedriver --port=4444 &` antes).
 cd apps/entrelares_app && fvm flutter drive --driver=test_driver/integration_test.dart   --target=integration_test/swap_workflow_test.dart -d web-server --browser-name=chrome --headless   --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
