@@ -346,42 +346,43 @@ rationale in `backlog/README.md`.
 
 ---
 
-### T-56 — Arquivar o `entrelares-app`
+### T-56 — Archive the `entrelares-app` repository
 
 | Field | Value |
 |---|---|
 | **Status** | `in-progress` |
-| **Priority** | `high` — cada dia a mais é um dia em que a memória do produto mora num repositório que ninguém abre |
-| **Complexity** | `high` (70 migrations, 13 functions, um gate de banco de 225 testes, o backlog inteiro e três esteiras de ops) |
-| **Impact** | `high` — decide onde vive a memória escrita do produto |
-| **Roadmap** | Fora dos grupos: é dívida estrutural aberta pelo cutover, não plano futuro |
+| **Priority** | `high` — every extra day is a day the product's written memory lives in a repository nobody opens |
+| **Complexity** | `high` (70 migrations, 12 Edge Functions, a 225-test database gate, the whole backlog and three ops pipelines) |
+| **Impact** | `high` — it decides where the product's written memory lives |
+| **Roadmap** | Outside the groups: structural debt opened by the cutover, not forward plan |
 
-> **Este item REVOGA uma decisão escrita.** O plano de cutover
+> **This item REVOKES a written decision.** The cutover plan
 > ([`../docs/flutter-cutover.md`](../docs/flutter-cutover.md), § *"Onde o rollback morre"*,
-> 23/08/2026) dizia: *"o repo `entrelares-app` NÃO é aposentado: ele continua sendo o repo do
-> banco, das Edge Functions, do backlog e do gate de integração"*. Aquilo valia enquanto o
-> repo Flutter era a aposta e o Blazor era o produto — o cutover inverteu os dois papéis no
-> dia seguinte, e manter banco, gate e memória num repositório que ninguém mais abre é o
-> caminho mais curto para perdê-los. Decisão nova do owner, 24/08/2026.
+> 23/08/2026) said: *"o repo `entrelares-app` NÃO é aposentado: ele continua sendo o repo do
+> banco, das Edge Functions, do backlog e do gate de integração"*. That held while this repo
+> was the T-53 spike and the Blazor client was the product. The cutover inverted both roles
+> the next day, and keeping the database, the gate and the written memory in a repository
+> nobody opens is the shortest path to losing them. New owner decision, 24/08/2026.
 
 **Description**
-Tornar o `entrelares-app` **arquivado**: sem precisar ser atualizado e, principalmente, sem
-precisar ser consultado. Tudo do aplicativo passa a viver no `entrelares-flutter`; o
-`entrelares-site` segue respondendo pelo site.
+Make `entrelares-app` **archived**: no longer needing to be updated and, above all, no longer
+needing to be consulted. Everything about the application moves to `entrelares-flutter`;
+`entrelares-site` keeps answering for the site.
 
-As **oito decisões** do owner, as **três medições** que as embasaram (o gate de banco
-destacava-se do Blazor por só 1.010 linhas de contratos; Playwright são 62 testes contra 5 da
-lane Flutter; este repo não tem estágio de homologação) e o **fatiamento em PRs** estão em
-[`../docs/arquivamento-app.md`](../docs/arquivamento-app.md), que é o registro operacional
-vivo deste item. Este bloco existe para que o item seja encontrável pelo mesmo caminho que
-toda a outra memória do produto.
+The **eight decisions**, the **three measurements** behind them and the **PR-by-PR plan** live
+in [`../docs/arquivamento-app.md`](../docs/arquivamento-app.md), which is this item's living
+operational record. What the three measurements settled, because they overturned assumptions:
+the database gate was tied to the Blazor client by only 1.010 lines of PostgREST contracts (not
+by the suite itself); the Playwright suite is 62 tests against the 5 of this repo's
+`integration_test` lane, so replacing the FLOW gate — not the database one — is the hard
+problem; and this repo has no staging stage, since a merge to `main` publishes production.
 
-**O que ainda falta quando este registro foi escrito**
-- O **gate de fluxo** que substitui a suíte Playwright (spike de `flutter drive` + chromedriver).
-- O **port do gate de banco para Dart**, suíte por suíte.
-- O **esvaziamento** do repo antigo, num único PR.
-- O **desligamento do Blazor**, que é quando o rollback morre — disparado por condição medida
-  (N dias sem acesso ao `legado.entrelares.app`), não por data.
+**What was still open when this record was written**
+- The **flow gate** replacing the Playwright suite (`flutter drive` + chromedriver spike).
+- The **port of the database gate to Dart**, suite by suite.
+- The **emptying** of the old repo, in a single PR.
+- The **Blazor shutdown**, which is when the rollback dies — triggered by a measured condition
+  (N days without a hit on `legado.entrelares.app`), never by a date.
 
 ---
 
