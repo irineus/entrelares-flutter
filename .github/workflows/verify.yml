@@ -88,10 +88,12 @@ jobs:
               echo "- $(basename "$f"): ${kb} KB" >> "$GITHUB_STEP_SUMMARY"
             fi
           done
-          # The channel-acceptance number the cutover plan asks for is NOT this
-          # one: the owner still has to measure a REAL first load on a mid-range
-          # Android over 4G. This keeps the weight that drives it visible on
-          # every push, so a regression is noticed the day it lands.
+          # This is NOT the channel-acceptance number — that one was measured
+          # on a real mid-range Android over 4G, against the PWA, and granted
+          # by the owner on 23/08/2026. What this step keeps doing is guarding
+          # it: the weight that drives the first load stays visible on every
+          # push, so a regression is noticed the day it lands rather than the
+          # day someone complains.
 
   # T-54's E2E lane (opened by lote 3, the first two-user flow). It drives the
   # REAL app on an emulator against the DEV project, with the throwaway-family
