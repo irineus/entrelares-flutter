@@ -384,6 +384,23 @@ problem; and this repo has no staging stage, since a merge to `main` publishes p
 - The **Blazor shutdown**, which is when the rollback dies — triggered by a measured condition
   (N days without a hit on `legado.entrelares.app`), never by a date.
 
+**A finding for the Dart port, paid for on 24/08/2026.** `AdversarialTests.CrossFamilyAuditLog_IsNotReadable`
+went red with `57014 — canceling statement due to statement timeout` after five suite runs in two
+hours against the dev project. It was NOT an RLS breach: the assertion never ran. The test reads
+`activity_logs` **with no filter** and lets RLS do the work, so its cost grows with everything the
+QA project has accumulated — not with the size of its own throwaway family — and it hits the
+8 s `statement_timeout` of the `authenticated` role. It passed on re-run, so it is contention, but
+it is a fragility that grows: the gate now runs from TWO repositories. **When this suite is ported,
+the query must be filtered and assert the absence of the specific id**, never download the table.
+Same for any sibling written against the same pattern.
+
+**A process consequence of the same episode.** `verify.yml` cancels in-progress runs of the same
+ref, which is right for minutes but wrong for `db-gate`: a cancelled run dies before its teardown
+and leaves throwaway families behind (the orphan sweep spares anything younger than 2 h, on
+purpose, so a running suite is never robbed). Excluding `db-gate` from the cancellation — it
+already has its own serialized `concurrency` — is a candidate fix, deliberately not made inside a
+documentation PR.
+
 ---
 
 ### T-52 — Retire the legacy Android package `com.guardacompartilhada.app`

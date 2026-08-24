@@ -1,25 +1,28 @@
 # CLAUDE.md — Project context for Claude Code
 
 ## What this repo is
-The **T-53 rewrite** of Entrelares (Blazor WASM PWA, repo `entrelares-app`) in
-**Flutter/Dart**. Born as the stage-1 spike (GO verdict, 19/08/2026); **stage 3 is open**:
-this repo is becoming the product app, built batch by batch per the parity map
-(`entrelares-app/docs/flutter-paridade.md`, order 1→2→3→4→6→5) behind the cutover plan
-(`entrelares-app/docs/flutter-cutover.md`). **All six batches are delivered — batch 5
-(premium/billing with the T-48 Play Billing redesign) closed on 20/08/2026**, so stage 3
-is functionally complete. **U-27**, the visual foundation (design
-tokens, the shared component set, skeletons), closed on 20/08/2026 — deliberately done
-while zero users were on the Flutter app, because after the cutover every visual change is
-a change to a live product. **Stage 4 (the cutover) OPENED 23/08/2026**: the decisions,
-the two-channel runbook and the day the rollback dies are in
-`entrelares-app/docs/flutter-cutover.md`. Its CODE half is delivered — this repo now
-publishes the web channel — but the switch itself (Play track, the Cloudflare domain
-move, the announced date) is owner ops and has NOT been thrown. The Blazor app is
-frozen (owner policy, 19/08/2026) and stays in production until that cutover.
+**The Entrelares product app**, in Flutter/Dart, on **both channels**: the Play package
+`com.entrelares.app` carries this bundle, and `web.entrelares.app` is served from here by the
+Cloudflare Pages project `entrelares-web`.
 
-Authority chain: `entrelares-app/CLAUDE.md` still holds the product invariants (language
-rules, backlog trailer convention, working agreement) — they all apply here, and they move
-into this file in the next PR of **T-56**. This file only adds what is Flutter-specific.
+It was born as the T-53 stage-1 spike (GO verdict, 19/08/2026), was built batch by batch
+against the parity map ([`docs/flutter-paridade.md`](docs/flutter-paridade.md)) behind the
+cutover plan ([`docs/flutter-cutover.md`](docs/flutter-cutover.md)), and **T-53 CLOSED on
+23/08/2026, when both channels were cut** — the store first, because its rollback is the less
+reversible one, and the web hours later. Everything that came before is history in those two
+documents; what matters day to day is that **a merge to `main` reaches real users**.
+
+The Blazor client is frozen and stays published at `legado.entrelares.app` as the documented
+way back. **The rollback dies when it is shut down**, which is the last action of stage 4 and
+has no date — it waits on a measured condition, not a calendar (T-56).
+
+**This file is the authority.** Until 24/08/2026 it deferred to `entrelares-app/CLAUDE.md` for
+the product invariants (language rules, the trailer convention, the working agreement, the
+domain model, the hard-won gotchas); those sections were triaged and moved here by **T-56**,
+and what stayed behind is what dies with the Blazor client — its DI scopes and `forceLoad`
+navigation, the C# retry helper, the gotrue-csharp quirks, the Realtime WebSocket that never
+worked in WASM, the `csproj`+manifest versioning and every Playwright gotcha. **Nothing in the
+old repo needs to be consulted to work here.**
 
 **The rule that this repo "never carries its own backlog" was REVOKED on 24/08/2026**, and
 `backlog/` now lives here. It was a deliberate rule, so here is why it fell: it existed while
@@ -43,23 +46,181 @@ what still lives where** — check it before assuming a path.
 | Environment | Build flavors (stage 3): `dev` → project `buroanotfjcgvbfmacuh`, `prod` → production — both PUBLIC configs hardcoded in `env.dart`, selected at compile time via `appFlavor`. Every Android build requires `--flavor`; flavor-less targets (`flutter test`) fall back to dev by construction. The Supabase singleton initializes once per process, so environments are per build variant, NEVER a runtime switcher. |
 | Targets | Android **and web** (batch 6, tension 1: Flutter Web replaces the PWA). The CHANNEL acceptance — first load on a mid-range Android over 4G, measured against the PWA — was **granted by the owner on 23/08/2026**, which closes the last of the three product tensions. |
 | Web channel (stage 4) | **`flutter build web` accepts NO `--flavor`** — on web `appFlavor` is always null, so a flavor-only rule resolves the web build to DEV. Production says so with **`--dart-define=APP_ENV=prod`**, and `web_channel_test` fails the build if that define (or `--no-web-resources-cdn`, which keeps CanvasKit on our own origin) leaves the workflow. Published by the `deploy-web` job of `verify.yml` to Cloudflare Pages project **`entrelares-web`**, behind `needs: verify`, only from `main`, and self-disarming while the CF secrets are absent. Everything in `apps/entrelares_app/web/` is copied verbatim into the build — including `.well-known/assetlinks.json` (the App Link of the INSTALLED app is verified against this host) and `service-worker.js`, which is the **tombstone** of the Blazor PWA's worker: the only thing that reaches an installed PWA is the browser's update check of that exact URL, so the file must never be deleted while a device may still carry the old worker. |
-| Billing | **Two rails, decided by the BUILD** (T-48 redesign, lote 5). The web target sells through the Asaas rail (`billing.enabled`, live in production since 29/07/2026); Android sells through **Play Billing** behind its own switch `billing.store_enabled`, which is PUBLIC and starts `false`. While it is false — or the device has no store, or no product comes back — the store branch shows the **T-38 neutral note**, which is also the fail-closed default. The **store price is Play's** (the product carries it; `app_settings` prices rule the web rail only), and **the client never grants Premium**: the purchase token goes to `billing-store-verify`, which asks the Play Developer API, and the acknowledge to Play happens only after the server accepted. Product ids `premium_monthly`/`premium_annual` are pinned by test — renaming one orphans real purchases. Go-live is console work: `entrelares-app/supabase/README.md` §9-bis. |
+| Billing | **Two rails, decided by the BUILD** (T-48 redesign, lote 5). The web target sells through the Asaas rail (`billing.enabled`, live in production since 29/07/2026); Android sells through **Play Billing** behind its own switch `billing.store_enabled`, which is PUBLIC and starts `false`. While it is false — or the device has no store, or no product comes back — the store branch shows the **T-38 neutral note**, which is also the fail-closed default. The **store price is Play's** (the product carries it; `app_settings` prices rule the web rail only), and **the client never grants Premium**: the purchase token goes to `billing-store-verify`, which asks the Play Developer API, and the acknowledge to Play happens only after the server accepted. Product ids `premium_monthly`/`premium_annual` are pinned by test — renaming one orphans real purchases. Go-live is console work: [`supabase/README.md`](supabase/README.md) §9-bis. |
 | Visual system | **U-27 (20/08/2026)**: `apps/entrelares_app/lib/theme/tokens.dart` is the ONE place a colour may be written — `no_color_literal_test` fails the build on a `Color(0x` anywhere else in `lib/`. Both themes are hand-written (never `ColorScheme.fromSeed`: seeding tints the greys with the brand indigo and kills the neutral identity), and **dark ships with the tokens**, following the system — a user-facing switch is U-12's. Colour is never the only vector: each calendar slot carries a `SlotPattern` texture too, and the swapped day is amber with a dashed border (web parity), which is what freed the rose `#E11D48` to be a role again. The eleven shared components live in `apps/entrelares_app/lib/widgets/ui/` (barrel `ui.dart`) and encode two conventions: the action pair puts the CONFIRMATION FIRST (the Blazor order — parity with the muscle memory people arrive with) and every field carries a permanent label, which is how WCAG 1.4.11 is met without a heavier border. Loading states are SKELETONS wherever the shape of what is coming is known; a spinner survives only for a button mid-press, a determinate bar, and a wait with no shape (splash, payment return). Type is **Inter**, four static weights subset to `latin` (~96 KB gzip), regenerable with `apps/entrelares_app/tool/subset_inter.py`; the PDF keeps Roboto on purpose (F-33). |
 | Analytics | T-37 via Umami Events API. The website id is PUBLIC and per environment: **dev is empty on purpose** (every call becomes a no-op, so QA never pollutes production statistics); prod carries the product's site. No PII ever — the sanitizer is a pure mirror with its own suite. |
 
-## Product invariants that survive the rewrite (from the app repo)
+> **Owner directive (18/08/2026), still standing:** parity is the floor, not the ceiling —
+> where Flutter offers a natural improvement over the Blazor behaviour (native Realtime instead
+> of the F-23 poll, month swipe, native bottom sheet, pull-to-refresh, haptics), take it. The
+> improvement is UX/platform only, never a rule change.
+
+## Language conventions
+- **UI text, notifications, e-mails: PT-BR.** Code, comments, docs, file names and **titles**
+  (including backlog record headings): **English**. Bilingual display per reader is U-13/U-24 —
+  the catalogs decide what the user sees; the wire format never changes with it.
+- **Commit messages: PT-BR**, conventional-commit style (`feat(calendario): …`).
+- **Every commit that DELIVERS a backlog item ends with the trailer `Backlog: <ID>`** (several
+  comma-separated). That trailer is the ONLY mark meaning "this commit delivers this item":
+  mentioning an ID in prose stays free and never counts, so a message can say "reusa o fluxo de
+  convite (F-15/F-28)" without polluting those items' history. *Why it exists:* before it,
+  linking commits to items meant guessing from prose, and both guesses failed — "ID in the
+  subject" hid ~70 genuine deliveries from Phases 1–2, while "any mention counts" credited items
+  for commits that merely cited them as background.
+- **The trailer does NOT survive an API or CLI merge on its own.** GitHub pre-fills the squash
+  message from the PR body on the **web merge button only**. Through the REST API or
+  `gh pr merge --squash`, GitHub builds the message from the branch commits instead and the
+  trailer is silently dropped — it happened twice (F-42) and was rescued only by the subject
+  heuristic this convention exists to replace. So an API/CLI merge MUST pass `--subject` **and**
+  `--body`, with the trailer as the body's last line.
+  **Put `(#N)` in the subject too**, the way the web button does: `tool/notion_mirror.py`
+  extracts the PR number from the subject's trailing `(#N)`, and a squash without it delivers the
+  item but cannot link its PR (T-56 #57 lost exactly that, 24/08/2026).
+  **Verify right after merging — it costs one command:**
+  `git log -1 --format='%h %s%n%(trailers:key=Backlog,valueonly)'`.
+- **Finding/sub-item IDs must never start with a backlog prefix** (`F-`/`U-`/`T-`/`S-`/`L-` +
+  two digits). The T-32 findings were `F-32-1…5` and every ID reader matched them as the feature
+  **F-32**, mis-attributing effort and commits; they are `T32-A1…A5` now.
+
+## Working agreement
+- **Per item:** detailed analysis + gap questions (AskUserQuestion) BEFORE any code; once the
+  decisions are locked, implement with tests, commit and push to the session's work branch.
+  **PR + squash-merge only with the owner's explicit OK — never automatic.** Big items split into
+  2–3 incremental PRs, each carrying its own docs/backlog close-out inline.
+- **Standing exception:** a RED CI gate fixed by correcting the TESTS (flaky, rate-limit, wrong
+  assertion — no behaviour change) may be merged directly, without waiting for the OK.
+- **One scope per session**, and end each session with a summary block for the board.
+- Since the cutover there is **no QA branch**: a merge to `main` publishes production. The QA
+  that used to happen after the merge has to happen BEFORE it — on the PR's green gate, and on a
+  dev-flavour build when the change needs a real device.
+
+## Domain model
+- `scheduled_parent` = planned responsible; `actual_parent` = the real one after a swap.
+- Swap/revert requests are **two-party**: the approver is always the non-requester, and a day
+  with a pending request is **frozen**. Scenario B (the requester proposes THEMSELVES on the
+  target's day) makes message texts branch on `targetIsProposed`. Scenario C (a third caregiver
+  proposing someone ELSE on another member's day) is **forbidden by design** (F-28) — that single
+  rule is what keeps every two-party message text valid with N caregivers; relaxing it breaks
+  them all.
+- A member with `left_at` set is **frozen** (S-11): profile immutable, never assignable to a day,
+  holds no seat — enforced by DB triggers; the UI only mirrors it.
+- Every profile belongs to a **family** (RLS is family-scoped via `get_my_family_id()`);
+  `is_admin` is per family, and the "≥1 admin" invariant is a DB trigger.
+- **Urgency is never stored**: none/URGENTE/ATRASADO is computed from
+  `schedule_date + (handoff ?? 00:00)` against now (pending) or `resolved_at` (history). The Edge
+  Function mirrors the same rule in `America/Sao_Paulo`.
+
+## Product invariants
 - **The client MIRRORS, the database ENFORCES.** RLS, SECURITY DEFINER RPCs, sudo S-10
   (`ELEVATION_REQUIRED:` marker) and the T-33/T-35 concurrency guard (`revision` +
   `revision_token`/`submitted_token` echo) are the security. Never "protect" in the client.
-- **Dates on the wire are ISO 8601** (`yyyy-MM-dd`); display formatting is client-side and
-  per reader language (U-24). Translating a screen must never change the wire format.
-- **UI text PT-BR** (bilingual per reader is U-13 — NOT validated by the spike; PT-BR only
-  here). Code/comments/docs in English. Commits PT-BR conventional style; delivery commits
-  end with the `Backlog: <ID>` trailer.
-- **Owner directive (18/08/2026):** parity is the floor, not the ceiling — where Flutter
-  offers a natural improvement over the Blazor behaviour (native Realtime instead of the
-  F-23 poll, month swipe, native bottom sheet, pull-to-refresh, haptics), take it. The
-  improvement is UX/platform only, never a rule change.
+- **Dates on the wire are ISO 8601** (`yyyy-MM-dd`); display formatting is client-side and per
+  reader language (U-24). Translating a screen must never change the wire format.
+- The client never writes to other profiles, to `families` or to `family_invitations` directly —
+  **SECURITY DEFINER RPCs only** (`set_member_admin`, `rename_family`, `create_invitation`, …).
+- Notification INSERTs use minimal return: RLS blocks selecting the other user's row back.
+- **Day protections are database rules** (past days immutable, frozen days locked, actual-parent
+  changes only through the workflow), with an explicit admin-mode bypass. Never add a UI shortcut
+  around the workflow.
+- **The T-27 transition rule is a DB rule too:** a `handoff_time` only survives on a day whose
+  effective responsible differs from D-1's. Two triggers on `care_schedules` do it — a BEFORE one
+  that parks a removed time in `handoff_time_backup` and gives it back when the day becomes a
+  transition again, and an AFTER one that re-evaluates D+1. The client copy exists to WARN
+  upfront, never to enforce — keep the two saying the same thing.
+- The audit trail (`activity_logs`) is **append-only and written by trigger only**; its
+  `old_data` snapshots are what power revert-restore (F-26).
+- The role catalog is the single client-side source of role vocabulary. Seed data differs across
+  environments (`Pai`/`Mãe` vs `father`/`mother`) — always match through the catalog.
+
+## Legal pages (Privacy & Terms) — cross-repo sync (MUST)
+The app links the **landing's** legal pages (`entrelares-site`); there is ONE copy of the legal
+text and it opens in the browser (lote 4 decision). Any change to policy/terms **content** must be
+mirrored on both sides **in the same delivery** — mirror the *substance*, not line for line.
+
+**A material change BLOCKS the whole user base (S-15/B-4), so it is four things in ONE delivery:**
+(1) `PolicyVersions.current`; (2) `enforceFrom` = *the date the text becomes VISIBLE to users* +
+15 days — that is the PRODUCTION publish, not the merge, because the notice exists so people can
+read the text before losing access; (3) the matching `policy.current_version` **and**
+`policy.enforce_from` rows in `app_settings`, via migration; (4) an entry in the change summary
+the screen renders. **Miss (3) and the RPC refuses every accept in production** — users are told
+to update an app that is already current and nobody gets through. The integration tests that
+compare each constant against its server setting are the red gate that replaces a live lockout;
+never weaken them. **A non-material edit must NOT bump the version** — it would drag the whole
+base through a blocking screen for nothing; only the "Última atualização" date moves.
+
+**The S-15 lesson, which cost three rounds of legal opinion: check every sentence against the
+CODE before publishing it.** One finding happened because the briefing quoted our own policy
+("the only child datum is the first name") instead of the database, where no child field exists
+at all. Applying that check to counsel's own approved wording then caught a promise with no
+implementation and a disclosure that named less data than the system actually stores. Legal text
+is a claim ABOUT the system, and an unverified claim is a liability no matter who drafted it.
+
+## The board, and what effort means
+The Notion board owns **status, roadmap order and effort**; the markdown in `backlog/` owns
+**what each item IS**. Regenerate a page body with `python tool/notion_mirror.py` and push it with
+`replace_content` — never hand-edit a body in Notion.
+
+`Esforço gasto (h)` measures **elapsed time between merges** inside a working session, never time
+at the keyboard: squash-merge collapses a whole PR into one timestamp. **Use it to compare items,
+never as a timesheet.** It was long described as understating "systematically", and that stopped
+being true on 24/08/2026 when the mirror learned to read every repo: an item that collects every
+commit of its stage also collects the gaps between them, so a densely-delivered item now
+OVERSHOOTS (T-53: 10,4 h → 28,0 h, against ~14 h of real work). The ranking is what improved and
+what the number is for — U-28 went from 89th to 3rd. Retuning the three constants would move all
+180 items to chase an absolute this line already says not to trust, so it was deliberately not
+done (owner, 24/08/2026).
+
+## Gotchas (hard-won) — database & platform
+These survived the rewrite because none of them is about the client language.
+
+- **An UPDATE the client is not allowed to make does NOT throw — it matches 0 rows.** With no
+  UPDATE policy, PostgREST answers success and changes nothing, so "expect an exception" passes
+  for the wrong reason and fails for the right one. **Assert the ROW IS UNTOUCHED** instead
+  (re-read it with the service client). One suite carried this comment and a sibling walked into
+  it anyway — read the neighbouring suite's assertions before writing new ones against the same
+  table.
+- **`anon` reads NOTHING, so a health ping needs `service_role` in BOTH headers.** The app is
+  100% RLS-locked: `anon` has no SELECT even on reference tables, so an anonymous PostgREST read
+  returns **401**, never `200 []`. And PostgREST derives the DB role from the JWT in
+  `Authorization: Bearer` — `apikey` alone is only the Kong gate and still runs as `anon`. With a
+  NEW-format key (`sb_secret_…`) it is the opposite: `apikey` ONLY, because it is not a JWT and
+  the platform rejects it on `Authorization`. Handling both shapes is what lets a key be rotated
+  without a red window.
+- **`CREATE OR REPLACE` of a shared trigger function: start from the LATEST body, not the one you
+  remember.** `enforce_day_protection` has been rewritten in full by eight migrations. Copying an
+  old version to add one line silently deleted three later rules — no error, seven red tests.
+  `grep -n 'FUNCTION public.<name>' supabase/migrations` first; the newest file wins.
+- **A role check inside a `SECURITY DEFINER` function reads the OWNER, not the caller.**
+  `current_user` there is always the function's owner, so a guard like `IF current_user =
+  'authenticated'` never fires, silently. `auth.role()` is not the fix either — it reads the JWT
+  claim, so a SECURITY DEFINER RPC called by an end user still reports `authenticated`. To tell a
+  PostgREST end user apart from a server-side flow the function must be **SECURITY INVOKER** and
+  test `current_user`.
+- **API keys and the JWT signing key are two INDEPENDENT migrations (S-16)**, and conflating them
+  is what made the July 2026 incident look unfixable. Legacy `anon`/`service_role` are JWTs signed
+  with the project's JWT secret; `sb_publishable_…`/`sb_secret_…` are not JWTs and are validated
+  by the gateway. Rotating the SIGNING key (HS256 → ES256) breaks the legacy keys *because* they
+  are signed with the secret it replaces. So the key migration is the prerequisite, not a
+  companion. **Emergency fix while any legacy key remains: roll the signing key back.** Edge
+  Functions read the key sets by NAME and **fail without them**, so new keys must exist on a
+  project BEFORE CI redeploys its functions.
+- **`send-auth-email` is the one function with no fallback behind it.** With GoTrue's Send Email
+  Hook enabled, GoTrue stops sending — a break there means nobody confirms a sign-up or recovers
+  a password. It is also authorized differently: the hook calls it with no JWT and no key, signing
+  the body with the Standard Webhooks scheme, so the signature IS the authorization and the
+  project's own keys must NOT open it. GoTrue gives the hook a **fixed 5 s**, and a cold start
+  after a redeploy has exceeded it — which is why the deploy pipeline warms the isolate with an
+  empty POST.
+- **An Edge Function must be redeployed whenever its templates or payload change** — an outdated
+  copy silently sends zero e-mails.
+- **A Resend API key can be BOUND to one domain and dies with that domain**, and the sending
+  allowance is per ACCOUNT — the test suite once spent production's.
+- **Integration seeds hit UNIQUE `(family_id, schedule_date)`**, and a CI run cancelled by a
+  concurrency group dies before its teardown, leaving fixed-id seeds behind for the next run to
+  collide with. The suite deletes those seeds before creating them, and the orphan sweep spares
+  anything younger than 2 h so parallel runs do not eat each other.
+- **Supabase CLI on Windows:** `db dump -f` resolves against the CLI's own cwd — dump to a bare
+  filename, then move.
 
 ## The eight paid-for lessons (pilot `entrelares-console` — each was a real defect)
 1. Restored session ≠ live session: gate app open with `refreshSession()` BEFORE routing;
