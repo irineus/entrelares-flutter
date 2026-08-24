@@ -8,10 +8,10 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/family.dart';
-import 'package:entrelares_app/models/family_deletion.dart';
-import 'package:entrelares_app/models/member.dart';
-import 'package:entrelares_app/models/role.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/family_deletion.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
 import 'package:entrelares_app/screens/family_screen.dart';
 import 'package:entrelares_app/screens/leaving_screen.dart';
 import 'package:entrelares_app/screens/policy_update_screen.dart';

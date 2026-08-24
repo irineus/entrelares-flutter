@@ -4,8 +4,8 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/account_log.dart';
-import 'package:entrelares_app/models/activity_log.dart';
+import 'package:entrelares_db_contracts/models/account_log.dart';
+import 'package:entrelares_db_contracts/models/activity_log.dart';
 
 void main() {
   group('ActivityLog.fromJson', () {

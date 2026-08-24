@@ -11,11 +11,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import 'package:entrelares_app/models/activity_log.dart';
-import 'package:entrelares_app/models/care_schedule.dart';
-import 'package:entrelares_app/models/family.dart';
-import 'package:entrelares_app/models/member.dart';
-import 'package:entrelares_app/models/role.dart';
+import 'package:entrelares_db_contracts/models/activity_log.dart';
+import 'package:entrelares_db_contracts/models/care_schedule.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
 import 'package:entrelares_app/screens/reports_pdf_tab.dart';
 import 'package:entrelares_app/services/report_pdf.dart';
 import 'package:entrelares_app/widgets/app_l10n.dart';

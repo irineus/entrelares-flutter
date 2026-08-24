@@ -13,7 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
-import 'package:entrelares_app/models/family.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
 import 'package:entrelares_app/screens/premium_return_screen.dart';
 import 'package:entrelares_app/services/analytics_service.dart';
 import 'package:entrelares_app/widgets/app_l10n.dart';

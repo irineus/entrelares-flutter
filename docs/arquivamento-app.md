@@ -70,9 +70,85 @@ fica descoberto durante a travessia.
 | **4a** ✅ | flutter | **A memória, parte mecânica** (24/08/2026): `backlog/` inteiro (6 + 8 de `archive/`), `docs/`, `database/`, `GitHelp.md`, e o changelog do README do app como `docs/changelog-blazor.md` (138 versões). O espelho passou a ler os registros daqui, e a regra do backlog foi revogada no `CLAUDE.md` — ela era consequência direta desta mudança, não do 4b |
 | **4b** ✅ | flutter | **A memória, parte de julgamento** (24/08/2026): sete seções triadas das 900 linhas do `CLAUDE.md` do app — convenções, working agreement, modelo de domínio, invariantes, seção legal, board/esforço e 13 *gotchas* de banco e plataforma. Ficaram para trás os que morrem com o cliente (escopos do Blazor, `RetryHelper`, gotrue-csharp, Realtime em WASM, versionamento por `csproj`, todos os de Playwright). Mais a frase do esforço, que virou falsa, e o parágrafo do roadmap que ainda chamava a 1.8.13 de produção |
 | **5** ✅ | flutter | **Gate de fluxo — entregue** (24/08/2026): os MESMOS arquivos `integration_test/` rodam num Chrome headless via `flutter drive` + chromedriver. Medido antes de confiar, porque na web o `flutter drive` imprime "All tests passed" tenha ou não executado algo: uma sonda com um teste que falha de propósito deixou o job **vermelho** nomeando o teste, e o pacote completo custa ~6 s mais que o `p0`. **144 s para os dois packs (5 testes)** contra 10–15 min do emulador. Roda em push/PR e **bloqueia a publicação web** desde 24/08/2026 (decisão do owner, sobre cinco runs verdes e uma vermelha proposital); não substitui o emulador para o que exige aparelho |
-| **6…N** | flutter | **O port do gate para Dart**, suíte por suíte. O primeiro PR leva o `E2EFamilyFixture` (385 linhas, ~30% do risco) e uma suíte pequena como prova; o último apaga `db-gate/` e o lane `dotnet`. Estimativa: 6–9 PRs |
+| **6…16** | flutter | **O port do gate para Dart**, suíte por suíte — o fatiamento detalhado está na seção seguinte. O PR 6 leva a fundação (contratos erguidos, clientes por identidade, fixture) e uma suíte real como prova; o 16 apaga `db-gate/` e o lane `dotnet` |
 | **F** | app | **O esvaziamento, num toque só**: remove o que migrou, README curto apontando para cá, `deploy.yml` reduzido à metade que publica o `legado.`. Não arquiva ainda |
 | **∅** | app | **No dia do desligamento** (condição da decisão 7, sem código novo): tira domínio e projeto Pages, apaga a metade Blazor do `deploy.yml`, apaga `E2ETests` + `IntegrationTests`, arquiva |
+
+## O port do gate para Dart (PRs 6 a 16)
+
+### A autorização de merge, com data e escopo
+
+O `CLAUDE.md` diz, e continua dizendo: *"PR + squash-merge só com o OK explícito do dono —
+nunca automático"*. **Em 24/08/2026 o owner abriu uma exceção com escopo EXCLUSIVO aos PRs 6
+a 16 deste port**: cada um vai a PR, espera o CI e é mergeado por quem o abriu **se fechar
+verde**. Está registrado aqui para que nenhuma sessão futura leia esses merges como violação
+da regra — e para que o escopo fique estreito: a exceção morre com o PR 16, não se estende a
+nenhum outro trabalho neste repo.
+
+Três condições vieram junto com ela, e são o que a torna segura:
+
+- **Só se mergeia o seguinte quando o anterior fechou verde.** Enquanto o CI de um roda, o
+  próximo pode ser escrito, nunca mergeado.
+- **CI vermelho é prioridade máxima** — conserta-se antes de seguir, LENDO o erro. Reexecutar
+  até passar é proibido: o último vermelho do gate parecia vazamento de RLS e era
+  `statement timeout`.
+- **Para-se e pergunta-se ao owner quando a decisão for dele** — com ou sem vermelho.
+
+### As três medições que desenharam o port
+
+1. **Os contratos já existiam em Dart.** Os 12 modelos de tabela em
+   `apps/entrelares_app/lib/models/` (816 linhas) eram Dart puro, importando só `dart:convert`
+   e `entrelares_core`. Erguê-los para `packages/entrelares_db_contracts` é a simetria exata
+   do que `Entrelares.DbContracts` fez em C# — e é o que permite ao gate ler o MESMO contrato
+   que o app lê, de modo que uma coluna renomeada não pode ficar verde de um lado e vermelha
+   do outro.
+2. **41 das 43 classes C# compartilham UMA família** via `[Collection("e2e-family")]`. No
+   `dart test` cada ARQUIVO roda em isolate próprio e `setUpAll` é por arquivo, então um port
+   ingênuo criaria 41 famílias por execução e martelaria o projeto de QA. A saída é um
+   **entrypoint agregador** (`test/db_gate_test.dart`): as suítes são bibliotecas que
+   REGISTRAM seus grupos contra uma fixture recebida, e só esse arquivo tem `setUpAll`.
+3. **O pacote é o `supabase` puro, NUNCA `supabase_flutter`.** O gate precisa de vários
+   clientes autenticados vivos no mesmo processo — é assim que RLS se testa — e o
+   `supabase_flutter` inicializa um singleton por processo (lição 8 do piloto), então
+   caberia exatamente uma identidade nele.
+
+### O fatiamento, e a aritmética que o verifica
+
+| PR | Grupo | Linhas C# de origem |
+|---|---|---|
+| 6 ✅ | **Fundação**: `entrelares_db_contracts`, `entrelares_db_gate`, clientes por identidade, fixture completa + `FamilyIsolationTests` como prova | 856 |
+| 7 | RLS, adversarial e consentimento | 752 |
+| 8 | Regras de dia (proteção, transição T-27, horizonte, concorrência) | 647 |
+| 9 | Workflow de troca (auto-aprovação, mensagens, reversão, log) | 618 |
+| 10 | Conta e exclusão (conta, família, perfil, idioma) | 812 |
+| 11 | Convites e multi-cuidador | 628 |
+| 12 | Operador de plataforma + RPCs de admin | 698 |
+| 13 | Sudo, papéis customizados, settings, auth de functions | 997 |
+| 14 | Billing do rail web | 1.064 |
+| 15 | Billing de loja e webhook | 436 |
+| 16 | Apaga `db-gate/` e a lane `dotnet` do workflow | — |
+
+**Cada PR apaga as classes C# que acabou de traduzir**, no mesmo commit. É isso que impede o
+gate de ficar descoberto: uma suíte só sai de um lado quando já existe do outro. E a
+verificação é uma soma — **`testes C# + testes Dart` tem que continuar 225**. O lado C# é
+contado por `python3 tool/count_csharp_tests.py` (que sabe que um `[Theory]` vale um caso por
+`[InlineData]`, e não um por método); o lado Dart sai do relatório do `dart test`. O
+`verify.yml` imprime a soma no summary de cada run, e o corpo de cada PR a repete.
+
+Os dois lados rodam **como passos do mesmo job**, não como dois jobs: cada um inventa sua
+própria família `E2E-<runId>` e as duas varreduras de órfãos poupam o que tem menos de 2 h,
+então eles não colidem em FAMÍLIAS — mas colidiriam nas seeds de billing do T-39, que usam
+ids externos FIXOS. Um job só, sob o `concurrency: db-gate` que já existia, resolve isso por
+construção.
+
+### O que o PR 6 mexeu fora do gate
+
+Ele é o único do port que **podia quebrar o aplicativo**: mover os 12 modelos para
+`packages/entrelares_db_contracts` reescreveu 148 imports em 46 arquivos do app. A verificação
+foi mecânica (`flutter analyze` + `flutter test`, ambos limpos), e o app não muda mais do PR 7
+em diante. Uma única mudança de comportamento veio junto: `Member` ganhou `familyId`,
+opcional, porque o app nunca precisa dele (RLS já estreita toda leitura) e o gate precisa —
+provar que RLS vale é justamente nomear a família que uma linha declara.
 
 ## O que o owner precisa fazer para o PR 3 valer
 

@@ -1,6 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 
-import '../models/member.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
 import 'custody_data_source.dart';
 
 /// U-23 — reads the facts the activation checklist is decided from. Port of

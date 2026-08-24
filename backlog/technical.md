@@ -386,7 +386,16 @@ problem; and this repo has no staging stage, since a merge to `main` publishes p
   `p0`. It does not replace the emulator for what needs a device. **It blocks the web publish since
   24/08/2026** — the role Playwright played for the old repo's promotion, and what makes it a
   gate rather than a report.
-- The **port of the database gate to Dart**, suite by suite.
+- The **port of the database gate to Dart**, suite by suite — **under way since 24/08/2026**,
+  eleven PRs (6…16) whose slicing, merge authorization and verification arithmetic are in
+  [`../docs/arquivamento-app.md`](../docs/arquivamento-app.md). Its foundation (PR 6) settled
+  three things the ten that follow inherit: the row contracts left the app into
+  `packages/entrelares_db_contracts`, so the gate asserts against the SAME shape the app reads;
+  the gate is one aggregating entrypoint rather than a file per suite, because `dart test`
+  gives a `setUpAll` per FILE and the naive port would create 41 throwaway families per run
+  against the shared QA project; and the identity clients come from the PURE-Dart `supabase`
+  package, never `supabase_flutter`, whose per-process singleton (the pilot's lesson 8) could
+  hold exactly one of the four the gate needs.
 - The **emptying** of the old repo, in a single PR.
 - The **Blazor shutdown**, which is when the rollback dies — triggered by a measured condition
   (N days without a hit on `legado.entrelares.app`), never by a date.

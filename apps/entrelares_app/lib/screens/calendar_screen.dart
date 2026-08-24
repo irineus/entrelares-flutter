@@ -6,11 +6,11 @@ import '../widgets/ui/ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
-import '../models/care_schedule.dart';
-import '../models/family.dart';
-import '../models/member.dart';
-import '../models/role.dart';
-import '../models/swap_request.dart';
+import 'package:entrelares_db_contracts/models/care_schedule.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
+import 'package:entrelares_db_contracts/models/swap_request.dart';
 import '../services/admin_mode.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';

@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import '../widgets/ui/ui.dart';
 import '../theme/tokens.dart';
 
-import '../models/app_notification.dart';
-import '../models/member.dart';
-import '../models/swap_request.dart';
+import 'package:entrelares_db_contracts/models/app_notification.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/swap_request.dart';
 import '../services/custody_data_source.dart';
 import '../services/notification_badge.dart';
 import '../widgets/account_button.dart';

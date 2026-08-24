@@ -7,12 +7,12 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/app_notification.dart';
-import 'package:entrelares_app/models/care_schedule.dart';
-import 'package:entrelares_app/models/family.dart';
-import 'package:entrelares_app/models/member.dart';
-import 'package:entrelares_app/models/role.dart';
-import 'package:entrelares_app/models/swap_request.dart';
+import 'package:entrelares_db_contracts/models/app_notification.dart';
+import 'package:entrelares_db_contracts/models/care_schedule.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
+import 'package:entrelares_db_contracts/models/swap_request.dart';
 import 'package:entrelares_app/services/custody_data_source.dart';
 import 'package:entrelares_app/services/export_service.dart';
 

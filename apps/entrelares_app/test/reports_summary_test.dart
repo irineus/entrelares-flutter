@@ -8,9 +8,9 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/care_schedule.dart';
-import 'package:entrelares_app/models/member.dart';
-import 'package:entrelares_app/models/role.dart';
+import 'package:entrelares_db_contracts/models/care_schedule.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
 import 'package:entrelares_app/screens/reports_screen.dart';
 import 'package:entrelares_app/screens/reports_summary_tab.dart';
 import 'package:entrelares_app/widgets/app_l10n.dart';

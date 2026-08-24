@@ -42,7 +42,7 @@ what still lives where** — check it before assuming a path.
 | JDK | 17 |
 | `minSdk` | 26 |
 | `applicationId` (per flavor) | **dev = `com.entrelares.flutter`** — different from the Play package on purpose, so the dev APK coexists with the store-installed app on the owner's device. **prod = `com.entrelares.app`** (stage 0 proved the Play package accepts a Flutter build with the same upload signature). Release signing is per flavor via git-ignored `android/key.properties` (T-55): `dev.*` = dedicated sideload keystore, `prod.*` = the PRODUCT's upload keystore — never swap them; without the file, release builds fail fast (debug unaffected). |
-| Structure | Monorepo: `apps/entrelares_app` (Flutter) + `packages/entrelares_core` (pure Dart) |
+| Structure | Monorepo: `apps/entrelares_app` (Flutter) + three pure-Dart packages — `packages/entrelares_core` (the client mirrors of the server rules), `packages/entrelares_db_contracts` (the PostgREST row shapes, which left `lib/models/` in T-56 PR 6 when the ported gate became their second reader) and `packages/entrelares_db_gate` (the database gate itself). Nothing under `packages/` may import Flutter: the gate has to run under plain `dart test`, and the contracts have to be importable by both sides. |
 | Environment | Build flavors (stage 3): `dev` → project `buroanotfjcgvbfmacuh`, `prod` → production — both PUBLIC configs hardcoded in `env.dart`, selected at compile time via `appFlavor`. Every Android build requires `--flavor`; flavor-less targets (`flutter test`) fall back to dev by construction. The Supabase singleton initializes once per process, so environments are per build variant, NEVER a runtime switcher. |
 | Targets | Android **and web** (batch 6, tension 1: Flutter Web replaces the PWA). The CHANNEL acceptance — first load on a mid-range Android over 4G, measured against the PWA — was **granted by the owner on 23/08/2026**, which closes the last of the three product tensions. |
 | Web channel (stage 4) | **`flutter build web` accepts NO `--flavor`** — on web `appFlavor` is always null, so a flavor-only rule resolves the web build to DEV. Production says so with **`--dart-define=APP_ENV=prod`**, and `web_channel_test` fails the build if that define (or `--no-web-resources-cdn`, which keeps CanvasKit on our own origin) leaves the workflow. Published by the `deploy-web` job of `verify.yml` to Cloudflare Pages project **`entrelares-web`**, behind `needs: verify`, only from `main`, and self-disarming while the CF secrets are absent. Everything in `apps/entrelares_app/web/` is copied verbatim into the build — including `.well-known/assetlinks.json` (the App Link of the INSTALLED app is verified against this host) and `service-worker.js`, which is the **tombstone** of the Blazor PWA's worker: the only thing that reaches an installed PWA is the browser's update check of that exact URL, so the file must never be deleted while a device may still carry the old worker. |
@@ -243,6 +243,7 @@ These survived the rewrite because none of them is about the client language.
 ## Build & test
 ```
 cd packages/entrelares_core && fvm dart analyze --fatal-infos && fvm dart test
+cd packages/entrelares_db_contracts && fvm dart analyze --fatal-infos
 cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
 # The two source gates live in that suite: no_literal_snack_test (catalog strings)
 # and no_color_literal_test (U-27 — colours only in lib/theme/tokens.dart).
@@ -250,8 +251,12 @@ cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per
 # Canal web: os dois flags NÃO são opcionais — sem o define o build aponta para o
 # banco de QA, e sem o --no-web-resources-cdn o CanvasKit vem do gstatic.
 cd apps/entrelares_app && fvm flutter build web --release --no-web-resources-cdn --dart-define=APP_ENV=prod
-# Gate de banco (221 testes de RLS/RPC/trigger contra o projeto dev). Exige a
-# service_role do DEV — nunca a de produção. Sem ela a suíte aborta com instruções.
+# Gate de banco (225 testes de RLS/RPC/trigger contra o projeto dev), em DUAS
+# metades enquanto o T-56 atravessa: o que já virou Dart e o que ainda é C#.
+# As duas exigem a service_role do DEV — nunca a de produção. Sem ela a suíte
+# aborta com instruções. `python3 tool/count_csharp_tests.py` conta o lado C#;
+# a soma dos dois lados tem que continuar 225.
+cd packages/entrelares_db_gate && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> fvm dart test
 cd db-gate/Entrelares.IntegrationTests && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> dotnet test -c Release
 # Gate de fluxo na web: os MESMOS arquivos integration_test/ num Chrome headless.
 # Exige chromedriver no PATH (`chromedriver --port=4444 &` antes).

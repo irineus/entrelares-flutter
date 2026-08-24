@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import '../widgets/ui/ui.dart';
 import '../theme/tokens.dart';
 
-import '../models/account_log.dart';
-import '../models/activity_log.dart';
-import '../models/family.dart';
-import '../models/member.dart';
-import '../models/role.dart';
+import 'package:entrelares_db_contracts/models/account_log.dart';
+import 'package:entrelares_db_contracts/models/activity_log.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/rich_label.dart';

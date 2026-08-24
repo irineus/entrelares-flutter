@@ -1,0 +1,27 @@
+name: entrelares_db_gate
+description: The Entrelares database gate — RLS, SECURITY DEFINER RPCs, triggers and the billing ledger, asserted against the real dev project.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # The PURE-DART Supabase SDK, never `supabase_flutter`. The gate needs SEVERAL
+  # authenticated clients alive in ONE process — that is how RLS is tested at
+  # all: family A's client, family B's client, the service client, the anonymous
+  # one. `supabase_flutter` initializes a per-process SINGLETON (the pilot's
+  # paid-for lesson 8, the same one that made environments a build flavour here),
+  # so it can hold exactly one identity and would make the gate untestable.
+  supabase: ^2.9.1
+  # The GoTrue admin calls and the Edge Function probes are hand-built requests:
+  # they must control their own header shape (see `KeyHeaders` in test_env.dart).
+  http: ^1.6.0
+  entrelares_db_contracts:
+    path: ../entrelares_db_contracts
+  entrelares_core:
+    path: ../entrelares_core
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.6
