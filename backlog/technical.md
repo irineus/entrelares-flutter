@@ -383,8 +383,9 @@ problem; and this repo has no staging stage, since a merge to `main` publishes p
   both packs against the 10-15 min of the emulator lane. It was MEASURED before being trusted,
   because `flutter drive` on web prints "All tests passed." whether or not anything ran: a probe
   with a deliberately failing test turned the job red, and the full pack costs ~6 s more than
-  `p0`. It does not replace the emulator for what needs a device, and it is not yet in
-  `deploy-web`'s `needs`.
+  `p0`. It does not replace the emulator for what needs a device. **It blocks the web publish since
+  24/08/2026** — the role Playwright played for the old repo's promotion, and what makes it a
+  gate rather than a report.
 - The **port of the database gate to Dart**, suite by suite.
 - The **emptying** of the old repo, in a single PR.
 - The **Blazor shutdown**, which is when the rollback dies — triggered by a measured condition

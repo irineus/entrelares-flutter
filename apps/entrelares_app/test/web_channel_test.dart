@@ -211,7 +211,7 @@ void main() {
       expect(workflow, contains('--no-web-resources-cdn'));
     });
 
-    test('publishing waits for BOTH gates, and only from main', () {
+    test('publishing waits for EVERY gate, and only from main', () {
       final job = workflow.substring(workflow.indexOf('  deploy-web:'));
       // The gate stopped being a single job on 24/08/2026, when the database
       // suite moved into this repo: `verify` runs the Flutter lanes and
@@ -228,6 +228,10 @@ void main() {
       // channel serve an app whose schema failed to apply.
       expect(needs, contains('db-prod'),
           reason: 'the web channel must publish AFTER the production schema');
+      // The flow gate (24/08/2026) — the role Playwright played for the old
+      // repo's promotion. Dropping this edge turns a gate back into a report.
+      expect(needs, contains('web-e2e'),
+          reason: 'a broken two-user flow must stop the channel, not reach users');
       expect(job, contains("github.ref_name == 'main'"));
       expect(job, contains('wrangler pages deploy build/web'));
     });
