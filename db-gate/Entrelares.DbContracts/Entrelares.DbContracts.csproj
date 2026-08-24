@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The DATABASE's contract, as C# sees it: the PostgREST models the gate below
+       binds to, plus the two pure helpers whose constants the gate asserts against
+       (the current policy version and the cutover setting key).
+
+       This project exists because the suite it serves used to reference the Blazor
+       client for these types. That client is retired as a channel and this repo is
+       archiving it (`docs/arquivamento-app.md`), so the types were lifted into a
+       library of their own: 1.010 lines whose ONLY dependency is the Supabase
+       package — no Blazor, no WebAssembly, no UI. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Entrelares</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Supabase" Version="1.6.0" />
+  </ItemGroup>
+
+</Project>

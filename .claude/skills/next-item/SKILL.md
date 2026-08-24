@@ -23,7 +23,7 @@ delivered in another**:
 | **Code** of a landing item (`L-`) | `entrelares-site`, branch **`preview`** |
 | Backlog **records** + `archive/phase-*.md` | still `entrelares-app/backlog/` |
 | Migrations + Edge Functions | still `entrelares-app/supabase/` |
-| The DB gate (C# integration suite) | still `entrelares-app` |
+| **The DB gate** (221 C# tests over RLS/RPCs/triggers) | **here**, in `db-gate/` — job `db-gate` of `verify.yml`. A copy still exists in the app repo (the Playwright suite references it); **this one is the authority** |
 | The frozen Blazor client | `entrelares-app`, published at `legado.entrelares.app` |
 
 The plan that moves the rest — and the PR that will make this table obsolete — is
@@ -89,14 +89,20 @@ incremental PRs (each with its docs/backlog closeout inline) and get the user's 
   never reuse a merged branch (squash merges orphan its history). Suggested name:
   `feature/<item>-<slug>`.
 - Tests ship with the feature in the same item: every **pure rule** gets a mirror in
-  `packages/entrelares_core` with `dart test`; screens get widget tests; DB rules go to the
-  integration suite; two-user flows to the `integration_test` lane.
+  `packages/entrelares_core` with `dart test`; screens get widget tests; **DB rules go to
+  `db-gate/Entrelares.IntegrationTests`** (still C# — see §0); two-user flows to the
+  `integration_test` lane.
 - **Run the gate locally before pushing** — the core lane uses `--fatal-infos`, so a single
   info-level lint (e.g. `unnecessary_brace_in_string_interps` inside a test `reason:`)
   fails the job, and because it is the FIRST step the app and web lanes never even start:
   ```
   cd packages/entrelares_core && fvm dart analyze --fatal-infos && fvm dart test
   cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
+  ```
+  If the item touched the database, run the DB gate too (needs the DEV service_role key,
+  never the production one):
+  ```
+  cd db-gate/Entrelares.IntegrationTests && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> dotnet test -c Release
   ```
   That suite also holds the two source gates: `no_literal_snack_test` (catalog strings) and
   `no_color_literal_test` (U-27 — colours only in `lib/theme/tokens.dart`).

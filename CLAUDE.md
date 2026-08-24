@@ -87,6 +87,9 @@ cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per
 # Canal web: os dois flags NÃO são opcionais — sem o define o build aponta para o
 # banco de QA, e sem o --no-web-resources-cdn o CanvasKit vem do gstatic.
 cd apps/entrelares_app && fvm flutter build web --release --no-web-resources-cdn --dart-define=APP_ENV=prod
+# Gate de banco (221 testes de RLS/RPC/trigger contra o projeto dev). Exige a
+# service_role do DEV — nunca a de produção. Sem ela a suíte aborta com instruções.
+cd db-gate/Entrelares.IntegrationTests && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> dotnet test -c Release
 ```
 ⚠️ O lane core do `verify.yml` roda **`dart analyze --fatal-infos`**, não `dart analyze`:
 uma info (ex.: `unnecessary_brace_in_string_interps` num `reason:` de teste) derruba o job

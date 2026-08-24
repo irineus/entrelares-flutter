@@ -64,8 +64,8 @@ fica descoberto durante a travessia.
 
 | # | Repo | O que entrega |
 |---|---|---|
-| **1** | flutter | **Ferramental de sessão** (este PR): `tool/notion_mirror.py` enxerga os três repos e agrega entregas cross-repo; a skill `next-item` muda de casa e de rota; este documento |
-| **2** | flutter | **O gate de banco muda de casa, ainda em C#**: `db-gate/` (contratos + a suíte intacta) e lane `dotnet` no `verify.yml`. Prova: 221 verdes no CI daqui |
+| **1** ✅ | flutter | **Ferramental de sessão** (PR #57, 24/08/2026): `tool/notion_mirror.py` enxerga os três repos e agrega entregas cross-repo; a skill `next-item` muda de casa e de rota; este documento |
+| **2** ✅ | flutter | **O gate de banco muda de casa, ainda em C#** (24/08/2026): `db-gate/` — `Entrelares.DbContracts` (15 modelos + 2 helpers, 1.010 linhas) e a suíte intacta (52 arquivos, 7.419 linhas, 221 testes, 42 classes), mais o job `db-gate` no `verify.yml` bloqueando o `deploy-web` |
 | **3** | flutter | **Banco e ops**: `supabase/` inteiro (70 migrations, 13 functions, o runbook), o deploy PR→dev / main→prod na ordem migrations → functions → app, mais `backup.yml` e `keepalive-dev.yml`. Owner: 6 secrets novos (3 de produção) + `R2_*` + `BACKUP_PASSPHRASE` |
 | **4a** | flutter | **A memória, parte mecânica**: `backlog/` inteiro, `docs/`, `database/`, `GitHelp.md`, e o changelog do README do app como história congelada |
 | **4b** | flutter | **A memória, parte de julgamento**: triagem do `CLAUDE.md` do app (invariantes de produto vêm; *gotchas* do Blazor ficam), revogação datada da regra do backlog, e o mirror passando a ler os registros daqui |

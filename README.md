@@ -36,6 +36,10 @@ cd apps/entrelares_app && fvm flutter run -d web-server --web-port 8080
 # E2E (lote 3): app real em emulador contra o projeto dev — exige a service_role key
 cd apps/entrelares_app && fvm flutter test integration_test/swap_workflow_test.dart \
   --flavor dev --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
+# Gate de banco: 221 testes de RLS/RPC/trigger contra o projeto dev, com família
+# descartável. Exige a service_role do DEV (nunca a de produção); sem ela a suíte
+# aborta com instruções em vez de rodar pela metade.
+cd db-gate/Entrelares.IntegrationTests && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> dotnet test -c Release
 # Espelho do board no Notion: lê os TRÊS repos (este, entrelares-app e entrelares-site,
 # encontrados por padrão como irmãos deste checkout) e gera o corpo das páginas.
 python tool/notion_mirror.py -o mirror.json
@@ -65,6 +69,29 @@ da suíte web (`E2E-<runId>`, e-mails `@resend.dev`, teardown sempre via
 (06:10 UTC diário)** e sob demanda pelo `workflow_dispatch` (`run-e2e`, com
 `e2e-pack` = `p0` de fumaça ou `full`). A `service_role` do dev chega só pelo secret
 `SUPABASE_SERVICE_ROLE_DEV` → `--dart-define`; nunca entra no repositório.
+
+## Gate de banco (`db-gate/`)
+
+**221 testes** sobre RLS, RPCs `SECURITY DEFINER`, triggers e o ledger de cobrança,
+rodando contra o projeto **dev** real com família descartável. É a camada que prova o
+invariante do produto — *o cliente ESPELHA, o banco IMPÕE* — e veio do `entrelares-app`,
+que está sendo arquivado (ver [`docs/arquivamento-app.md`](docs/arquivamento-app.md)).
+
+Ainda é **C#**, de propósito: a suíte só precisava do cliente Blazor pelos modelos
+PostgREST, então erguer esses tipos num projeto próprio (`Entrelares.DbContracts`, 1.010
+linhas cuja única dependência é o pacote `Supabase`) trouxe os 221 testes **sem reescrever
+uma linha deles**. A decisão registrada é **portá-la para Dart**, suíte por suíte; carregá-la
+intacta primeiro é o que mantém o gate coberto durante a travessia, em vez de trocar um gate
+que funciona por uma migração.
+
+No CI é o job `db-gate` do `verify.yml`, nos mesmos eventos do `verify` e **bloqueando o
+`deploy-web` junto com ele**. Roda serializado no repo inteiro (`concurrency: db-gate`):
+famílias são únicas por execução, mas as seeds de billing do T-39 usam ids externos FIXOS
+(`sub_e2e_*`), e duas execuções sobrepostas apagariam as linhas uma da outra.
+
+> Enquanto o `entrelares-app` não for esvaziado, a mesma suíte existe **nos dois repos** — lá
+> ela é dependência do Playwright por `ProjectReference` e não pode sair antes dele. A cópia
+> daqui é a autoridade; a de lá segue viva até o PR de esvaziamento.
 
 ## Assinatura (release) — T-55
 
