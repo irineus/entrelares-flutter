@@ -4,15 +4,19 @@ library;
 import 'package:entrelares_db_gate/entrelares_db_gate.dart';
 import 'package:test/test.dart';
 
+import 'suites/account_deletion.dart';
 import 'suites/adversarial.dart';
 import 'suites/auto_approval.dart';
 import 'suites/caregiver_gate.dart';
 import 'suites/consent_and_retention.dart';
 import 'suites/day_protection.dart';
+import 'suites/family_deletion.dart';
 import 'suites/family_isolation.dart';
 import 'suites/handoff_transition.dart';
 import 'suites/optimistic_concurrency.dart';
 import 'suites/planning_horizon_gate.dart';
+import 'suites/profile_language.dart';
+import 'suites/profile_self_service.dart';
 import 'suites/reconsent_gate.dart';
 import 'suites/resolution_log_link.dart';
 import 'suites/revert_notes.dart';
@@ -62,4 +66,8 @@ void main() {
   swapMessageTests(fx);
   revertNotesTests(fx);
   resolutionLogLinkTests(fx);
+  accountDeletionTests(fx);
+  familyDeletionTests(fx);
+  profileSelfServiceTests(fx);
+  profileLanguageTests(fx);
 }
