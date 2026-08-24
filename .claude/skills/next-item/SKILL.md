@@ -23,10 +23,13 @@ delivered in another**:
 | **Code** of a landing item (`L-`) | `entrelares-site`, branch **`preview`** |
 | Backlog **records** + `archive/phase-*.md` | **here**, in `backlog/` — the mirror reads them from this repo since 24/08/2026 |
 | **Migrations + Edge Functions** | **here**, in `supabase/`. A PR applies them to the **dev** project before the gate runs; a merge to `main` applies them to **production** (job `db-prod`) before the web channel publishes |
-| **The DB gate** (221 C# tests over RLS/RPCs/triggers) | **here**, in `db-gate/` — job `db-gate` of `verify.yml`. A copy still exists in the app repo (the Playwright suite references it); **this one is the authority** |
-| The frozen Blazor client + the Playwright suite | `entrelares-app`, published at `legado.entrelares.app` |
+| **The DB gate** (221 C# tests over RLS/RPCs/triggers) | **here**, in `db-gate/` — job `db-gate` of `verify.yml`. Since 24/08/2026 it is the ONLY copy: the app repo's C# suites were deleted with the emptying |
+| **Play listing + brand masters** | **here**, in `store/` (T-56 PR 4c) — the TWA/Bubblewrap project stayed behind, and retiring that package is **T-52** |
+| The frozen Blazor client | `entrelares-app`, published at `legado.entrelares.app` — **and nothing else**: since the emptying (24/08/2026) that repo holds the client, its unit suite and a `deploy.yml` that only publishes. Nothing there needs to be read to work here |
 
-The plan that moves the rest — and the PR that will make this table obsolete — is
+What is still in flight is the **port of the database gate to Dart** (the last PR of it deletes
+`db-gate/` and this row with it) and the **Blazor shutdown**, which has no date. The plan, the
+measurements and the PR-by-PR record are in
 [`docs/arquivamento-app.md`](../../../docs/arquivamento-app.md). **If a row above no longer
 matches reality, that doc is the authority and this table is stale: fix it in the same
 delivery.**

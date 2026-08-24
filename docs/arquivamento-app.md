@@ -70,8 +70,9 @@ fica descoberto durante a travessia.
 | **4a** ✅ | flutter | **A memória, parte mecânica** (24/08/2026): `backlog/` inteiro (6 + 8 de `archive/`), `docs/`, `database/`, `GitHelp.md`, e o changelog do README do app como `docs/changelog-blazor.md` (138 versões). O espelho passou a ler os registros daqui, e a regra do backlog foi revogada no `CLAUDE.md` — ela era consequência direta desta mudança, não do 4b |
 | **4b** ✅ | flutter | **A memória, parte de julgamento** (24/08/2026): sete seções triadas das 900 linhas do `CLAUDE.md` do app — convenções, working agreement, modelo de domínio, invariantes, seção legal, board/esforço e 13 *gotchas* de banco e plataforma. Ficaram para trás os que morrem com o cliente (escopos do Blazor, `RetryHelper`, gotrue-csharp, Realtime em WASM, versionamento por `csproj`, todos os de Playwright). Mais a frase do esforço, que virou falsa, e o parágrafo do roadmap que ainda chamava a 1.8.13 de produção |
 | **5** ✅ | flutter | **Gate de fluxo — entregue** (24/08/2026): os MESMOS arquivos `integration_test/` rodam num Chrome headless via `flutter drive` + chromedriver. Medido antes de confiar, porque na web o `flutter drive` imprime "All tests passed" tenha ou não executado algo: uma sonda com um teste que falha de propósito deixou o job **vermelho** nomeando o teste, e o pacote completo custa ~6 s mais que o `p0`. **144 s para os dois packs (5 testes)** contra 10–15 min do emulador. Roda em push/PR e **bloqueia a publicação web** desde 24/08/2026 (decisão do owner, sobre cinco runs verdes e uma vermelha proposital); não substitui o emulador para o que exige aparelho |
+| **4c** ✅ | flutter | **A presença de loja** (24/08/2026): `store/` — a cópia das listagens (PT-BR + en-US), os dois masters da marca, `brand-icons.py` (reapontado para os sete arquivos que este repo consome, e **verificado**: reproduz os sete byte a byte), o gráfico de destaque com seu gerador e um `README.md` triado. Ficou para trás o pacote TWA (`twa-manifest.json`, Bubblewrap, o `store/.gitignore` que só listava saída de build). Devia ter vindo no 4a e não veio — o item estava escrito e foi esquecido; é o achado que fez o PR F conferir o repositório inteiro em vez de conferir a lista |
 | **6…16** | flutter | **O port do gate para Dart**, suíte por suíte — o fatiamento detalhado está na seção seguinte. O PR 6 leva a fundação (contratos erguidos, clientes por identidade, fixture) e uma suíte real como prova; o 16 apaga `db-gate/` e o lane `dotnet` |
-| **F** | app | **O esvaziamento, num toque só**: remove o que migrou, README curto apontando para cá, `deploy.yml` reduzido à metade que publica o `legado.`. Não arquiva ainda |
+| **F** ✅ | app | **O esvaziamento, num toque só** (24/08/2026, [`entrelares-app` #309](https://github.com/irineus/entrelares-app/pull/309)): 242 arquivos, −46.941 linhas. Sobra o cliente Blazor, sua suíte unitária e um `deploy.yml` reduzido à metade que publica — o deploy de QA que seguiu o merge fechou **verde em 1 min 39 s**, contra os ~15 min do gate antigo. Saíram também, por decisão do owner, as DUAS suítes C# e o `dependabot.yml`; o que ficou para trás e por quê está no registro do T-56. Não arquiva ainda |
 | **∅** | app | **No dia do desligamento** (condição da decisão 7, sem código novo): tira domínio e projeto Pages, apaga a metade Blazor do `deploy.yml`, apaga `E2ETests` + `IntegrationTests`, arquiva |
 
 ## O port do gate para Dart (PRs 6 a 16)
@@ -196,6 +197,24 @@ valer no merge.
 - **`tool/port_catalogs.py` para de ter função.** Quando os catálogos Dart viraram a fonte,
   ele deixou de sincronizar e passou a ser só o registro de como o port foi feito — que é o
   que o próprio cabeçalho dele já diz. Fica, com nota, no PR 4a.
-- **`store/` se parte**: textos de listagem e assets de marca são presença de loja viva e
-  vêm no PR 4a; o projeto TWA (Bubblewrap) é o pacote morto e fica para trás com o **T-52**,
-  que segue item próprio.
+- ~~**`store/` se parte**: textos de listagem e assets de marca são presença de loja viva e
+  vêm no PR 4a.~~ **O 4a não o levou** — a ponta ficou escrita e não foi executada, e o repo
+  Flutter passou o dia inteiro com o `pubspec.yaml` dizendo, num comentário, que não sabia
+  regerar o próprio ícone de launcher e que a arte estava "no outro repositório". **Resolvido no
+  PR 4c (24/08/2026)**: vieram as listagens, os dois masters, o `brand-icons.py` reapontado, o
+  gráfico de destaque e um `README.md` triado. O projeto TWA (Bubblewrap, `twa-manifest.json`) é
+  o pacote morto e fica para trás com o **T-52**, que segue item próprio. **A lição de método:**
+  uma lista de "o que vem" escrita antes da execução não é conferência — o que confere é olhar o
+  repositório de origem inteiro no fim, que é o que o PR F faz.
+- **O esvaziamento abriu uma lacuna, e ela é do port.** Quatro testes unitários saíram junto com
+  o `supabase/` que eles liam — os espelhos C#↔Deno (`RoleCatalogMirrorTests`,
+  `EmailDateFormatMirrorTests`, `AuthMailMirrorTests`) e o `NotificationParamsCoverageTests`.
+  As funções e as migrations que eles guardavam moram aqui; **os espelhos não, e ainda não têm
+  equivalente em Dart**. Nada está quebrado — o que falta é o alarme, que é exatamente o modo de
+  falha que esses testes existem para descrever: um espelho que ninguém confere apodrece calado.
+- **O `git push` não autenticou na sessão que entregou o PR F** (leitura autorizada, escrita
+  não: o proxy repassa o push cru e quem recusa é o GitHub). O esvaziamento foi entregue pela
+  API — 234 deleções, uma chamada por arquivo, colapsadas pelo squash — e o conteúdo conferido
+  byte a byte contra a árvore validada localmente. Fica registrado porque muda o custo de uma
+  entrega: **binário não atravessa uma API que recebe conteúdo como string**, então um PR com
+  assets depende de push de verdade.
