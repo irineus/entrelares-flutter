@@ -6,6 +6,17 @@
 /// computed flags below are what the Família page sorts the list by.
 class FamilyInvitation {
   final int id;
+
+  /// Which family issued it. The app only ever lists its own (RLS); the gate
+  /// needs the column to sweep a family's open invitations clean between
+  /// scenarios, and to prove a purge did not reach across families.
+  final int? familyId;
+
+  /// When it was issued. The S-15/A-4 purge promise ("permanently erased within
+  /// 30 days") is measured from HERE, so the gate backdates this column to age
+  /// an invitation instead of waiting a month.
+  final DateTime? createdAt;
+
   final String email;
   final int roleId;
 
@@ -18,6 +29,8 @@ class FamilyInvitation {
 
   const FamilyInvitation({
     required this.id,
+    this.familyId,
+    this.createdAt,
     required this.email,
     required this.roleId,
     required this.token,
@@ -39,6 +52,8 @@ class FamilyInvitation {
   factory FamilyInvitation.fromJson(Map<String, dynamic> json) =>
       FamilyInvitation(
         id: json['id'] as int,
+        familyId: json['family_id'] as int?,
+        createdAt: _utc(json['created_at'] as String?),
         email: (json['email'] as String?) ?? '',
         roleId: json['role_id'] as int,
         token: (json['token'] as String?) ?? '',

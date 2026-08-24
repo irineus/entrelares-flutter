@@ -13,11 +13,16 @@ import 'suites/day_protection.dart';
 import 'suites/family_deletion.dart';
 import 'suites/family_isolation.dart';
 import 'suites/handoff_transition.dart';
+import 'suites/invitation_lifecycle.dart';
+import 'suites/invitation_purge.dart';
+import 'suites/joined_via_invite.dart';
+import 'suites/multi_caregiver.dart';
 import 'suites/optimistic_concurrency.dart';
 import 'suites/planning_horizon_gate.dart';
 import 'suites/profile_language.dart';
 import 'suites/profile_self_service.dart';
 import 'suites/reconsent_gate.dart';
+import 'suites/register_invitee.dart';
 import 'suites/resolution_log_link.dart';
 import 'suites/revert_notes.dart';
 import 'suites/rls_hardening.dart';
@@ -70,4 +75,9 @@ void main() {
   familyDeletionTests(fx);
   profileSelfServiceTests(fx);
   profileLanguageTests(fx);
+  invitationLifecycleTests(fx);
+  invitationPurgeTests(fx);
+  joinedViaInviteTests(fx);
+  multiCaregiverTests(fx);
+  registerInviteeTests(fx);
 }
