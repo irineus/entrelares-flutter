@@ -386,16 +386,26 @@ problem; and this repo has no staging stage, since a merge to `main` publishes p
   `p0`. It does not replace the emulator for what needs a device. **It blocks the web publish since
   24/08/2026** — the role Playwright played for the old repo's promotion, and what makes it a
   gate rather than a report.
-- The **port of the database gate to Dart**, suite by suite — **under way since 24/08/2026**,
+- ~~The **port of the database gate to Dart**, suite by suite.~~ **Done 24/08/2026**, in the
   eleven PRs (6…16) whose slicing, merge authorization and verification arithmetic are in
-  [`../docs/arquivamento-app.md`](../docs/arquivamento-app.md). Its foundation (PR 6) settled
-  three things the ten that follow inherit: the row contracts left the app into
-  `packages/entrelares_db_contracts`, so the gate asserts against the SAME shape the app reads;
-  the gate is one aggregating entrypoint rather than a file per suite, because `dart test`
-  gives a `setUpAll` per FILE and the naive port would create 41 throwaway families per run
-  against the shared QA project; and the identity clients come from the PURE-Dart `supabase`
-  package, never `supabase_flutter`, whose per-process singleton (the pilot's lesson 8) could
-  hold exactly one of the four the gate needs.
+  [`../docs/arquivamento-app.md`](../docs/arquivamento-app.md). The 225 tests are 43 suite
+  libraries under `packages/entrelares_db_gate/test/suites/`, and `db-gate/` is gone with PR 16.
+  Its foundation (PR 6) settled three things the ten that followed inherited: the row contracts
+  left the app into `packages/entrelares_db_contracts`, so the gate asserts against the SAME
+  shape the app reads; the gate is one aggregating entrypoint rather than a file per suite,
+  because `dart test` gives a `setUpAll` per FILE and the naive port would create 41 throwaway
+  families per run against the shared QA project; and the identity clients come from the
+  PURE-Dart `supabase` package, never `supabase_flutter`, whose per-process singleton (the
+  pilot's lesson 8) could hold exactly one of the four the gate needs.
+
+  **What the crossing found, which is the argument for having done it as eleven PRs against the
+  real database rather than as one rewrite.** PR 7 turned red on
+  `type 'Null' is not a subtype of type 'String'` — `FamilyDeletionRequest.fromJson` read
+  `created_at` and the table has no such column, it is `requested_at`. That factory is the one
+  the app parses through, and the Família screen renders `requestedAt`, so **the screen crashed
+  for every family with a pending deletion request**, in production, since the cutover. No
+  widget test could have caught it: they build the object in memory, and the column name is only
+  a claim about a table nobody was asking. The gate asked on its first run.
 - ~~The **emptying** of the old repo, in a single PR.~~ **Done 24/08/2026** (`entrelares-app`
   #309, squash-merged to `dev`): 242 files, −46.941 lines. What is left there is the frozen
   client, its unit suite and a `deploy.yml` reduced to the half that publishes — the QA deploy
@@ -451,6 +461,10 @@ QA project has accumulated — not with the size of its own throwaway family —
 it is a fragility that grows: the gate now runs from TWO repositories. **When this suite is ported,
 the query must be filtered and assert the absence of the specific id**, never download the table.
 Same for any sibling written against the same pattern.
+**Applied in PR 7 (24/08/2026)**, and it is the one line of the whole port that is not a
+translation: the Dart `adversarial.dart` filters by the foreign log's own id and asserts the
+result is empty, which is the same claim at constant cost. The suite header says so, so the
+divergence from the C# original cannot read as a slip.
 
 **A process consequence of the same episode.** `verify.yml` cancels in-progress runs of the same
 ref, which is right for minutes but wrong for `db-gate`: a cancelled run dies before its teardown
