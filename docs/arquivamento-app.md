@@ -103,10 +103,17 @@ valer no merge.
 
 ## Pontas soltas registradas
 
-- **Este trabalho não tem ID de backlog.** Ele produz ~15 PRs e a convenção do trailer
-  precisa de um. Proposta: abrir **T-56** no board e passar a assinar os PRs seguintes com
-  `Backlog: T-56`. Enquanto a linha não existir, os PRs vão sem trailer (um trailer
-  apontando para linha inexistente é pior que nenhum).
+- ~~**Este trabalho não tem ID de backlog.**~~ **Resolvido em 24/08/2026: é o T-56**
+  ([linha no board](https://app.notion.com/p/3c62f3f4b9b2810fb092ce9aef103ac0)), aberto
+  depois que os três primeiros PRs já tinham entrado — o item foi proposto pelo primeiro
+  deles. Do quarto em diante os commits levam `Backlog: T-56` e se creditam sozinhos; os
+  três anteriores entraram na tabela `HAND_REVIEWED` do espelho. O **registro versionado**
+  nasce em `backlog/technical.md` no PR 4a, quando o backlog muda de casa; até lá o corpo
+  da página no Notion é provisório.
+- **O select `Repo` do board não tem opção `flutter`** — só `app` e `landing`. Desde o
+  cutover, todo item de cliente vive no repo Flutter, e a coluna não sabe dizer isso. O
+  T-56 ficou com o campo VAZIO em vez de mentir. Acrescentar a opção é mudança de esquema
+  do board e cabe ao owner decidir.
 - **O modelo de esforço mudou de sinal.** Com as entregas cross-repo, o T-53 passou de
   10,4 h (3 commits creditados) para **28,0 h** (41), contra ~14 h de trabalho real
   relatado pelo owner. Não é defeito do espelho: o modelo mede tempo DECORRIDO entre

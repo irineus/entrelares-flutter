@@ -64,25 +64,59 @@ namespace Entrelares.IntegrationTests
         public DateOnly NextVisibleDay() => NextVisibleDays(1)[0];
 
         /// <summary>Allocates <paramref name="count"/> consecutive unique future
-        /// dates, all guaranteed to fall in the SAME calendar month so a single
-        /// month view shows the whole block. When the block would straddle a
-        /// month boundary, it moves whole to day 1 of the next month — the old
-        /// allocator clamped the overflow to day 1 of the CURRENT month, which
-        /// is a PAST day (immutable per V008) and the same date on every
-        /// overflow (UNIQUE violations); it broke every master run near the end
-        /// of a month. Blocks may land beyond the initial view — pair cell
-        /// interactions with UiFixture.ShowMonthOfAsync.</summary>
+        /// dates that satisfy both rules a day-cell test depends on: the block
+        /// falls in ONE calendar month, so a single month view shows it whole,
+        /// and it stays OFF that month's LAST grid row.
+        /// <para>The last row is excluded because it is the row that sits at the
+        /// bottom of the viewport, where anything fixed to the bottom — the
+        /// selection action bar — overlaps it. A press there tests the overlap
+        /// instead of the feature: it is what made the E3b bulk test fail on
+        /// 24/08/2026, when the block landed on 30-31/08 (the 6th row of a
+        /// month that starts on a Saturday).</para>
+        /// <para>Both rules are satisfied the same way: move the block WHOLE to
+        /// day 1 of the next month. The first allocator clamped the overflow to
+        /// day 1 of the CURRENT month, which is a PAST day (immutable per V008)
+        /// and the same date on every overflow (UNIQUE violations); it broke
+        /// every master run near the end of a month. Blocks may land beyond the
+        /// initial view — pair cell interactions with
+        /// UiFixture.ShowMonthOfAsync.</para></summary>
         public IReadOnlyList<DateOnly> NextVisibleDays(int count)
         {
+            // The tightest month (28 days starting on a Sunday) is 4 rows, so 21
+            // days always fit above the last one. Beyond that no start date can
+            // satisfy the rule and the loop below would never end — say so here
+            // rather than hang, or spin, on a caller's typo.
+            if (count is < 1 or > 21)
+                throw new ArgumentOutOfRangeException(nameof(count), count,
+                    "A block must fit above the last grid row; the tightest month leaves room for 21 days.");
+
             lock (_visibleDayLock)
             {
-                if (_nextVisibleDay.AddDays(count - 1).Month != _nextVisibleDay.Month)
+                while (!FitsAboveLastRow(_nextVisibleDay, count))
                     _nextVisibleDay = new DateOnly(_nextVisibleDay.Year, _nextVisibleDay.Month, 1).AddMonths(1);
                 var block = Enumerable.Range(0, count).Select(i => _nextVisibleDay.AddDays(i)).ToList();
                 _nextVisibleDay = _nextVisibleDay.AddDays(count);
                 return block;
             }
         }
+
+        /// <summary>Whether a block of <paramref name="count"/> days starting at
+        /// <paramref name="start"/> ends in the same month and above its last
+        /// grid row.</summary>
+        private static bool FitsAboveLastRow(DateOnly start, int count)
+        {
+            var last = start.AddDays(count - 1);
+            return last.Month == start.Month && GridRow(last) < LastGridRow(start);
+        }
+
+        // Sunday-first, mirroring the calendar itself (Home.razor builds the
+        // grid with blankDaysBefore = (int)firstDayOfMonth.DayOfWeek).
+        private static int LeadingBlanks(DateOnly day) => (int)new DateOnly(day.Year, day.Month, 1).DayOfWeek;
+
+        private static int GridRow(DateOnly day) => (LeadingBlanks(day) + day.Day - 1) / 7;
+
+        private static int LastGridRow(DateOnly day) =>
+            (LeadingBlanks(day) + DateTime.DaysInMonth(day.Year, day.Month) - 1) / 7;
 
         public async Task InitializeAsync()
         {
