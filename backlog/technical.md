@@ -511,3 +511,99 @@ someone wondering why the repo names a brand that no longer exists.
 **Files affected**
 - `apps/entrelares_app/web/.well-known/assetlinks.json`
 - Play Console (owner ops, no code)
+
+---
+
+### T-57 — Re-shoot the product screenshots (Play listing + landing)
+
+| Field | Value |
+|---|---|
+| **Status** | `pending` |
+| **Priority** | `medium` — nothing is broken; what is wrong is that the only picture of the product a stranger sees is of a product that no longer exists |
+| **Complexity** | `medium` — the capture itself is one sitting; the cost is the seeded family, the two languages and the two publishing surfaces |
+| **Impact** | `medium` — it is the store listing's and the landing's whole visual argument |
+| **Roadmap** | Group 5 (polish), taking the slot L-21 vacates |
+| **Repo** | `flutter` — the app being photographed lives here; the FILES land in `entrelares-site` |
+
+> **Absorbs [L-21](https://github.com/irineus/entrelares-site/blob/preview/ROADMAP.md)
+> ("English screenshots for `/en/`"), 24/08/2026, owner decision.** L-21 was written on
+> 10/08/2026 with a premise that has since died: that the PT-BR captures were current and only
+> the English set was missing. The cutover (T-53) replaced the client they photograph and
+> U-27/U-28 replaced its visual system, so **both** sets are now stale — and one capture session
+> produces both. Splitting "shoot the EN frames" from "publish the EN frames" would create a
+> hand-off inside a single sitting.
+
+**Description**
+Re-capture the eight product frames from the **Flutter** app and republish them to both
+consumers. The current set was captured on **23/07/2026** from the QA environment of the
+**Blazor** client, with the `[Dev]` badge masked in place afterwards.
+
+The eight frames (the names are the contract — the landing's `<picture>` elements and their
+`alt` text reference them, so keep them):
+
+| File | What it shows |
+|---|---|
+| `today-calendar-meu-dia` | Home: the day card when the day is the viewer's, plus the month |
+| `today-calendar-dia-do-outro` | The same card in its two-colour state |
+| `calendario-tres-cuidadores` | The month with three caregivers, one colour each |
+| `editor-dia` | The day sheet: responsible, handoff time, observation |
+| `troca-aguardando-aprovacao` | A pending swap with Aprovar / Recusar |
+| `assistente-rotacao-com-avo` | The rotation wizard building a cycle with a grandmother |
+| `historico-auditoria` | The immutable history with date and time |
+| `familia-membros` | The family screen with members and the e-mail invitation |
+
+Each one ships as a **`.png` + `.webp` pair, 1080×1920**. The PT-BR set keeps its place at
+`entrelares-site/public/img/screenshots/`; the English set goes to a **parallel directory**,
+`public/img/screenshots/en/` — L-21's call, and it is the right one: `public/index.html` and
+`public/en/index.html` point at the same files today, so overwriting them in English would
+hand the PT-BR page an English UI and merely move the defect. The **Play listing** takes the
+PT-BR set for `pt-BR` and the English one for `en-US`, uploaded in the Console.
+
+**Two constraints inherited from L-21/L-03, and they are not stylistic**
+
+- **No invented data and no mocked screens** — the frames are a claim about the system, so
+  this is the S-15 rule applied to marketing assets. Fictional family, real running UI.
+- **Keep the `webp` + `png` pair and the existing `loading`/`width`/`height` attributes**, or
+  the hero's LCP regresses. The `alt` text on `/en/` has to describe the English screen it
+  will then actually show.
+
+If **L-17** (the landing's animated demo of the immutable history) is scheduled anywhere near
+this, do them in the same sitting: the recording and the stills come from the same running
+app, and standing that app up is the expensive part.
+
+**Four things that will bite, all knowable in advance**
+
+1. **Do not shoot the dev flavour.** `SupabaseCustodyDataSource.environmentPrefix` puts
+   `"[Dev] "` at the head of every stored notification title on non-production flavours. It is
+   a deploy marker, deliberately outside `params` — so it is baked into the text a
+   notification frame would photograph, and no amount of masking fixes a title. Shoot a
+   **production-configured** build (`--dart-define=APP_ENV=prod` on web, `--flavor prod` on
+   Android) against a family created for the purpose.
+2. **The language is resolved, not toggled.** `LanguageResolver` reads localStorage override →
+   `profiles.language` → `navigator.language`. The English set therefore needs the override or
+   a profile stamped `en` — not a device-language guess, which is what makes an English frame
+   silently render Portuguese.
+3. **The seeded family has to be plausible AND disposable.** Three caregivers (the
+   `calendario-tres-cuidadores` and `assistente-rotacao-com-avo` frames need the grandmother),
+   real-looking names, a swap mid-flight for the approval frame, and history for the audit
+   frame. It must not be a real family's data, and it must not be an `E2E-` family the purge
+   sweep will eat mid-session.
+4. **A closed test survives a listing update**, so this does not have to wait for a release —
+   but it should PRECEDE the next production rollout, which is the argument the
+   `store/README.md` note has been carrying.
+
+**Justification**
+The listing and the landing are the only two places where somebody who has never opened the
+app decides whether to. Both currently show the Blazor client under the pre-U-27 visual
+system: the product is misrepresented *cosmetically*, not in what it claims — which is why
+this is polish and not a defect, and also why it never becomes urgent on its own and has to be
+written down to happen at all.
+
+**Files affected**
+- `entrelares-site/public/img/screenshots/*.{png,webp}` — the eight PT-BR frames, re-shot
+- `entrelares-site/public/img/screenshots/en/*.{png,webp}` — the English set (new directory)
+- `entrelares-site/public/index.html` + `public/en/index.html` — `alt` text review; `/en/`
+  finally points at the English captures (the L-21 half)
+- `entrelares-site/ROADMAP.md` — L-21's record, closed as absorbed
+- `store/README.md` §1 — the "out of date" note comes down when the frames are current
+- Play Console (owner ops, no code): the `pt-BR` and `en-US` screenshot sets
