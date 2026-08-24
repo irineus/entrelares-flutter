@@ -253,6 +253,9 @@ cd apps/entrelares_app && fvm flutter build web --release --no-web-resources-cdn
 # Gate de banco (221 testes de RLS/RPC/trigger contra o projeto dev). Exige a
 # service_role do DEV — nunca a de produção. Sem ela a suíte aborta com instruções.
 cd db-gate/Entrelares.IntegrationTests && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> dotnet test -c Release
+# Gate de fluxo na web: os MESMOS arquivos integration_test/ num Chrome headless.
+# Exige chromedriver no PATH (`chromedriver --port=4444 &` antes).
+cd apps/entrelares_app && fvm flutter drive --driver=test_driver/integration_test.dart   --target=integration_test/swap_workflow_test.dart -d web-server --browser-name=chrome --headless   --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
 ```
 ⚠️ O lane core do `verify.yml` roda **`dart analyze --fatal-infos`**, não `dart analyze`:
 uma info (ex.: `unnecessary_brace_in_string_interps` num `reason:` de teste) derruba o job
