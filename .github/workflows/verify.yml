@@ -1,8 +1,9 @@
 # T-54 — the repo's gate: analyze + tests on every push/PR.
 # T-53 stage 4 added the `deploy-web` job at the bottom: the web channel is
-# PUBLISHED from here, and only behind a green gate (`needs: verify`), which is
-# the same order the app repo's deploy.yml enforces — nothing reaches a user
-# that the suites have not seen.
+# PUBLISHED from here, and only behind a green gate — nothing reaches a user that
+# the suites have not seen. Since 24/08/2026 that gate is TWO jobs: `verify` (the
+# Flutter suites) and `db-gate` (the 221 database tests that moved here from
+# `entrelares-app`), and `deploy-web` waits on both.
 # The APK build and the E2E emulator lane stay OUT of the gate on purpose: both
 # are minutes-expensive and the account's 2000 min/mo are shared with the
 # product repos (same constraint that shaped T-50). The E2E lane runs daily on
@@ -94,6 +95,51 @@ jobs:
           # it: the weight that drives the first load stays visible on every
           # push, so a regression is noticed the day it lands rather than the
           # day someone complains.
+
+  # ── The DB gate ──────────────────────────────────────────────────────────
+  # 221 tests over RLS, the SECURITY DEFINER RPCs, the triggers and the billing
+  # ledger, run against the REAL dev project with a throwaway family. It is the
+  # test layer that proves the invariant this product is built on — the client
+  # MIRRORS, the database ENFORCES — and it moved here from `entrelares-app`,
+  # which is being archived (`docs/arquivamento-app.md`).
+  #
+  # It is still C#, and deliberately so: the suite only ever needed the Blazor
+  # client for its PostgREST models, so lifting those into `Entrelares.DbContracts`
+  # moved 221 tests without rewriting a line of them. The decision on record is to
+  # PORT it to Dart suite by suite; carrying it intact first is what keeps the gate
+  # covered while that happens, instead of trading a working gate for a migration.
+  #
+  # Runs on the same events as `verify` (and blocks `deploy-web` alongside it), but
+  # in its own job: it needs .NET rather than Flutter, so it costs nothing to run
+  # them side by side.
+  db-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Serialized across the whole repo, unlike the per-ref group of the workflow.
+    # The suite is safe to run twice at once for FAMILIES (each run invents its own
+    # `E2E-<runId>` and the orphan sweep spares anything younger than 2h), but the
+    # T-39 billing seeds use FIXED external ids (`sub_e2e_*`) — two runs overlapping
+    # there delete and recreate each other's rows. Queue instead of racing.
+    concurrency:
+      group: db-gate
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: DB gate — regras de banco contra o projeto dev
+        working-directory: db-gate/Entrelares.IntegrationTests
+        env:
+          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
+          # OPTIONAL: arms the positive billing-webhook tests. A missing secret
+          # arrives empty, which the suite reads as absent and disarms those cases
+          # — the same shape `deploy-web` gives the Cloudflare credentials. Set
+          # `ASAAS_WEBHOOK_TOKEN_DEV` here to run them.
+          E2E_ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN_DEV }}
+        run: dotnet test -c Release --verbosity minimal
 
   # T-54's E2E lane (opened by lote 3, the first two-user flow). It drives the
   # REAL app on an emulator against the DEV project, with the throwaway-family
@@ -217,7 +263,10 @@ jobs:
   #   --release                   the only build a user may ever receive.
   deploy-web:
     if: github.event_name == 'push' && github.ref_name == 'main'
-    needs: verify
+    # Both gates, not one: since the DB gate moved here, publishing behind only the
+    # Flutter suites would ship the web channel without the database rules ever
+    # having been checked.
+    needs: [verify, db-gate]
     runs-on: ubuntu-latest
     # Job level on purpose: this is what the publish step reads in its own
     # `if`, and a step cannot reliably test the `env:` it declares itself.
