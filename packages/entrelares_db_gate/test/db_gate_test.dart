@@ -5,6 +5,8 @@ import 'package:entrelares_db_gate/entrelares_db_gate.dart';
 import 'package:test/test.dart';
 
 import 'suites/account_deletion.dart';
+import 'suites/admin_override_tier.dart';
+import 'suites/admin_rpc.dart';
 import 'suites/adversarial.dart';
 import 'suites/auto_approval.dart';
 import 'suites/caregiver_gate.dart';
@@ -19,6 +21,7 @@ import 'suites/joined_via_invite.dart';
 import 'suites/multi_caregiver.dart';
 import 'suites/optimistic_concurrency.dart';
 import 'suites/planning_horizon_gate.dart';
+import 'suites/platform_operator.dart';
 import 'suites/profile_language.dart';
 import 'suites/profile_self_service.dart';
 import 'suites/reconsent_gate.dart';
@@ -80,4 +83,7 @@ void main() {
   joinedViaInviteTests(fx);
   multiCaregiverTests(fx);
   registerInviteeTests(fx);
+  adminRpcTests(fx);
+  adminOverrideTierTests(fx);
+  platformOperatorTests(fx);
 }
