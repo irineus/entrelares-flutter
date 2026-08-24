@@ -21,10 +21,10 @@ delivered in another**:
 |---|---|
 | **Code** of a client item (`F-`/`U-`/`T-`/`S-`) | `entrelares-flutter`, branch **`main`** |
 | **Code** of a landing item (`L-`) | `entrelares-site`, branch **`preview`** |
-| Backlog **records** + `archive/phase-*.md` | still `entrelares-app/backlog/` |
+| Backlog **records** + `archive/phase-*.md` | **here**, in `backlog/` — the mirror reads them from this repo since 24/08/2026 |
 | **Migrations + Edge Functions** | **here**, in `supabase/`. A PR applies them to the **dev** project before the gate runs; a merge to `main` applies them to **production** (job `db-prod`) before the web channel publishes |
 | **The DB gate** (221 C# tests over RLS/RPCs/triggers) | **here**, in `db-gate/` — job `db-gate` of `verify.yml`. A copy still exists in the app repo (the Playwright suite references it); **this one is the authority** |
-| The frozen Blazor client | `entrelares-app`, published at `legado.entrelares.app` |
+| The frozen Blazor client + the Playwright suite | `entrelares-app`, published at `legado.entrelares.app` |
 
 The plan that moves the rest — and the PR that will make this table obsolete — is
 [`docs/arquivamento-app.md`](../../../docs/arquivamento-app.md). **If a row above no longer

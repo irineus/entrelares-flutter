@@ -17,18 +17,20 @@ publishes the web channel — but the switch itself (Play track, the Cloudflare 
 move, the announced date) is owner ops and has NOT been thrown. The Blazor app is
 frozen (owner policy, 19/08/2026) and stays in production until that cutover.
 
-Authority chain: `entrelares-app/CLAUDE.md` holds the product invariants (language rules,
-backlog trailer convention, working agreement) — they all apply here. This file only adds
-what is Flutter-specific. Backlog + board live in the app repo / Notion; this repo never
-carries its own backlog.
+Authority chain: `entrelares-app/CLAUDE.md` still holds the product invariants (language
+rules, backlog trailer convention, working agreement) — they all apply here, and they move
+into this file in the next PR of **T-56**. This file only adds what is Flutter-specific.
 
-**That last rule is scheduled to be revoked.** Since 24/08/2026 the `entrelares-app` repo is
-being **emptied and archived** — everything about the application moves here, including the
-backlog, the database and the DB gate. The decisions, what was measured to reach them and
-the PR-by-PR plan live in [`docs/arquivamento-app.md`](docs/arquivamento-app.md); the rule
-above stays true (and the app repo stays the authority it names) until the PR that moves the
-records lands, and that doc is what says when. **While the move is under way, `.claude/skills/next-item/SKILL.md` §0 carries
-the table of what still lives where** — check it before assuming a path.
+**The rule that this repo "never carries its own backlog" was REVOKED on 24/08/2026**, and
+`backlog/` now lives here. It was a deliberate rule, so here is why it fell: it existed while
+this repo was the T-53 spike and `entrelares-app` was the product. The cutover inverted both
+roles on 23/08, and keeping the written memory of a product in a repository nobody opens is
+the shortest path to losing it. The board in Notion stays the owner of status and order; the
+markdown here stays the source of truth for what each item IS. The decisions, the measurements
+behind them and the PR-by-PR plan are in [`docs/arquivamento-app.md`](docs/arquivamento-app.md).
+
+**While the move is under way, `.claude/skills/next-item/SKILL.md` §0 carries the table of
+what still lives where** — check it before assuming a path.
 
 ## Locked decisions
 | Decision | Value |
