@@ -438,14 +438,19 @@ the bridge:
    Advanced settings → App availability → Unpublish*). Warn its testers first; they lose
    updates, not their data — the account and history live on the server and are reachable at
    `web.entrelares.app` from any browser.
-2. `Entrelares/wwwroot/.well-known/assetlinks.json` — drop the whole
-   `com.guardacompartilhada.app` statement (both fingerprints), keeping only the new package.
-3. `Entrelares/wwwroot/index.html` — drop the `android-app://com.guardacompartilhada.app`
-   arm of the TWA referrer check.
-4. `Entrelares/Helpers/StoreContext.cs` — drop the comment documenting the transitional
-   acceptance.
-5. `store/README.md` — the intro still says the legacy statement is "kept until that app is
-   retired"; after this item, say it was.
+2. `apps/entrelares_app/web/.well-known/assetlinks.json` — drop the whole
+   `com.guardacompartilhada.app` statement (both fingerprints), keeping the two that stay
+   (`com.entrelares.flutter`, `com.entrelares.app`). **This is the file the cutover moved**:
+   since 23/08/2026 `web.entrelares.app` is served from this repo, so the statement that keeps a
+   legacy install full-screen is published from here — the Blazor copy at
+   `entrelares-app/Entrelares/wwwroot/` now serves `legado.` only and dies with it.
+3. `store/README.md` §8 — it says the legacy statement stays "until T-52 retires that package";
+   after this item, say it was retired.
+4. Nothing else has a client half left. The two Blazor arms the original record listed —
+   the `android-app://com.guardacompartilhada.app` referrer check in `index.html` and the
+   transitional comment in `Helpers/StoreContext.cs` — belong to the frozen client and are
+   removed by its shutdown (T-56), not by this item. The Flutter store rail reads the platform,
+   not a referrer.
 
 **Justification**
 The store-shell flag (T-38) and the Digital Asset Links pairing are the two places where a
@@ -455,8 +460,6 @@ with its trigger and its file list, is what stops it from being discovered years
 someone wondering why the repo names a brand that no longer exists.
 
 **Files affected**
-- `Entrelares/wwwroot/.well-known/assetlinks.json`
-- `Entrelares/wwwroot/index.html`
-- `Entrelares/Helpers/StoreContext.cs`
-- `store/README.md`
+- `apps/entrelares_app/web/.well-known/assetlinks.json`
+- `store/README.md` (§8)
 - Play Console (owner ops, no code)

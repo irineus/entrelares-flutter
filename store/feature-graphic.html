@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>Entrelares — Play feature graphic generator</title>
+<!--
+  F-54/T-38 — generator for store/feature-graphic.png (Google Play feature graphic, 1024x500).
+
+  Identity "O Emblema" (F-54): the official brand artwork (store/brand-emblema.png, 1024x1024 text-free, AI-generated, approved by the owner — no vector source) shown
+  as a framed card on the cream layout, navy #2F4156 for text. The card's
+  square framed card shows the TEXT-FREE square master 1:1 (the favicon derives
+  from the flat variant brand-emblema-flat.png — see brand-icons.py). Icons derive from the same master via store/brand-icons.py.
+
+  NOT served: this file lives in store/, next to the other listing assets.
+
+  Render with headless Chrome at 1024x500:
+
+    chrome --headless --disable-gpu --hide-scrollbars \
+           --screenshot=store/feature-graphic.png --window-size=1024,500 \
+           store/feature-graphic.html
+
+  NOTE: some headless builds subtract window chrome from --window-size (the viewport
+  comes out ~87px shorter than asked). If the output shows a white band, render with
+  a LARGER window and crop the top-left corner:
+
+    chrome --headless --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+           --screenshot=/tmp/shot.png --window-size=1124,650 store/feature-graphic.html
+    python3 -c "from PIL import Image; Image.open('/tmp/shot.png').crop((0,0,1024,500))\
+    .convert('RGB').save('store/feature-graphic.png', optimize=True)"
+
+  Upload at Play Console -> Store presence -> Main store listing -> Feature graphic;
+  Play serves its own copy, nothing updates it automatically.
+
+  Re-render whenever the tagline or the artwork changes.
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1024px; height: 500px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI", "Liberation Sans", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    background: #f7f2e7;
+    background-image:
+      radial-gradient(680px 440px at 94% 0%, rgba(118,143,122,0.10) 0%, rgba(118,143,122,0) 60%),
+      radial-gradient(600px 420px at 2% 100%, rgba(212,160,129,0.14) 0%, rgba(212,160,129,0) 58%);
+    color: #2f4156;
+    position: relative;
+  }
+  /* Fixed positions, not flex: font metrics differ per platform (Segoe UI on
+     Windows, DejaVu on Linux) and a metric-dependent layout can overflow. */
+  /* the brand plaque, framed: the square text-free master, shown 1:1 */
+  .art {
+    position: absolute; top: 72px; left: 58px;
+    width: 356px; height: 356px;
+    border-radius: 26px; overflow: hidden;
+    box-shadow: 0 12px 32px rgba(93, 79, 54, 0.18);
+    background: url(brand-emblema.png) no-repeat #f2f0ec;
+    background-size: 100% 100%;
+  }
+
+  .copy { position: absolute; top: 118px; left: 462px; right: 44px; }
+  .name { font-size: 56px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 16px; }
+  h1 { font-size: 42px; font-weight: 800; line-height: 1.16; letter-spacing: -0.02em; margin-bottom: 20px; }
+  .sub { font-size: 24px; line-height: 1.35; color: #56636e; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="art"></div>
+
+<div class="copy">
+  <div class="name">Entrelares</div>
+  <h1>Duas casas,<br />uma mesma infância.</h1>
+  <p class="sub">Calendário de convivência para pais separados</p>
+</div>
+
+</body>
+</html>

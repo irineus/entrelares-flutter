@@ -1,0 +1,35 @@
+=== APP NAME (<= 30 chars) ===
+Entrelares
+
+=== SHORT DESCRIPTION (<= 80 chars) ===
+Shared custody calendar: who has the child today, and every day swap.
+
+=== FULL DESCRIPTION (<= 4000 chars) ===
+Two homes, one childhood. Entrelares organizes life after a divorce: one shared calendar shows who has the child today, who takes over next, and the handoff time for each day.
+
+WHO HAS THE CHILD TODAY
+Open the app and the answer is on the first screen. The month calendar colors each caregiver's days, and shows the handoff time whenever the child changes homes.
+
+SWAPS BOTH SIDES APPROVE
+Need to trade a day? Propose the swap with a short message ("doctor's appointment at 2pm") — nothing moves on the calendar until the other caregiver agrees. Whoever answers can reply with a note, and all of it is recorded. If nobody answers, the request is auto-approved after 48 hours, with a reminder first.
+
+A HISTORY NOBODY CAN REWRITE
+Every calendar change is recorded: who asked, who approved, and the messages they exchanged. The history cannot be edited or deleted — by anyone. Export a PDF report of any period with the full timeline.
+
+PERIOD SUMMARY
+See how many days each caregiver had — planned and actual —, how many swaps each one gave up and received, and the projected balance including the future swaps already agreed on.
+
+MORE CAREGIVERS IN THE ROUTINE
+Grandparents, a nanny or another caregiver can join the family with their own role, invited by e-mail by an administrator.
+
+ALWAYS UP TO DATE
+Real-time notifications: requests, approvals and changes reach every caregiver the moment they happen.
+
+BUILT FOR EVERYDAY USE
+• In English and Portuguese — each person in the family reads in their own language, notifications and e-mails included
+• Built for the phone
+• Works offline too (data syncs when you reconnect)
+• The essentials are free: calendar, approved swaps, notifications and history
+
+PRIVACY
+Your data belongs to your family: per-profile access control, no ads, and no data selling. Privacy policy: https://entrelares.app/privacidade.html

@@ -70,6 +70,7 @@ fica descoberto durante a travessia.
 | **4a** ✅ | flutter | **A memória, parte mecânica** (24/08/2026): `backlog/` inteiro (6 + 8 de `archive/`), `docs/`, `database/`, `GitHelp.md`, e o changelog do README do app como `docs/changelog-blazor.md` (138 versões). O espelho passou a ler os registros daqui, e a regra do backlog foi revogada no `CLAUDE.md` — ela era consequência direta desta mudança, não do 4b |
 | **4b** ✅ | flutter | **A memória, parte de julgamento** (24/08/2026): sete seções triadas das 900 linhas do `CLAUDE.md` do app — convenções, working agreement, modelo de domínio, invariantes, seção legal, board/esforço e 13 *gotchas* de banco e plataforma. Ficaram para trás os que morrem com o cliente (escopos do Blazor, `RetryHelper`, gotrue-csharp, Realtime em WASM, versionamento por `csproj`, todos os de Playwright). Mais a frase do esforço, que virou falsa, e o parágrafo do roadmap que ainda chamava a 1.8.13 de produção |
 | **5** ✅ | flutter | **Gate de fluxo — entregue** (24/08/2026): os MESMOS arquivos `integration_test/` rodam num Chrome headless via `flutter drive` + chromedriver. Medido antes de confiar, porque na web o `flutter drive` imprime "All tests passed" tenha ou não executado algo: uma sonda com um teste que falha de propósito deixou o job **vermelho** nomeando o teste, e o pacote completo custa ~6 s mais que o `p0`. **144 s para os dois packs (5 testes)** contra 10–15 min do emulador. Roda em push/PR e **bloqueia a publicação web** desde 24/08/2026 (decisão do owner, sobre cinco runs verdes e uma vermelha proposital); não substitui o emulador para o que exige aparelho |
+| **4c** ✅ | flutter | **A presença de loja** (24/08/2026): `store/` — a cópia das listagens (PT-BR + en-US), os dois masters da marca, `brand-icons.py` (reapontado para os sete arquivos que este repo consome, e **verificado**: reproduz os sete byte a byte), o gráfico de destaque com seu gerador e um `README.md` triado. Ficou para trás o pacote TWA (`twa-manifest.json`, Bubblewrap, o `store/.gitignore` que só listava saída de build). Devia ter vindo no 4a e não veio — o item estava escrito e foi esquecido; é o achado que fez o PR F conferir o repositório inteiro em vez de conferir a lista |
 | **6…N** | flutter | **O port do gate para Dart**, suíte por suíte. O primeiro PR leva o `E2EFamilyFixture` (385 linhas, ~30% do risco) e uma suíte pequena como prova; o último apaga `db-gate/` e o lane `dotnet`. Estimativa: 6–9 PRs |
 | **F** | app | **O esvaziamento, num toque só**: remove o que migrou, README curto apontando para cá, `deploy.yml` reduzido à metade que publica o `legado.`. Não arquiva ainda |
 | **∅** | app | **No dia do desligamento** (condição da decisão 7, sem código novo): tira domínio e projeto Pages, apaga a metade Blazor do `deploy.yml`, apaga `E2ETests` + `IntegrationTests`, arquiva |
@@ -120,6 +121,12 @@ valer no merge.
 - **`tool/port_catalogs.py` para de ter função.** Quando os catálogos Dart viraram a fonte,
   ele deixou de sincronizar e passou a ser só o registro de como o port foi feito — que é o
   que o próprio cabeçalho dele já diz. Fica, com nota, no PR 4a.
-- **`store/` se parte**: textos de listagem e assets de marca são presença de loja viva e
-  vêm no PR 4a; o projeto TWA (Bubblewrap) é o pacote morto e fica para trás com o **T-52**,
-  que segue item próprio.
+- ~~**`store/` se parte**: textos de listagem e assets de marca são presença de loja viva e
+  vêm no PR 4a.~~ **O 4a não o levou** — a ponta ficou escrita e não foi executada, e o repo
+  Flutter passou o dia inteiro com o `pubspec.yaml` dizendo, num comentário, que não sabia
+  regerar o próprio ícone de launcher e que a arte estava "no outro repositório". **Resolvido no
+  PR 4c (24/08/2026)**: vieram as listagens, os dois masters, o `brand-icons.py` reapontado, o
+  gráfico de destaque e um `README.md` triado. O projeto TWA (Bubblewrap, `twa-manifest.json`) é
+  o pacote morto e fica para trás com o **T-52**, que segue item próprio. **A lição de método:**
+  uma lista de "o que vem" escrita antes da execução não é conferência — o que confere é olhar o
+  repositório de origem inteiro no fim, que é o que o PR F faz.
