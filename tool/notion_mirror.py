@@ -142,18 +142,21 @@ REPOS = {
         "ref": "origin/dev", "branch": "dev", "landing": False,
         "gh": "https://github.com/irineus/entrelares-app",
         "name": "entrelares-app",
-        "files": ["backlog/features.md", "backlog/ui-ux.md",
-                  "backlog/technical.md", "backlog/security.md"],
-        "archive_glob": "backlog/archive/*.md",
+        # The records LEFT on 24/08/2026 (PR 4a of T-56). This entry now
+        # contributes only the app repo's history of commits — the frozen Blazor
+        # client's deliveries still belong on the items that produced them.
+        "files": [], "archive_glob": None,
     },
-    # The product app since the T-53 cutover (23/08/2026). It carries no records YET —
-    # they arrive with the archiving of the app repo; until then this entry exists to
-    # contribute DELIVERIES to records that live elsewhere.
+    # The product app since the T-53 cutover (23/08/2026), and the home of the
+    # backlog records since 24/08/2026 (PR 4a of T-56) — the rule that this repo
+    # "never carries its own backlog" was revoked with the archiving of the app repo.
     "flutter": {
         "ref": "origin/main", "branch": "main", "landing": False,
         "gh": "https://github.com/irineus/entrelares-flutter",
         "name": "entrelares-flutter",
-        "files": [], "archive_glob": None,
+        "files": ["backlog/features.md", "backlog/ui-ux.md",
+                  "backlog/technical.md", "backlog/security.md"],
+        "archive_glob": "backlog/archive/*.md",
     },
     "landing": {
         "ref": "origin/preview", "branch": "preview", "landing": True,
