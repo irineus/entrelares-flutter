@@ -124,6 +124,13 @@ HAND_REVIEWED: dict[str, dict[str, set[str]]] = {
         "b18a8d0": {"T-53"},   # stage 4 — F5 gives back the screen you were on (#54)
         "eb40e46": {"T-53"},   # stage 4 — the web channel acceptance (#55)
         "f0508f0": {"T-53"},   # stage 4 — legal pages survive the host move (#56)
+        # T-56 (archiving `entrelares-app`) was opened on the board only after
+        # its first three PRs had already merged — the item was proposed BY the
+        # first of them. From the fourth on the commits carry `Backlog: T-56`
+        # and credit themselves; these three are the catch-up.
+        "6eb7e05": {"T-56"},   # the mirror learns the Flutter repo + the skill (#57)
+        "d8499b5": {"T-56"},   # the DB gate moves house, 221 tests intact (#58)
+        "3220a6a": {"T-56"},   # migrations, functions and the production backup (#59)
     },
 }
 
