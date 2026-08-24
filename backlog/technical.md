@@ -378,7 +378,13 @@ by the suite itself); the Playwright suite is 62 tests against the 5 of this rep
 problem; and this repo has no staging stage, since a merge to `main` publishes production.
 
 **What was still open when this record was written**
-- The **flow gate** replacing the Playwright suite (`flutter drive` + chromedriver spike).
+- ~~The **flow gate** replacing the Playwright suite.~~ **Delivered 24/08/2026**: the same
+  `integration_test` files run in a headless browser (`flutter drive` + chromedriver), 144 s for
+  both packs against the 10-15 min of the emulator lane. It was MEASURED before being trusted,
+  because `flutter drive` on web prints "All tests passed." whether or not anything ran: a probe
+  with a deliberately failing test turned the job red, and the full pack costs ~6 s more than
+  `p0`. It does not replace the emulator for what needs a device, and it is not yet in
+  `deploy-web`'s `needs`.
 - The **port of the database gate to Dart**, suite by suite.
 - The **emptying** of the old repo, in a single PR.
 - The **Blazor shutdown**, which is when the rollback dies — triggered by a measured condition

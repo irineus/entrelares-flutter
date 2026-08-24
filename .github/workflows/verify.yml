@@ -284,6 +284,81 @@ jobs:
           path: apps/entrelares_app/build/app/outputs/flutter-apk/app-*-debug.apk
           retention-days: 1
 
+  # ── The flow gate (T-56, PR 5) ───────────────────────────────────────────
+  # The Playwright suite (62 tests) dies with the UI it drives. This job runs the
+  # SAME `integration_test` files the emulator lane runs, but in a headless
+  # browser — and it exercises the web channel, the one whose QA found six
+  # defects no Android run could have caught.
+  #
+  # MEASURED before being trusted (24/08/2026), because `flutter drive` on web
+  # prints "All tests passed." whether or not anything ran, and a gate that
+  # always opens looks exactly like a gate that is never challenged:
+  #   · a probe with one passing and one deliberately failing test turned the job
+  #     RED, naming the test and printing Expected/Actual — the harness reports;
+  #   · the full pack costs ~6 s more than `p0`, which is one extra two-user
+  #     test's worth of work — the tests execute;
+  #   · 80 s (p0) / 87 s (full) end to end, ~41 s of it compilation, against the
+  #     10-15 min of the emulator lane. Most of that difference is booting an
+  #     emulator and installing an APK, neither of which the browser needs.
+  #
+  # It does NOT replace the emulator lane: what needs a device — Play Billing,
+  # the share sheet, the native print dialog — only runs there. And it is NOT yet
+  # in `deploy-web`'s `needs`: a lane this new blocking production publishing on
+  # its first day would trade one risk for another. That promotion is a separate
+  # owner decision, after it has a stretch of green behind it.
+  web-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      # Its OWN group, not `db-gate`'s: both drive the dev project, but they do
+      # not collide — each invents its own `E2E-<runId>` family and both orphan
+      # sweeps spare anything younger than 2h. Sharing a group would only
+      # serialize them and lengthen every PR's critical path.
+      group: web-e2e-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          channel: stable
+          cache: true
+
+      # The runner image ships Chrome and a matching chromedriver; using them
+      # avoids adding a third-party action to the supply chain for a spike.
+      - name: Locate Chrome and chromedriver
+        run: |
+          echo "chrome: $(google-chrome --version 2>/dev/null || echo AUSENTE)"
+          echo "chromedriver: $(chromedriver --version 2>/dev/null || echo AUSENTE)"
+          command -v chromedriver >/dev/null || { echo "::error::chromedriver não está no PATH do runner"; exit 1; }
+
+      - name: Drive integration_test in a headless Chrome
+        working-directory: apps/entrelares_app
+        env:
+          E2E_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
+        run: |
+          set -euo pipefail
+          flutter pub get
+          chromedriver --port=4444 &
+          for i in $(seq 1 20); do curl -sf http://localhost:4444/status >/dev/null && break; sleep 1; done
+          echo "### Gate de fluxo (web)" >> "$GITHUB_STEP_SUMMARY"
+          # One invocation per target: `flutter drive` takes a single target and
+          # each one pays its own ~40 s compile. Both files are the SAME ones the
+          # emulator lane runs — nothing web-specific was written for this gate.
+          for target in swap_workflow_test account_flows_test; do
+            start=$(date +%s)
+            flutter drive \
+              --driver=test_driver/integration_test.dart \
+              --target="integration_test/$target.dart" \
+              -d web-server --browser-name=chrome --headless \
+              --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY="$E2E_KEY" \
+              --dart-define=E2E_PACK=${{ inputs.e2e-pack || 'p0' }}
+            echo "- $target: $(( $(date +%s) - start ))s" >> "$GITHUB_STEP_SUMMARY"
+          done
+
   # ── Production database ──────────────────────────────────────────────────
   # T-29's order, preserved across the move: migrations → functions → app. This
   # job sits between the gates and `deploy-web`, so a failed `db push` stops the
