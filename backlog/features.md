@@ -660,11 +660,11 @@ in both languages, before any string is written.
   a record that can be edited is not a record. The client never updates or deletes a row.
 - The **audit row is written by trigger**, never by the client — the standing invariant for
   `activity_logs`.
-- **The notification insert must carry `params`.** `NotificationParamsCoverageTests` reads
-  `supabase/migrations` and fails any live `INSERT INTO public.notifications` without them, and
-  `NotificationRendererTests` asserts the rendered sentence **byte-for-byte** — so a new type
-  ships with its renderer branch and its two catalogue entries, or the unit suite goes red before
-  the code ever reaches a browser.
+- **The notification insert must carry `params`.** `notification_params_coverage_test.dart`
+  reads `supabase/migrations` and fails any live `INSERT INTO public.notifications` without
+  them, and the renderer suite asserts the rendered sentence **byte-for-byte** — so a new type
+  ships with its renderer branch and its two catalogue entries, or the core lane goes red before
+  the code ever reaches a screen.
 - Sender guards in the DB: not a departed member (S-11), not a viewer (F-50, when it exists),
   and only for **today** (or today ± the handoff window — decide; a notice about a day in three
   weeks is a message, not an aviso).

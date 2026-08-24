@@ -1,5 +1,5 @@
 import 'package:entrelares_core/entrelares_core.dart'
-    show PreEditNotes, SwapOrigin, auditPageSize;
+    show AppLanguage, PreEditNotes, SwapOrigin, auditPageSize;
 
 import 'package:entrelares_db_contracts/models/account_log.dart';
 import 'package:entrelares_db_contracts/models/activity_log.dart';
@@ -314,7 +314,15 @@ abstract class CustodyDataSource {
 
   /// Sends the password-reset e-mail to [email]. Used both for "I forgot mine"
   /// and for an admin helping another member.
-  Future<void> sendPasswordReset(String email);
+  ///
+  /// [language] is the language of the SCREEN the request was made from, and it
+  /// rides along in the redirect (U-13 — see `AuthMail.languageQueryParam`).
+  /// It is the reader's language in the case that matters, which is the person
+  /// who cannot sign in asking for their own reset; when an admin asks on
+  /// someone else's behalf it is the ADMIN's screen, and that is accepted
+  /// because it only decides anything for a recipient whose profile declares
+  /// no language of its own — an explicit `profiles.language` outranks it.
+  Future<void> sendPasswordReset(String email, AppLanguage language);
 
   /// Starts an e-mail change. GoTrue only APPLIES it once the confirmation
   /// link is clicked, so success here means "link sent", never "changed".

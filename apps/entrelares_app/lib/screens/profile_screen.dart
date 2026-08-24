@@ -243,12 +243,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (own) {
         // My own reset needs no elevation: the mail goes to MY address, so
         // the mailbox is the proof.
-        await widget.dataSource.sendPasswordReset(email);
+        await widget.dataSource.sendPasswordReset(email, l.current);
       } else {
         await runWithSudo(
           context: context,
           sudo: widget.sudo,
-          action: () => widget.dataSource.sendPasswordReset(email),
+          action: () => widget.dataSource.sendPasswordReset(email, l.current),
         );
       }
       if (!mounted) return;

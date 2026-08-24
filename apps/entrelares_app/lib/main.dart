@@ -179,7 +179,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
         path: '/reset-password',
         builder: (_, _) => ResetPasswordScreen(
           onSendReset: (email) => _client.auth.resetPasswordForEmail(email,
-              redirectTo: DeepLinkUrls.updatePassword),
+              redirectTo: DeepLinkUrls.updatePasswordFor(_l.current)),
           onBackToLogin: () => _router.go('/login'),
         ),
       ),
