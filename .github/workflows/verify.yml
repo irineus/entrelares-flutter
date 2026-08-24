@@ -29,6 +29,10 @@ on:
         description: "Also run the E2E lane on an emulator (two-user swap flow)"
         type: boolean
         default: false
+      run-web-e2e:
+        description: "Run the SPIKE: the same integration_test files in a headless browser"
+        type: boolean
+        default: false
       e2e-pack:
         description: "E2E pack: p0 (smoke) or full"
         type: choice
@@ -283,6 +287,61 @@ jobs:
           name: app-dev-arm64-v8a-debug
           path: apps/entrelares_app/build/app/outputs/flutter-apk/app-*-debug.apk
           retention-days: 1
+
+  # ── SPIKE (T-56, PR 5): the flow gate that survives the Blazor client ────
+  # The Playwright suite (62 tests) dies with the UI it drives, and this repo's
+  # emulator lane is 5 tests that run on a schedule. This job asks whether the
+  # SAME `integration_test` files can run in a headless browser instead: no
+  # emulator, so minutes-cheap enough for a push gate, and it exercises the web
+  # channel — the one whose QA found six defects no Android run could have.
+  #
+  # On demand only while it is a spike. Promoting it to the gate is a separate
+  # decision, and it needs this job's numbers first.
+  web-e2e:
+    if: github.event_name == 'workflow_dispatch' && inputs.run-web-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      # Same reasoning as `db-gate`: it drives the dev project, and the T-39
+      # billing seeds use fixed ids.
+      group: db-gate
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          channel: stable
+          cache: true
+
+      # The runner image ships Chrome and a matching chromedriver; using them
+      # avoids adding a third-party action to the supply chain for a spike.
+      - name: Locate Chrome and chromedriver
+        run: |
+          echo "chrome: $(google-chrome --version 2>/dev/null || echo AUSENTE)"
+          echo "chromedriver: $(chromedriver --version 2>/dev/null || echo AUSENTE)"
+          command -v chromedriver >/dev/null || { echo "::error::chromedriver não está no PATH do runner"; exit 1; }
+
+      - name: Drive integration_test in a headless Chrome
+        working-directory: apps/entrelares_app
+        env:
+          E2E_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
+        run: |
+          set -euo pipefail
+          flutter pub get
+          chromedriver --port=4444 &
+          for i in $(seq 1 20); do curl -sf http://localhost:4444/status >/dev/null && break; sleep 1; done
+          start=$(date +%s)
+          flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/swap_workflow_test.dart \
+            -d web-server --browser-name=chrome --headless \
+            --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY="$E2E_KEY" \
+            --dart-define=E2E_PACK=${{ inputs.e2e-pack || 'p0' }}
+          echo "### Web E2E (spike) — ${SECONDS}s no passo, $(( $(date +%s) - start ))s no drive" >> "$GITHUB_STEP_SUMMARY"
 
   # ── Production database ──────────────────────────────────────────────────
   # T-29's order, preserved across the move: migrations → functions → app. This
