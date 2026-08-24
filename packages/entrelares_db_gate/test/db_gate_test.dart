@@ -5,6 +5,7 @@ import 'package:entrelares_db_gate/entrelares_db_gate.dart';
 import 'package:test/test.dart';
 
 import 'suites/adversarial.dart';
+import 'suites/auto_approval.dart';
 import 'suites/caregiver_gate.dart';
 import 'suites/consent_and_retention.dart';
 import 'suites/day_protection.dart';
@@ -13,7 +14,10 @@ import 'suites/handoff_transition.dart';
 import 'suites/optimistic_concurrency.dart';
 import 'suites/planning_horizon_gate.dart';
 import 'suites/reconsent_gate.dart';
+import 'suites/resolution_log_link.dart';
+import 'suites/revert_notes.dart';
 import 'suites/rls_hardening.dart';
+import 'suites/swap_message.dart';
 
 /// **The single entrypoint of the database gate, and why it is single.**
 ///
@@ -54,4 +58,8 @@ void main() {
   handoffTransitionTests(fx);
   planningHorizonGateTests(fx);
   optimisticConcurrencyTests(fx);
+  autoApprovalTests(fx);
+  swapMessageTests(fx);
+  revertNotesTests(fx);
+  resolutionLogLinkTests(fx);
 }
