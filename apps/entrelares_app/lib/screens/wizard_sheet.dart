@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../widgets/ui/ui.dart';
 import 'package:flutter/services.dart';
 
-import '../models/care_schedule.dart';
-import '../models/member.dart';
+import 'package:entrelares_db_contracts/models/care_schedule.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../theme/tokens.dart';

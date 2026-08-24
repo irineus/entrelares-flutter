@@ -4,6 +4,15 @@ import 'package:entrelares_core/entrelares_core.dart';
 /// Mirrors `Entrelares/Models/Profile.cs`.
 class Member {
   final int id;
+
+  /// The family this profile belongs to. The APP never needs it — RLS already
+  /// narrows every read to `get_my_family_id()`, so a member the client can see
+  /// is a member of its own family by construction. The database GATE is the
+  /// reader that does: proving RLS holds means naming the family a row claims
+  /// and showing family A never sees family B's. Null when the projection did
+  /// not ask for the column.
+  final int? familyId;
+
   final String fullName;
   final int? colorSlot;
   final String? userId;
@@ -54,6 +63,7 @@ class Member {
 
   const Member({
     required this.id,
+    this.familyId,
     required this.fullName,
     this.colorSlot,
     this.userId,
@@ -76,6 +86,7 @@ class Member {
 
   factory Member.fromJson(Map<String, dynamic> json) => Member(
         id: json['id'] as int,
+        familyId: json['family_id'] as int?,
         fullName: (json['full_name'] as String?) ?? '',
         colorSlot: json['color_slot'] as int?,
         userId: json['user_id'] as String?,

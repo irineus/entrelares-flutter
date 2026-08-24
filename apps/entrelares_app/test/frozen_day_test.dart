@@ -7,9 +7,9 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/care_schedule.dart';
-import 'package:entrelares_app/models/member.dart';
-import 'package:entrelares_app/models/swap_request.dart';
+import 'package:entrelares_db_contracts/models/care_schedule.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/swap_request.dart';
 
 import 'calendar_slice_test.dart';
 

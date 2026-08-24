@@ -69,6 +69,18 @@ jobs:
           dart analyze --fatal-infos
           dart test
 
+      # The PostgREST row contracts (T-56 PR 6). They left `lib/models/` when
+      # the ported database gate — pure Dart, no Flutter — became their second
+      # reader, the same move `Entrelares.Models` → `Entrelares.DbContracts`
+      # made in C#. Analyzed with the core's `--fatal-infos`, since a package
+      # both the app and the gate compile against must not carry a warning
+      # either of them would inherit.
+      - name: Contracts — analyze
+        working-directory: packages/entrelares_db_contracts
+        run: |
+          dart pub get
+          dart analyze --fatal-infos
+
       - name: App — analyze + flutter test
         working-directory: apps/entrelares_app
         run: |
@@ -99,21 +111,22 @@ jobs:
           # day someone complains.
 
   # ── The DB gate ──────────────────────────────────────────────────────────
-  # 221 tests over RLS, the SECURITY DEFINER RPCs, the triggers and the billing
+  # 225 tests over RLS, the SECURITY DEFINER RPCs, the triggers and the billing
   # ledger, run against the REAL dev project with a throwaway family. It is the
   # test layer that proves the invariant this product is built on — the client
   # MIRRORS, the database ENFORCES — and it moved here from `entrelares-app`,
   # which is being archived (`docs/arquivamento-app.md`).
   #
-  # It is still C#, and deliberately so: the suite only ever needed the Blazor
-  # client for its PostgREST models, so lifting those into `Entrelares.DbContracts`
-  # moved 221 tests without rewriting a line of them. The decision on record is to
-  # PORT it to Dart suite by suite; carrying it intact first is what keeps the gate
-  # covered while that happens, instead of trading a working gate for a migration.
+  # It arrived in C# and is being PORTED to Dart suite by suite (T-56). While
+  # that is under way this job runs BOTH halves: the C# suite for what has not
+  # crossed yet, the Dart one for what has. Each PR of the port translates a
+  # group and deletes the C# classes it replaced in the same commit, so the gate
+  # is never uncovered — and the two counts always sum to 225, which is the
+  # arithmetic that says nothing was lost on the way.
   #
-  # Runs on the same events as `verify` (and blocks `deploy-web` alongside it), but
-  # in its own job: it needs .NET rather than Flutter, so it costs nothing to run
-  # them side by side.
+  # Runs on the same events as `verify` (and blocks `deploy-web` alongside it),
+  # but in its own job: it needs .NET and its own Supabase serialization, so it
+  # costs nothing to run beside the Flutter lane.
   db-gate:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -171,7 +184,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: DB gate — regras de banco contra o projeto dev
+      - name: DB gate (C#) — o que ainda não foi portado
         working-directory: db-gate/Entrelares.IntegrationTests
         env:
           E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
@@ -181,6 +194,50 @@ jobs:
           # `ASAAS_WEBHOOK_TOKEN_DEV` here to run them.
           E2E_ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN_DEV }}
         run: dotnet test -c Release --verbosity minimal
+
+      # ── The Dart half of the same gate (T-56, PR 6 onwards) ───────────────
+      # The two halves run side by side for the length of the port, against the
+      # SAME dev project. That is safe by construction and NOT by luck: each
+      # invents its own `E2E-<runId>` family, and both orphan sweeps spare
+      # anything younger than 2 h, so neither can rob the other. What they must
+      # NOT do is race on the T-39 billing seeds' FIXED ids — which is why they
+      # are steps of one job under one `concurrency` group rather than two jobs.
+      #
+      # Both are required: this job is red if either half is. That is the
+      # property the crossing depends on — a suite is only deleted from C# in
+      # the PR that lands its Dart equivalent, so the gate is never uncovered.
+      - name: Read Flutter version from .fvmrc
+        id: fvm
+        run: echo "version=$(jq -r .flutter .fvmrc)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.fvm.outputs.version }}
+          channel: stable
+          cache: true
+
+      - name: DB gate (Dart) — regras de banco contra o projeto dev
+        working-directory: packages/entrelares_db_gate
+        env:
+          E2E_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_DEV }}
+          E2E_ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN_DEV }}
+        run: |
+          dart pub get
+          dart analyze --fatal-infos
+          dart test --reporter expanded
+
+      # The arithmetic that says nothing was lost on the way across: the two
+      # halves must always sum to 225. It is printed, never asserted — the
+      # numbers move in opposite directions inside a single PR, and a check that
+      # fired on the intermediate state would just teach everyone to skip it.
+      - name: Somar os dois lados do gate
+        if: always()
+        run: |
+          echo "### Gate de banco — travessia T-56" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          python3 tool/count_csharp_tests.py >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "O total C# + Dart deve ser 225. O número Dart sai do relatório do \`dart test\` acima." >> "$GITHUB_STEP_SUMMARY"
 
   # T-54's E2E lane (opened by lote 3, the first two-user flow). It drives the
   # REAL app on an emulator against the DEV project, with the throwaway-family
@@ -435,7 +492,7 @@ jobs:
     # THREE gates and one deploy, in this order, and each edge was added the day
     # its absence would have cost something:
     #   · `verify`   — the Flutter suites (unit, widget, web compile);
-    #   · `db-gate`  — the 221 database rules, since publishing behind only the
+    #   · `db-gate`  — the 225 database rules, since publishing behind only the
     #     Flutter half would ship a channel whose server rules nobody checked;
     #   · `web-e2e`  — the flow gate (24/08/2026), the role Playwright played for
     #     the old repo's promotion: a broken two-user flow stops the channel;

@@ -2,8 +2,8 @@ import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import '../widgets/ui/ui.dart';
 
-import '../models/family.dart';
-import '../models/role.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';

@@ -14,7 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'deep_link_urls.dart';
 import 'env.dart';
-import 'models/member.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/custom_roles_screen.dart';
 import 'screens/family_screen.dart';

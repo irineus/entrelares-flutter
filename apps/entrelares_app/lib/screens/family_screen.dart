@@ -9,11 +9,11 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
-import '../models/family.dart';
-import '../models/family_invitation.dart';
-import '../models/member.dart';
-import '../models/role.dart';
-import '../models/subscription.dart';
+import 'package:entrelares_db_contracts/models/family.dart';
+import 'package:entrelares_db_contracts/models/family_invitation.dart';
+import 'package:entrelares_db_contracts/models/member.dart';
+import 'package:entrelares_db_contracts/models/role.dart';
+import 'package:entrelares_db_contracts/models/subscription.dart';
 import '../services/admin_mode.dart';
 import '../services/analytics_service.dart';
 import '../env.dart';

@@ -2,7 +2,7 @@
 // must never drift from the server triggers.
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:entrelares_app/models/care_schedule.dart';
+import 'package:entrelares_db_contracts/models/care_schedule.dart';
 
 void main() {
   final read = CareSchedule.fromJson(const {
