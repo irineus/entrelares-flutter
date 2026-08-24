@@ -53,6 +53,12 @@ class Member {
   /// which the gate deliberately captures rather than backfilling.
   final String? consentPolicyVersion;
 
+  /// S-13: WHEN that consent was given. The pair is the demonstrable-consent
+  /// record (LGPD art. 8 §1, where the burden of proof is the controller's), so
+  /// the two columns only ever move together — and a refused accept must leave
+  /// BOTH untouched, which is what the gate asserts. No screen reads this.
+  final DateTime? consentAcceptedAt;
+
   /// U-23 — the three onboarding stamps. They are the ONLY "seen" flags in the
   /// checklist: every other step reads real family state, because a card that
   /// ticked itself off from a flag would claim someone had finished something
@@ -76,6 +82,7 @@ class Member {
     this.deletionScheduledFor,
     this.joinedViaInvite = false,
     this.consentPolicyVersion,
+    this.consentAcceptedAt,
     this.onboardingSwapExplainedAt,
     this.onboardingTourSeenAt,
     this.onboardingDismissedAt,
@@ -101,6 +108,7 @@ class Member {
             : DateTime.parse(json['deletion_scheduled_for'] as String).toUtc(),
         joinedViaInvite: (json['joined_via_invite'] as bool?) ?? false,
         consentPolicyVersion: json['consent_policy_version'] as String?,
+        consentAcceptedAt: _utc(json['consent_accepted_at'] as String?),
         onboardingSwapExplainedAt:
             _utc(json['onboarding_swap_explained_at'] as String?),
         onboardingTourSeenAt: _utc(json['onboarding_tour_seen_at'] as String?),

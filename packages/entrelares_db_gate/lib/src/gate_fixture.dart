@@ -5,6 +5,7 @@ import 'package:entrelares_db_contracts/entrelares_db_contracts.dart';
 import 'package:supabase/supabase.dart';
 
 import 'admin_api.dart';
+import 'iso_date.dart';
 import 'test_env.dart';
 
 /// One throwaway family per RUN, created against the REAL dev project through
@@ -84,12 +85,11 @@ class GateFixture {
   /// from being handed a date inside it.
   List<DateTime> nextFutureDates(int count) {
     _dateCounter += count;
-    final today = _today();
-    final first = today.add(Duration(days: 10 + _dateCounter - count + 1));
-    return [for (var i = 0; i < count; i++) first.add(Duration(days: i))];
+    final first = addDays(today(), 10 + _dateCounter - count + 1);
+    return [for (var i = 0; i < count; i++) addDays(first, i)];
   }
 
-  DateTime _nextVisibleDay = _today().add(const Duration(days: 3));
+  DateTime _nextVisibleDay = addDays(today(), 3);
 
   /// Unique future date for tests that assert on rendered day CELLS. Shorthand
   /// for [nextVisibleDays] with a block of 1.
@@ -125,19 +125,14 @@ class GateFixture {
       _nextVisibleDay = DateTime(_nextVisibleDay.year, _nextVisibleDay.month + 1, 1);
     }
     final block = [
-      for (var i = 0; i < count; i++) _nextVisibleDay.add(Duration(days: i)),
+      for (var i = 0; i < count; i++) addDays(_nextVisibleDay, i),
     ];
-    _nextVisibleDay = _nextVisibleDay.add(Duration(days: count));
+    _nextVisibleDay = addDays(_nextVisibleDay, count);
     return block;
   }
 
-  static DateTime _today() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
-  }
-
   static bool _fitsAboveLastRow(DateTime start, int count) {
-    final last = start.add(Duration(days: count - 1));
+    final last = addDays(start, count - 1);
     return last.month == start.month && _gridRow(last) < _lastGridRow(start);
   }
 
@@ -164,7 +159,7 @@ class GateFixture {
     await _sweepOrphanedFamilies();
 
     runId = '${DateTime.now().toUtc().toIso8601String().replaceAll(RegExp(r'[-:.TZ]'), '')}'
-        '-${_randomSuffix(4)}';
+        '-${_randomHex(4)}';
     password = _throwawayCredential();
 
     // Family A: founder through the real trigger path.
@@ -478,13 +473,23 @@ class GateFixture {
   /// The run's credential for every throwaway user — generated fresh per run
   /// from secure randomness, never a literal. It lives only in memory: the users
   /// it belongs to are deleted in [dispose].
-  static String _throwawayCredential() =>
-      'E2e!${_randomSuffix(28)}';
-
-  static String _randomSuffix(int length) {
+  static String _throwawayCredential() {
     const pool = 'abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     final rng = Random.secure();
-    return List.generate(length, (_) => pool[rng.nextInt(pool.length)]).join();
+    final body =
+        List.generate(28, (_) => pool[rng.nextInt(pool.length)]).join();
+    return 'E2e!$body';
+  }
+
+  /// LOWERCASE hex, and that is not cosmetic. The run id goes into every
+  /// throwaway address, GoTrue LOWERCASES the e-mail it stores, and several
+  /// suites find a profile by comparing that stored address to the one they
+  /// asked for. A mixed-case suffix therefore made those lookups miss — as
+  /// `Bad state: No element` on a `.single`, which reads like a rule that did
+  /// not fire and is really a string that does not match (T-56 PR 7).
+  static String _randomHex(int length) {
+    final rng = Random.secure();
+    return List.generate(length, (_) => rng.nextInt(16).toRadixString(16)).join();
   }
 }
 
