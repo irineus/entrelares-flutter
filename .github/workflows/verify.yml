@@ -337,7 +337,7 @@ jobs:
           start=$(date +%s)
           flutter drive \
             --driver=test_driver/integration_test.dart \
-            --target=integration_test/swap_workflow_test.dart \
+            --target=integration_test/harness_probe_test.dart \
             -d web-server --browser-name=chrome --headless \
             --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY="$E2E_KEY" \
             --dart-define=E2E_PACK=${{ inputs.e2e-pack || 'p0' }}
