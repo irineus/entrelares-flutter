@@ -1,9 +1,11 @@
 # T-54 — the repo's gate: analyze + tests on every push/PR.
 # T-53 stage 4 added the `deploy-web` job at the bottom: the web channel is
 # PUBLISHED from here, and only behind a green gate — nothing reaches a user that
-# the suites have not seen. Since 24/08/2026 that gate is TWO jobs: `verify` (the
-# Flutter suites) and `db-gate` (the 221 database tests that moved here from
-# `entrelares-app`), and `deploy-web` waits on both.
+# the suites have not seen. Since 24/08/2026 that gate is THREE jobs: `verify` (the
+# Flutter suites), `db-gate` (the database rules that moved here from
+# `entrelares-app`) and `web-e2e` (the flow gate that replaces the Playwright
+# suite dying with the Blazor client). `deploy-web` waits on all three, plus
+# `db-prod` — T-29's order, migrations → functions → app.
 # The APK build and the E2E emulator lane stay OUT of the gate on purpose: both
 # are minutes-expensive and the account's 2000 min/mo are shared with the
 # product repos (same constraint that shaped T-50). The E2E lane runs daily on
@@ -302,10 +304,14 @@ jobs:
   #     emulator and installing an APK, neither of which the browser needs.
   #
   # It does NOT replace the emulator lane: what needs a device — Play Billing,
-  # the share sheet, the native print dialog — only runs there. And it is NOT yet
-  # in `deploy-web`'s `needs`: a lane this new blocking production publishing on
-  # its first day would trade one risk for another. That promotion is a separate
-  # owner decision, after it has a stretch of green behind it.
+  # the share sheet, the native print dialog — only runs there.
+  #
+  # It BLOCKS the web publish (owner decision, 24/08/2026, on five green runs and
+  # one deliberately red). That is the role the Playwright suite used to play for
+  # the old repo's promotion, and it is what makes this a gate rather than a
+  # report: a broken flow now stops the channel instead of reaching users. The
+  # cost is accepted with it — a flaky run here holds a deploy, and the answer to
+  # a red is to read it, never to re-run until it passes.
   web-e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -426,12 +432,16 @@ jobs:
   #   --release                   the only build a user may ever receive.
   deploy-web:
     if: github.event_name == 'push' && github.ref_name == 'main'
-    # Both gates, not one: since the DB gate moved here, publishing behind only the
-    # Flutter suites would ship the web channel without the database rules ever
-    # having been checked. And `db-prod` before it, which is T-29's order —
-    # migrations → functions → app — so the channel never serves an app whose
-    # schema failed to apply.
-    needs: [verify, db-gate, db-prod]
+    # THREE gates and one deploy, in this order, and each edge was added the day
+    # its absence would have cost something:
+    #   · `verify`   — the Flutter suites (unit, widget, web compile);
+    #   · `db-gate`  — the 221 database rules, since publishing behind only the
+    #     Flutter half would ship a channel whose server rules nobody checked;
+    #   · `web-e2e`  — the flow gate (24/08/2026), the role Playwright played for
+    #     the old repo's promotion: a broken two-user flow stops the channel;
+    #   · `db-prod`  — T-29's order, migrations → functions → app, so the channel
+    #     never serves an app whose schema failed to apply.
+    needs: [verify, db-gate, web-e2e, db-prod]
     runs-on: ubuntu-latest
     # Job level on purpose: this is what the publish step reads in its own
     # `if`, and a step cannot reliably test the `env:` it declares itself.
