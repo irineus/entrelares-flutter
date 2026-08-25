@@ -117,7 +117,7 @@ void main() {
 
     await openDay(tester, targetDay.day);
     final memberChip =
-        find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').last);
+        find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').first);
     await tester.ensureVisible(memberChip.last);
     await tester.pumpAndSettle();
     await tester.tap(memberChip.last);
@@ -173,7 +173,7 @@ void main() {
     await signIn(tester, family.founder.email);
     await openDay(tester, day.day);
     final memberChip =
-        find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').last);
+        find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').first);
     await tester.ensureVisible(memberChip.last);
     await tester.pumpAndSettle();
     await tester.tap(memberChip.last);
