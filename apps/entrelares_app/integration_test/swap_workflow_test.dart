@@ -68,7 +68,19 @@ void main() {
   /// logs and returns the existing instance — so calling `app.main()` again is
   /// safe; the package's own docstring still claims otherwise and is stale.
   Future<void> bootApp(WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
+    // The language is PINNED, and that is not a preference — it is the U-13
+    // trap. `main()` resolves the session language as
+    // `stored override ?? profiles.language ?? PlatformDispatcher.locale`, and
+    // on CI the browser reports the HOST's locale (`en-US`), so the app renders
+    // in ENGLISH while every selector in this file comes from
+    // `Localization(AppLanguage.ptBr)`. The failure names the widget
+    // (`Found 0 widgets with text "Entrar"`), never the language — which is what
+    // makes it expensive. Seeding the stored override is the FIRST rung of that
+    // precedence, so it wins whatever the runner's locale is. The `flutter.`
+    // prefix is the one shared_preferences adds on write.
+    SharedPreferences.setMockInitialValues({
+      'flutter.${LanguageResolver.storageKey}': AppLanguage.ptBrCode,
+    });
     if (appBooted) {
       await Supabase.instance.client.auth
           .signOut(scope: SignOutScope.local)

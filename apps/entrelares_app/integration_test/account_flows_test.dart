@@ -40,6 +40,9 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   late E2eFamily family;
+  // Whether `app.main()` has already initialized the Supabase singleton in
+  // this process. See `bootApp` — the answer cannot simply be asked.
+  var appBooted = false;
 
   setUpAll(() async {
     E2eFamily.requireKey();
@@ -53,12 +56,36 @@ void main() {
     await family.purge();
   });
 
+  /// Boots the real app with a clean local state, signed out.
+  ///
+  /// The sign-out is guarded because `Supabase.instance` is an ASSERTION, not a
+  /// nullable getter: until `app.main()` has run once there is no singleton and
+  /// touching it throws. From the second boot on the singleton is alive (it is
+  /// per PROCESS, the pilot's lesson 8) and signing out is what makes the next
+  /// user start clean. `Supabase.initialize` is idempotent in 2.17.2, so the
+  /// second `app.main()` is safe — the package docstring saying otherwise is
+  /// stale.
   Future<void> bootApp(WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await Supabase.instance.client.auth
-        .signOut(scope: SignOutScope.local)
-        .catchError((_) {});
+    // The language is PINNED, and that is not a preference — it is the U-13
+    // trap. `main()` resolves the session language as
+    // `stored override ?? profiles.language ?? PlatformDispatcher.locale`, and
+    // on CI the browser reports the HOST's locale (`en-US`), so the app renders
+    // in ENGLISH while every selector in this file comes from
+    // `Localization(AppLanguage.ptBr)`. The failure names the widget
+    // (`Found 0 widgets with text "Entrar"`), never the language — which is what
+    // makes it expensive. Seeding the stored override is the FIRST rung of that
+    // precedence, so it wins whatever the runner's locale is. The `flutter.`
+    // prefix is the one shared_preferences adds on write.
+    SharedPreferences.setMockInitialValues({
+      'flutter.${LanguageResolver.storageKey}': AppLanguage.ptBrCode,
+    });
+    if (appBooted) {
+      await Supabase.instance.client.auth
+          .signOut(scope: SignOutScope.local)
+          .catchError((_) {});
+    }
     app.main();
+    appBooted = true;
     await tester.pumpAndSettle(const Duration(seconds: 10));
   }
 
