@@ -43,9 +43,17 @@ class Env {
   final String analyticsHostname;
 
   /// The same, for the WEB build of this environment. T-53 stage 4: Flutter
-  /// Web takes over the hostname the Blazor PWA reports today, so the Umami
-  /// series does not break in two at the cutover — the `channel` prop is what
-  /// separates the clients, never the site.
+  /// Web took over the hostname the Blazor PWA reported, so the Umami series
+  /// did not break in two at the cutover — the `channel` prop is what separates
+  /// the clients, never the site.
+  ///
+  /// It is a DECLARED label, not a host the app resolves: the web build reports
+  /// this string rather than `location.hostname`, exactly so the two channels
+  /// land on one site. Production names the real host because they coincide;
+  /// **dev is synthetic on purpose** — since the Blazor shutdown (T-56) there is
+  /// no dev web deployment at all, so naming any real host here would name one
+  /// that is either dead or somebody else's. It used to say `qa.entrelares.app`,
+  /// which stopped resolving the day that Pages project was deleted.
   final String webHostname;
 
   /// T-48: the Android `applicationId` of THIS variant. Only the Play
@@ -65,7 +73,8 @@ class Env {
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1cm9hbm90ZmpjZ3ZiZm1hY3VoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwMTIwNDcsImV4cCI6MjA5NjU4ODA0N30.hRU5jhn1pJQeUVpvnAp4IGBJ5Is_pCwlIfR5hdK9Mi0',
     // No website id: analytics is OFF on dev, by decision.
     analyticsHostname: 'dev.app.entrelares.app',
-    webHostname: 'qa.entrelares.app',
+    // Synthetic, like its sibling above — see the field's doc.
+    webHostname: 'dev.web.entrelares.app',
     androidPackage: 'com.entrelares.flutter',
   );
 

@@ -2898,12 +2898,46 @@ the start, 225 at the end**, printed in every run's summary and repeated in ever
 
 - ~~The **flow gate** replacing the Playwright suite.~~ **Delivered 24/08/2026**: the same
   `integration_test` files run in a headless browser (`flutter drive` + chromedriver), 144 s for
-  both packs against the 10-15 min of the emulator lane. It was MEASURED before being trusted,
-  because `flutter drive` on web prints "All tests passed." whether or not anything ran: a probe
-  with a deliberately failing test turned the job red, and the full pack costs ~6 s more than
-  `p0`. It does not replace the emulator for what needs a device. **It blocks the web publish since
-  24/08/2026** — the role Playwright played for the old repo's promotion, and what makes it a
-  gate rather than a report.
+  both packs against the 10-15 min of the emulator lane. It does not replace the emulator for
+  what needs a device. Wired into `deploy-web`'s `needs:` on 24/08/2026 — the role Playwright
+  played for the old repo's promotion.
+
+  > **CORRECTED 25/08/2026 — this bullet claimed a gate that was not gating.** What it said was
+  > that the lane "was MEASURED before being trusted, because `flutter drive` on web prints
+  > 'All tests passed.' whether or not anything ran: a probe with a deliberately failing test
+  > turned the job red", and that it therefore "blocks the web publish… what makes it a gate
+  > rather than a report". The first half is true and the conclusion does not follow.
+  >
+  > The probe failed a **test body**. The suite was failing in **`setUpAll`** — and a blown
+  > fixture does NOT turn the job red: `flutter drive` still printed "All tests passed." two
+  > seconds after the debug service connected, a window in which no real call to Supabase fits.
+  > So the lane approved **without executing a single assertion**, on every merge that published
+  > production from 24/08/2026 onward, including this item's own PRs #78, #79 and #80.
+  >
+  > The fixture bug is older than T-56: `integration_test/e2e_family.dart` reads
+  > `roles.role_name`, and that column has never existed — it is `role` since the baseline
+  > (`20260713000000_baseline_v1_4_0.sql`), and the only `role_name` around is an OUTPUT field
+  > of the `get_invite_info` RPC. It arrived with the lane itself, in T-53 lote 3 (19/08/2026,
+  > #19). What belongs to T-56 is not the bug — it is **promoting that suite to a
+  > publish-blocking gate on a verification that missed the failure class actually occurring**,
+  > and then writing the claim down as settled.
+  >
+  > Found on 25/08/2026 by the session investigating the E2E lane, and verified here
+  > independently: on its run `32839960732`, once the `role_name` defect was out of the way,
+  > `web-e2e` went **red** at the drive step. Red-capable at last, which is the proof that it
+  > was not before.
+  >
+  > **Still open as this is written:** the fix lives in PR #81, which is not merged, so `main`
+  > still carries the vacuous lane. Turning it into a gate that can actually stop a publish is
+  > a change of regime, not a test fix, and it is the owner's call — deliberately NOT made from
+  > inside this correction.
+  >
+  > **The method lesson, which is the reusable part:** a probe proves what it exercises and
+  > nothing more. This one proved the lane can report a failing assertion; it never asked
+  > whether the lane can report a suite that never got to assert. When a check exists precisely
+  > because a tool lies about success, the probe has to cover **every** way the run can end —
+  > and the record of it must say which ways were covered. This one said "measured" and meant
+  > "measured once, one way".
 - ~~The **port of the database gate to Dart**, suite by suite.~~ **Done 24/08/2026**, in the
   eleven PRs (6…16) whose slicing, merge authorization and verification arithmetic are in
   [`../../docs/arquivamento-app.md`](../../docs/arquivamento-app.md). The 225 tests are 43 suite

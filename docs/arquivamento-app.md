@@ -76,7 +76,7 @@ fica descoberto durante a travessia.
 | **3** ✅ | flutter | **Banco e ops** (24/08/2026): `supabase/` inteiro (70 migrations, 12 functions, o runbook de 1.442 linhas), o deploy PR→dev / `main`→prod na ordem migrations → functions → app, mais `backup.yml` e `keepalive-dev.yml`. Tudo **auto-desarmante**: entra sem os secrets e só passa a valer quando o owner os define |
 | **4a** ✅ | flutter | **A memória, parte mecânica** (24/08/2026): `backlog/` inteiro (6 + 8 de `archive/`), `docs/`, `database/`, `GitHelp.md`, e o changelog do README do app como `docs/changelog-blazor.md` (138 versões). O espelho passou a ler os registros daqui, e a regra do backlog foi revogada no `CLAUDE.md` — ela era consequência direta desta mudança, não do 4b |
 | **4b** ✅ | flutter | **A memória, parte de julgamento** (24/08/2026): sete seções triadas das 900 linhas do `CLAUDE.md` do app — convenções, working agreement, modelo de domínio, invariantes, seção legal, board/esforço e 13 *gotchas* de banco e plataforma. Ficaram para trás os que morrem com o cliente (escopos do Blazor, `RetryHelper`, gotrue-csharp, Realtime em WASM, versionamento por `csproj`, todos os de Playwright). Mais a frase do esforço, que virou falsa, e o parágrafo do roadmap que ainda chamava a 1.8.13 de produção |
-| **5** ✅ | flutter | **Gate de fluxo — entregue** (24/08/2026): os MESMOS arquivos `integration_test/` rodam num Chrome headless via `flutter drive` + chromedriver. Medido antes de confiar, porque na web o `flutter drive` imprime "All tests passed" tenha ou não executado algo: uma sonda com um teste que falha de propósito deixou o job **vermelho** nomeando o teste, e o pacote completo custa ~6 s mais que o `p0`. **144 s para os dois packs (5 testes)** contra 10–15 min do emulador. Roda em push/PR e **bloqueia a publicação web** desde 24/08/2026 (decisão do owner, sobre cinco runs verdes e uma vermelha proposital); não substitui o emulador para o que exige aparelho |
+| **5** ⚠️ | flutter | **Gate de fluxo — entregue** (24/08/2026): os MESMOS arquivos `integration_test/` rodam num Chrome headless via `flutter drive` + chromedriver, **144 s para os dois packs** contra 10–15 min do emulador. Entrou no `needs:` do `deploy-web` em 24/08/2026. **⚠️ CORRIGIDO em 25/08/2026: ele não estava barrando nada** — a sonda que o aprovou falhava um CORPO de teste, e a suíte falhava no `setUpAll`, que **não** deixa o job vermelho. Detalhe e lição no registro do item; o conserto é do PR #81, de outra sessão, ainda aberto |
 | **4c** ✅ | flutter | **A presença de loja** (24/08/2026): `store/` — a cópia das listagens (PT-BR + en-US), os dois masters da marca, `brand-icons.py` (reapontado para os sete arquivos que este repo consome, e **verificado**: reproduz os sete byte a byte), o gráfico de destaque com seu gerador e um `README.md` triado. Ficou para trás o pacote TWA (`twa-manifest.json`, Bubblewrap, o `store/.gitignore` que só listava saída de build). Devia ter vindo no 4a e não veio — o item estava escrito e foi esquecido; é o achado que fez o PR F conferir o repositório inteiro em vez de conferir a lista |
 | **6…16** ✅ | flutter | **O port do gate para Dart** (24/08/2026), suíte por suíte — o fatiamento detalhado está na seção seguinte. O PR 6 levou a fundação (contratos erguidos, clientes por identidade, fixture) e uma suíte real como prova; o 16 apagou `db-gate/` e o lane `dotnet`. As 225 asserções são todas Dart |
 | **F** ✅ | app | **O esvaziamento, num toque só** (24/08/2026, [`entrelares-app` #309](https://github.com/irineus/entrelares-app/pull/309)): 242 arquivos, −46.941 linhas. Sobra o cliente Blazor, sua suíte unitária e um `deploy.yml` reduzido à metade que publica — o deploy de QA que seguiu o merge fechou **verde em 1 min 39 s**, contra os ~15 min do gate antigo. Saíram também, por decisão do owner, as DUAS suítes C# e o `dependabot.yml`; o que ficou para trás e por quê está no registro do T-56. Não arquiva ainda |
@@ -187,6 +187,21 @@ gate roda contra o banco de verdade, e um sobre método.
   arquivo novo ficou fora do `git add`: o `analyze` local via os dois, o CI via um. Desde então a
   verificação é `git stash push --keep-index -u` → `analyze` → `git stash pop`, que mostra ao
   analisador exatamente o que está no índice.
+
+**Um achado posterior, de 25/08/2026, que muda a leitura da fatia 5.** A lane `web-e2e` entrou
+como gate da publicação web sobre uma sonda que provou uma coisa e foi lida como provando outra:
+ela falhava um CORPO de teste e o job ficava vermelho; a suíte, porém, estava estourando no
+`setUpAll` — e nessa forma o `flutter drive` segue imprimindo "All tests passed" dois segundos
+depois de o debug service conectar, tempo em que nenhuma chamada real ao Supabase cabe. Resultado:
+**a lane aprovou sem executar asserção nenhuma em todo merge que publicou produção desde 24/08**,
+os PRs deste próprio item inclusive. O defeito de fixture é mais velho que o T-56 (o
+`e2e_family.dart` lê `roles.role_name`, coluna que nunca existiu — é `role` desde o baseline — e
+veio com a lane no lote 3 do T-53, em 19/08); o que é do T-56 é ter promovido a suíte a gate sobre
+uma verificação que não cobria a classe de falha que estava acontecendo. Achado pela sessão que
+investiga a lane E2E e conferido aqui: no run `32839960732` dela, removido o defeito, o `web-e2e`
+ficou **vermelho**. **A lição de método:** uma sonda prova o que ela exercita e nada mais — quando
+o teste existe porque a FERRAMENTA mente sobre sucesso, a sonda precisa cobrir todas as formas de
+o run terminar, e o registro precisa dizer quais foram cobertas.
 
 Uma consequência de escopo, para não ficar implícita: **a autorização de merge desta seção morre
 aqui**. Do próximo item em diante vale de novo a regra do `CLAUDE.md` — PR e squash-merge só com
@@ -446,7 +461,11 @@ aqui, então não há janela descoberta.
   fecho operacional, com a ordem que fecha a janela. **O padrão a levar: toda configuração
   externa acrescentada por um runbook precisa da linha que a desfaz, escrita no mesmo runbook.**
 
-- **`env.dart` ainda nomeia `qa.entrelares.app` no flavor dev** (`webHostname`). Não quebra nada
-  e não é urgente: é só o rótulo que o dev reporta ao Umami, e o dev tem `umamiWebsiteId` vazio
-  de propósito, então a chamada inteira é no-op. Mas passa a nomear um host que deixou de
-  existir — troca cosmética para uma próxima entrega que já toque o arquivo.
+- ~~**`env.dart` ainda nomeia `qa.entrelares.app` no flavor dev**~~ **Corrigido em 25/08/2026**
+  para `dev.web.entrelares.app`. Era inerte — o dev tem `umamiWebsiteId` vazio de propósito,
+  então `AnalyticsService.isEnabled` é falso e o rótulo nunca sai —, mas nomeava um host que
+  deixou de existir. **A troca não é de nome, é de espécie:** aquele valor era um host REAL que
+  por acaso servia de rótulo, e desde o desligamento não existe implantação web de dev nenhuma,
+  então qualquer host real ali estaria morto ou seria de outra pessoa. Agora é sintético e
+  simétrico ao vizinho `dev.app.entrelares.app`, e o comentário do campo diz por quê — que é o
+  que impede alguém de repor um host real no lugar.
