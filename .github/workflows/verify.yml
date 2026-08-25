@@ -157,6 +157,13 @@ jobs:
     # `E2E-<runId>` and the orphan sweep spares anything younger than 2h), but the
     # T-39 billing seeds use FIXED external ids (`sub_e2e_*`) — two runs overlapping
     # there delete and recreate each other's rows. Queue instead of racing.
+    #
+    # What `false` does NOT do is protect the job that is WAITING: GitHub keeps
+    # exactly one pending entry per group, so a third claimant drops the queued
+    # one. Such a job reports `cancelled` with no `steps` array — it never
+    # started, so it is an eviction and not a verdict. Let the group drain and
+    # re-run that run; never cancel another to get ahead. Three quick pushes to
+    # one branch are enough to cause it (CLAUDE.md carries the full note).
     concurrency:
       group: db-gate
       cancel-in-progress: false
