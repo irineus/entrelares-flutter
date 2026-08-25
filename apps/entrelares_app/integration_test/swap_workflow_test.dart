@@ -100,7 +100,19 @@ void main() {
   }
 
   Future<void> openDay(WidgetTester tester, int day) async {
-    final cell = find.text('$day').last;
+    // SCOPED to the month grid, and that is the whole point. `find.text('28')`
+    // over the entire tree also matches the day number wherever else it is
+    // printed — the next-handoff card, the upcoming list — and those grow as
+    // the family gains state, so a bare `.last` silently changes target
+    // mid-test. It changed here: the founder's tap landed on the grid, and the
+    // member's, with a pending request on screen, did not.
+    //
+    // `.last` INSIDE the grid is still right: a month grid also draws the tail
+    // of the previous month, so '28' can legitimately appear twice, and the
+    // second one is this month's.
+    final cell = find
+        .descendant(of: find.byType(GridView), matching: find.text('$day'))
+        .last;
     await tester.ensureVisible(cell);
     await tester.pumpAndSettle();
     await tester.tap(cell);
