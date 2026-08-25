@@ -494,3 +494,49 @@ written down to happen at all.
 - `entrelares-site/ROADMAP.md` — L-21's record, closed as absorbed
 - `store/README.md` §1 — the "out of date" note comes down when the frames are current
 - Play Console (owner ops, no code): the `pt-BR` and `en-US` screenshot sets
+
+---
+
+### T-58 — The web flow gate must prove it ran (guard against a vacuous green)
+
+| Field | Value |
+|---|---|
+| **Status** | `pending` |
+| **Priority** | `high` — it is the alarm on the gate that stands between a merge and production |
+| **Complexity** | `medium` — the guard is small; deciding what a real gate is allowed to block is not |
+| **Impact** | `high` — every web publish since 24/08/2026 went out past a gate that asserted nothing |
+| **Roadmap** | Group 5 (polish), right behind T-57 |
+| **Repo** | `flutter` |
+| **Depends on** | the E2E lane actually executing — PR #81's three defects. This item starts when that lands |
+
+**The finding**
+`web-e2e` has blocked the web publish since [#64](https://github.com/irineus/entrelares-flutter/pull/64) (24/08/2026), and it was passing **green while its `setUpAll` was throwing**. On web, `flutter drive` prints `All tests passed.` and exits **0** when zero tests ran — so an empty run is indistinguishable from a full one, and `set -euo pipefail` cannot see it, because the process really does exit 0.
+
+Measured on 25/08/2026, same two files, same pack, one commit apart:
+
+| Lane | before `2bcfcfb` (run `32832807358`, `main`) | after (run `32839493354`) |
+|---|---|---|
+| `web-e2e` | `All tests passed.` **2 s** after the debug service connected, exit 0 — **green** | names the test, exit 1 — **red** |
+| `e2e` (emulator) | `setUpAll` throws — 0 passed / 2 failed | 1 passed / 1 failed |
+
+Two seconds is not enough for a single round trip to Supabase, let alone a seeded family.
+
+**The dating is what makes it structural, not a slip**
+`role_name` entered in `ffb28b4` (19/08, the day the E2E lane was born). `web-e2e` was created in `ba5d192` ([#63](https://github.com/irineus/entrelares-flutter/pull/63)) on 24/08 and started blocking the publish in `ed8c3c4` (#64) — **five days after the bug**. It therefore never had a working `setUpAll`, which means it **never executed a test**. The green that justified letting it block production was vacuous from the first run.
+
+**Scope**
+
+1. **The guard: require positive proof of execution**, not the absence of an error. Suggested shape — the suites record how many tests ran in `binding.reportData` (a `tearDownAll`), `test_driver/integration_test.dart` swaps `integrationDriver()` for `integrationDriver(responseDataCallback: …)` writing that out, and the workflow step fails when the file is missing or the count is zero / below expectation. **Design it against the first genuinely green web run** — at the time of writing none has ever existed, so nobody knows what `flutter drive` prints on a real web success. A guard that greps expected output is how this class of bug is written a second time.
+2. **Correct [`docs/arquivamento-app.md`](../docs/arquivamento-app.md), the PR-5 line.** It records *"144 s para os dois packs (5 testes)"*. That timed **compilation** — 2 targets × ~42 s + startup ≈ 144 s — with zero tests executed. The sentence is false and reads as current state, which is how it was believed for a day.
+3. **Decide the regime, and that part is the owner's.** A gate that actually asserts can actually block a publish. That is its declared purpose, but in practice it is a change of regime, not a repaired test — which is exactly why it is an item and not a fix folded into someone's PR.
+
+**Deliberately NOT in scope:** the three stacked E2E defects themselves (the `roles.role_name` column, `bootApp`'s inverted order, the unpinned language). Those belong to PR #81. This item is about the lane being *unable to lie*, not about the tests it happens to be running today.
+
+**Justification**
+A gate that approves without asserting is worse than no gate: it spends the trust a gate is for. The failure mode is silent by construction — there is no red build, no error, no slow step, only a green check that means nothing — so it is only ever found by accident, and it was: while chasing an unrelated scheduled failure. Writing the guard is what converts that accident into a rule.
+
+**Files affected**
+- `apps/entrelares_app/test_driver/integration_test.dart` — the driver's `responseDataCallback`
+- `apps/entrelares_app/integration_test/*.dart` — the executed-count report
+- `.github/workflows/verify.yml` — the assertion in the `web-e2e` step
+- `docs/arquivamento-app.md` — the PR-5 measurement line
