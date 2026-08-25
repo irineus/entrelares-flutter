@@ -45,6 +45,9 @@ import 'widgets/app_width_cap.dart';
 import 'widgets/app_splash.dart';
 import 'widgets/onboarding.dart';
 
+/// Whether [usePathUrlStrategy] already ran in this PAGE. See its call site.
+bool _urlStrategyApplied = false;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // The web channel serves REAL paths (`/family`), not `/#/family`. Three
@@ -54,7 +57,20 @@ Future<void> main() async {
   // arriving by e-mail carries its token in the PATH, which a hash router
   // never sees. Cloudflare answers every path with index.html
   // (`web/_redirects`), which is what makes this safe to turn on.
-  usePathUrlStrategy();
+  // GUARDED, and the guard is about the second caller, not the first.
+  // `main()` runs ONCE in production. The E2E lane runs it TWICE per execution
+  // — one boot per user, which is what a two-party workflow test has to do —
+  // and on web `usePathUrlStrategy()` asserts on the second call
+  // ("Cannot set URL strategy a second time or after the app has been
+  // initialized"), killing the boot that switches users. Guarded rather than
+  // moved out of `main()`, because the strategy has to be set BEFORE the first
+  // frame and this is the only place that qualifies. Production behaviour is
+  // identical: there the flag is only ever false once. Same idempotence the
+  // `Supabase.initialize` below already has (T-58, 25/08/2026).
+  if (!_urlStrategyApplied) {
+    usePathUrlStrategy();
+    _urlStrategyApplied = true;
+  }
   // publishableKey is just the `apikey` header value — it accepts the legacy
   // anon JWT dev still uses (until S-17) as well as the new sb_publishable_…
   // key prod already has, so the S-16 shape ports for free (stage 0).

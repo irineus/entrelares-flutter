@@ -30,6 +30,20 @@ const _serviceRoleKey =
 /// Same signature the web suite uses — the purge RPC keys off it.
 const familyPrefix = 'E2E-';
 
+/// The seeded people, and their word ORDER is load-bearing.
+///
+/// Every carer chip in the app is labelled `fullName.split(' ').first` — a chip
+/// shows a given name, not a full one (`screens/day_sheet.dart`). So the
+/// DISTINCTIVE word has to come first, or two profiles both named `E2E …`
+/// render two chips reading "E2E" and no finder can tell them apart.
+///
+/// They used to be `E2E Founder` / `E2E Member`, and the swap test looked for
+/// `.split(' ').last` to get the distinctive half back. Neither half of that
+/// pairing matched the app, and nobody noticed for six days because the suite
+/// never reached the assertion (T-58).
+const founderName = 'Founder E2E';
+const memberName = 'Member E2E';
+
 /// Resend's test domain: accepted, delivered nowhere, never bounces.
 const emailDomain = '@resend.dev';
 
@@ -182,7 +196,7 @@ class E2eFamily {
     // Founder — `handle_new_user` creates the family from the metadata.
     final founderEmail = emailFor('founder');
     userIds.add(await _createConfirmedUser(founderEmail, password, {
-      'full_name': 'E2E Founder',
+      'full_name': founderName,
       'role': 'father',
       'family_name': '$familyPrefix$runId',
       'policy_version': policyVersion,
@@ -194,9 +208,9 @@ class E2eFamily {
     final familyId = founderRow['family_id'] as int;
 
     // Member — through the REAL invitation flow, as a family joiner.
-    final roles = await _get('/rest/v1/roles?select=id,role_name');
+    final roles = await _get('/rest/v1/roles?select=id,role');
     final motherRoleId = (roles.firstWhere((r) =>
-            (r as Map)['role_name'].toString().toLowerCase() == 'mother')
+            (r as Map)['role'].toString().toLowerCase() == 'mother')
         as Map)['id'] as int;
     final memberEmail = emailFor('member');
     final founderToken = await _accessToken(founderEmail, password);
@@ -207,7 +221,7 @@ class E2eFamily {
     final token = _tokenOf(invite);
 
     userIds.add(await _createConfirmedUser(memberEmail, password, {
-      'full_name': 'E2E Member',
+      'full_name': memberName,
       'invite_token': token,
       'policy_version': policyVersion,
     }));
@@ -221,12 +235,12 @@ class E2eFamily {
       familyId: familyId,
       founder: E2eMember(
           email: founderEmail,
-          fullName: 'E2E Founder',
+          fullName: founderName,
           profileId: founderRow['id'] as int,
           userId: founderRow['user_id'] as String),
       member: E2eMember(
           email: memberEmail,
-          fullName: 'E2E Member',
+          fullName: memberName,
           profileId: memberRow['id'] as int,
           userId: memberRow['user_id'] as String),
       userIds: userIds,
@@ -338,9 +352,9 @@ class E2eFamily {
   }
 
   Future<int> roleIdOf(String roleName) async {
-    final roles = await _get('/rest/v1/roles?select=id,role_name');
+    final roles = await _get('/rest/v1/roles?select=id,role');
     return (roles.firstWhere((r) =>
-            (r as Map)['role_name'].toString().toLowerCase() ==
+            (r as Map)['role'].toString().toLowerCase() ==
             roleName.toLowerCase()) as Map)['id'] as int;
   }
 

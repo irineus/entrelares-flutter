@@ -37,6 +37,9 @@ void main() {
 
   late E2eFamily family;
   late DateTime targetDay;
+  // Whether `app.main()` has already initialized the Supabase singleton in
+  // this process. See `bootApp` for why the answer cannot simply be asked.
+  var appBooted = false;
 
   setUpAll(() async {
     E2eFamily.requireKey();
@@ -54,12 +57,37 @@ void main() {
   });
 
   /// Boots the real app with a clean local state, signed out.
+  ///
+  /// The sign-out is guarded because `Supabase.instance` is an ASSERTION, not
+  /// a nullable getter: until `app.main()` has run once there is no singleton,
+  /// and touching it throws *"You must initialize the supabase instance"* —
+  /// which is what killed the FIRST boot of this test, i.e. every run.
+  /// From the second boot on the singleton is alive (it is per PROCESS, the
+  /// pilot's lesson 8), and signing out is precisely what makes the next user
+  /// start clean. `Supabase.initialize` itself is idempotent in 2.17.2 — it
+  /// logs and returns the existing instance — so calling `app.main()` again is
+  /// safe; the package's own docstring still claims otherwise and is stale.
   Future<void> bootApp(WidgetTester tester) async {
-    SharedPreferences.setMockInitialValues({});
-    await Supabase.instance.client.auth
-        .signOut(scope: SignOutScope.local)
-        .catchError((_) {});
+    // The language is PINNED, and that is not a preference — it is the U-13
+    // trap. `main()` resolves the session language as
+    // `stored override ?? profiles.language ?? PlatformDispatcher.locale`, and
+    // on CI the browser reports the HOST's locale (`en-US`), so the app renders
+    // in ENGLISH while every selector in this file comes from
+    // `Localization(AppLanguage.ptBr)`. The failure names the widget
+    // (`Found 0 widgets with text "Entrar"`), never the language — which is what
+    // makes it expensive. Seeding the stored override is the FIRST rung of that
+    // precedence, so it wins whatever the runner's locale is. The `flutter.`
+    // prefix is the one shared_preferences adds on write.
+    SharedPreferences.setMockInitialValues({
+      'flutter.${LanguageResolver.storageKey}': AppLanguage.ptBrCode,
+    });
+    if (appBooted) {
+      await Supabase.instance.client.auth
+          .signOut(scope: SignOutScope.local)
+          .catchError((_) {});
+    }
     app.main();
+    appBooted = true;
     await tester.pumpAndSettle(const Duration(seconds: 10));
   }
 
@@ -72,7 +100,19 @@ void main() {
   }
 
   Future<void> openDay(WidgetTester tester, int day) async {
-    final cell = find.text('$day').last;
+    // SCOPED to the month grid, and that is the whole point. `find.text('28')`
+    // over the entire tree also matches the day number wherever else it is
+    // printed — the next-handoff card, the upcoming list — and those grow as
+    // the family gains state, so a bare `.last` silently changes target
+    // mid-test. It changed here: the founder's tap landed on the grid, and the
+    // member's, with a pending request on screen, did not.
+    //
+    // `.last` INSIDE the grid is still right: a month grid also draws the tail
+    // of the previous month, so '28' can legitimately appear twice, and the
+    // second one is this month's.
+    final cell = find
+        .descendant(of: find.byType(GridView), matching: find.text('$day'))
+        .last;
     await tester.ensureVisible(cell);
     await tester.pumpAndSettle();
     await tester.tap(cell);
@@ -89,7 +129,7 @@ void main() {
 
     await openDay(tester, targetDay.day);
     final memberChip =
-        find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').last);
+        find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').first);
     await tester.ensureVisible(memberChip.last);
     await tester.pumpAndSettle();
     await tester.tap(memberChip.last);
@@ -123,8 +163,36 @@ void main() {
     await signIn(tester, family.member.email);
 
     await openDay(tester, targetDay.day);
-    expect(find.text(l[K.frozenSwapTitle]), findsOneWidget,
-        reason: 'the approver taps a frozen day and gets the panel');
+    // The `reason` carries the DIAGNOSIS, not just the claim. Two runs died
+    // here saying only "found 0 widgets", which names the symptom and hides
+    // every candidate cause: the request may have resolved, the tap may have
+    // opened the ordinary editor, or no sheet may be open at all. The reason
+    // string is the one channel guaranteed to reach the `flutter drive` log on
+    // web, so it answers those three at once.
+    // `textContaining`, and that is the whole defect. `find.text` matches the
+    // widget's ENTIRE string, and the sheet renders `'$headerIcon '` before the
+    // catalogue sentence — the app keeps its emoji inside the sentences it
+    // writes (`screens/frozen_day_sheet.dart`). So the screen said
+    // "⏳ Solicitação de troca pendente" while the finder asked for
+    // "Solicitação de troca pendente", and the panel that was RIGHT THERE,
+    // with the requester, the proposed carer and both buttons correct, read as
+    // absent. Any assertion built from a catalogue key against a decorated
+    // title has this shape.
+    final panel = find.textContaining(l[K.frozenSwapTitle]);
+    if (panel.evaluate().isEmpty) {
+      final stillOpen = await family.openRequests();
+      final onScreen = find
+          .byType(Text)
+          .evaluate()
+          .map((e) => (e.widget as Text).data)
+          .whereType<String>()
+          .toList();
+      fail('the approver taps a frozen day and gets the panel — '
+          'open requests at this moment: $stillOpen | '
+          'texts on screen: $onScreen');
+    }
+    expect(panel, findsOneWidget,
+        reason: 'exactly one frozen panel, never two sheets stacked');
     await tester.tap(find.text(l[K.frozenApprove]));
     await tester.pumpAndSettle(const Duration(seconds: 10));
 
@@ -145,7 +213,7 @@ void main() {
     await signIn(tester, family.founder.email);
     await openDay(tester, day.day);
     final memberChip =
-        find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').last);
+        find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').first);
     await tester.ensureVisible(memberChip.last);
     await tester.pumpAndSettle();
     await tester.tap(memberChip.last);
