@@ -1,3 +1,5 @@
+import 'package:entrelares_core/entrelares_core.dart';
+
 /// The App Links surface — `https://web.entrelares.app` is the PRODUCT's web
 /// origin (the Blazor PWA today, Flutter Web after the cutover; the apex
 /// `entrelares.app` is the landing). It already serves
@@ -10,6 +12,13 @@
 abstract final class DeepLinkUrls {
   static const String webOrigin = 'https://web.entrelares.app';
   static const String updatePassword = '$webOrigin/update-password';
+
+  /// The recovery landing, carrying the language of the SCREEN the reset was
+  /// asked from (U-13, `AuthMail.languageQueryParam`). The plain constant
+  /// above stays as the route's identity — this is what a `resetPasswordForEmail`
+  /// call must send, and the mirror test asserts both call sites use it.
+  static String updatePasswordFor(AppLanguage language) =>
+      '$updatePassword?${AuthMail.languageQueryParam}=${language.code}';
 
   /// Where GoTrue sends the founder's confirmation e-mail. It lands on the web
   /// sign-in page by design: the account is not usable until the link is

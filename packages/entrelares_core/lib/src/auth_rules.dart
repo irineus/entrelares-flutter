@@ -51,3 +51,36 @@ abstract final class UpdatePasswordRules {
     return null;
   }
 }
+
+/// U-13 — the one field a password-reset request can carry across into the
+/// e-mail that answers it.
+///
+/// `send-auth-email` normally addresses a reader in the language their PROFILE
+/// declares. A reset, though, is by definition asked for by someone who cannot
+/// sign in, and the profile only learns a person's language when they DO sign
+/// in — an account that has not been back since the column shipped is silent,
+/// so the reader gets PT-BR while their screen says English. That is not a
+/// hypothesis: it is what the pre-production QA round of Aug 2026 found.
+///
+/// `redirect_to` is the only field the client controls that survives the round
+/// trip into GoTrue's hook payload, and what it carries here is exactly the
+/// right datum — the language the person was looking at when they asked. It
+/// ranks BELOW an explicit `profiles.language` and above everything else
+/// (`langFromRedirect` in `supabase/functions/_shared/i18n.ts`).
+///
+/// The key is a Dart constant on this side and a Deno constant on the other,
+/// in different deployment units, with nothing in either toolchain connecting
+/// them: rename one and the other keeps compiling, keeps deploying, keeps
+/// passing every other test, and every locked-out English reader silently
+/// starts receiving Portuguese — invisible precisely because the fallback is a
+/// perfectly valid language. `test/mirrors/auth_mail_mirror_test.dart` reads
+/// both files and makes that red.
+///
+/// Worst case if a project's Redirect URLs allow-list does not match a query
+/// string: GoTrue falls back to the Site URL, i.e. the app root. Checked
+/// against the code, not assumed — `AuthChangeEvent.passwordRecovery` routes
+/// to `/update-password` from wherever the app happens to be, so the reset
+/// still works and only the landing route differs.
+abstract final class AuthMail {
+  static const String languageQueryParam = 'lang';
+}

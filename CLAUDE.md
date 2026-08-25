@@ -12,9 +12,12 @@ cutover plan ([`docs/flutter-cutover.md`](docs/flutter-cutover.md)), and **T-53 
 reversible one, and the web hours later. Everything that came before is history in those two
 documents; what matters day to day is that **a merge to `main` reaches real users**.
 
-The Blazor client is frozen and stays published at `legado.entrelares.app` as the documented
-way back. **The rollback dies when it is shut down**, which is the last action of stage 4 and
-has no date — it waits on a measured condition, not a calendar (T-56).
+**The rollback is dead, and that is the end of T-56 (24/08/2026).** The Blazor client was frozen
+on 19/08 and published at `legado.entrelares.app` as the documented way back; the owner declared
+that way back no longer needed the day after the cutover, and `entrelares-app` was shut down and
+left to be archived. There is no way back any more, which is the ordinary consequence of a
+cutover that worked: **this repo is the only client the product has**, and a merge to `main`
+reaches real users with nothing behind it.
 
 **This file is the authority.** Until 24/08/2026 it deferred to `entrelares-app/CLAUDE.md` for
 the product invariants (language rules, the trailer convention, the working agreement, the
@@ -32,8 +35,9 @@ the shortest path to losing it. The board in Notion stays the owner of status an
 markdown here stays the source of truth for what each item IS. The decisions, the measurements
 behind them and the PR-by-PR plan are in [`docs/arquivamento-app.md`](docs/arquivamento-app.md).
 
-**While the move is under way, `.claude/skills/next-item/SKILL.md` §0 carries the table of
-what still lives where** — check it before assuming a path.
+**`.claude/skills/next-item/SKILL.md` §0 carries the table of what lives where** — the move
+finished with T-56, so that table is now the settled layout rather than a transition; check it
+before assuming a path.
 
 ## Locked decisions
 | Decision | Value |
@@ -243,6 +247,12 @@ These survived the rewrite because none of them is about the client language.
 ## Build & test
 ```
 cd packages/entrelares_core && fvm dart analyze --fatal-infos && fvm dart test
+# Nesse lane moram os quatro ESPELHOS Dart↔Deno (test/mirrors/, T-56): rótulos de
+# papel em inglês, formato de data dos e-mails, a chave `lang` do redirect de reset e
+# a cobertura de `params` de todo writer de notificação. Leem
+# supabase/functions/_shared/i18n.ts e supabase/migrations — as duplicações que
+# existem de propósito porque Deno não chama Dart. Um espelho que ninguém confere
+# apodrece calado, e é o lane mais barato do run.
 cd packages/entrelares_db_contracts && fvm dart analyze --fatal-infos
 cd apps/entrelares_app && fvm flutter analyze && fvm flutter test
 # The two source gates live in that suite: no_literal_snack_test (catalog strings)
@@ -251,13 +261,11 @@ cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per
 # Canal web: os dois flags NÃO são opcionais — sem o define o build aponta para o
 # banco de QA, e sem o --no-web-resources-cdn o CanvasKit vem do gstatic.
 cd apps/entrelares_app && fvm flutter build web --release --no-web-resources-cdn --dart-define=APP_ENV=prod
-# Gate de banco (225 testes de RLS/RPC/trigger contra o projeto dev), em DUAS
-# metades enquanto o T-56 atravessa: o que já virou Dart e o que ainda é C#.
-# As duas exigem a service_role do DEV — nunca a de produção. Sem ela a suíte
-# aborta com instruções. `python3 tool/count_csharp_tests.py` conta o lado C#;
-# a soma dos dois lados tem que continuar 225.
+# Gate de banco (225 testes de RLS/RPC/trigger contra o projeto dev), Dart puro
+# desde o PR 16 do T-56. Exige a service_role do DEV — nunca a de produção. Sem
+# ela a suíte aborta com instruções em vez de rodar pela metade.
+cd packages/entrelares_db_gate && fvm dart analyze --fatal-infos
 cd packages/entrelares_db_gate && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> fvm dart test
-cd db-gate/Entrelares.IntegrationTests && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> dotnet test -c Release
 # Gate de fluxo na web: os MESMOS arquivos integration_test/ num Chrome headless.
 # Exige chromedriver no PATH (`chromedriver --port=4444 &` antes).
 cd apps/entrelares_app && fvm flutter drive --driver=test_driver/integration_test.dart   --target=integration_test/swap_workflow_test.dart -d web-server --browser-name=chrome --headless   --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>

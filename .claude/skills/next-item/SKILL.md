@@ -23,13 +23,14 @@ delivered in another**:
 | **Code** of a landing item (`L-`) | `entrelares-site`, branch **`preview`** |
 | Backlog **records** + `archive/phase-*.md` | **here**, in `backlog/` — the mirror reads them from this repo since 24/08/2026 |
 | **Migrations + Edge Functions** | **here**, in `supabase/`. A PR applies them to the **dev** project before the gate runs; a merge to `main` applies them to **production** (job `db-prod`) before the web channel publishes |
-| **The DB gate** (221 C# tests over RLS/RPCs/triggers) | **here**, in `db-gate/` — job `db-gate` of `verify.yml`. Since 24/08/2026 it is the ONLY copy: the app repo's C# suites were deleted with the emptying |
+| **The DB gate** (225 tests over RLS/RPCs/triggers) | **here**, in `packages/entrelares_db_gate/` — job `db-gate` of `verify.yml`. Pure Dart since T-56 PR 16 (24/08/2026), and the only copy: the app repo's C# suites went with the emptying |
 | **Play listing + brand masters** | **here**, in `store/` (T-56 PR 4c) — the TWA/Bubblewrap project stayed behind, and retiring that package is **T-52** |
-| The frozen Blazor client | `entrelares-app`, published at `legado.entrelares.app` — **and nothing else**: since the emptying (24/08/2026) that repo holds the client, its unit suite and a `deploy.yml` that only publishes. Nothing there needs to be read to work here |
+| The old Blazor client | `entrelares-app`, **shut down and archived** (24/08/2026). It holds the frozen client and its unit suite, nothing else, and nothing is deployed from it. Nothing there needs to be read to work here |
 
-What is still in flight is the **port of the database gate to Dart** (the last PR of it deletes
-`db-gate/` and this row with it) and the **Blazor shutdown**, which has no date. The plan, the
-measurements and the PR-by-PR record are in
+**T-56 is CLOSED (24/08/2026)** — the table above is the settled layout, not a transition. What
+remains is a short list of owner console actions (delete the `master` ruleset in the old repo,
+promote `dev`→`master`, drop the Cloudflare domain and Pages project, archive), none of which
+moves a file. The plan, the measurements and the PR-by-PR record are in
 [`docs/arquivamento-app.md`](../../../docs/arquivamento-app.md). **If a row above no longer
 matches reality, that doc is the authority and this table is stale: fix it in the same
 delivery.**
@@ -93,8 +94,8 @@ incremental PRs (each with its docs/backlog closeout inline) and get the user's 
   `feature/<item>-<slug>`.
 - Tests ship with the feature in the same item: every **pure rule** gets a mirror in
   `packages/entrelares_core` with `dart test`; screens get widget tests; **DB rules go to
-  `db-gate/Entrelares.IntegrationTests`** (still C# — see §0); two-user flows to the
-  `integration_test` lane.
+  `packages/entrelares_db_gate`** (a suite library under `test/suites/`, wired into the
+  aggregating entrypoint — see §0); two-user flows to the `integration_test` lane.
 - **Run the gate locally before pushing** — the core lane uses `--fatal-infos`, so a single
   info-level lint (e.g. `unnecessary_brace_in_string_interps` inside a test `reason:`)
   fails the job, and because it is the FIRST step the app and web lanes never even start:
@@ -105,7 +106,7 @@ incremental PRs (each with its docs/backlog closeout inline) and get the user's 
   If the item touched the database, run the DB gate too (needs the DEV service_role key,
   never the production one):
   ```
-  cd db-gate/Entrelares.IntegrationTests && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> dotnet test -c Release
+  cd packages/entrelares_db_gate && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> fvm dart test
   ```
   That suite also holds the two source gates: `no_literal_snack_test` (catalog strings) and
   `no_color_literal_test` (U-27 — colours only in `lib/theme/tokens.dart`).

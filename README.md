@@ -1,15 +1,16 @@
-# Entrelares — Flutter (T-53, aposta de plataforma)
+# Entrelares — o app de produto (Flutter/Dart)
 
-A reescrita do [Entrelares](https://github.com/irineus/entrelares-app) (hoje Blazor WASM
-PWA) em **Flutter/Dart**. Nasceu como spike do **estágio 1**; com o GO do owner
-(19/08/2026) e o **estágio 3 aberto**, este repositório é o app de produto sendo
-construído lote a lote pelo mapa de paridade (`entrelares-app/docs/flutter-paridade.md`,
-ordem 1→2→3→4→6→5).
+**Este repositório É o produto, nos dois canais.** O pacote Play `com.entrelares.app` carrega
+este bundle e `web.entrelares.app` é servido daqui — desde o cutover do T-53, em **23/08/2026**.
+Um merge em `main` chega a usuário real.
 
-**Estado:** os **seis lotes estão entregues** (20/08/2026, com o lote 5 — premium/billing e
-o redesenho T-48 de Play Billing). O estágio 3 está funcionalmente completo; o que vem é o
-**cutover do estágio 4**. O Blazor segue congelado e em produção até lá — enquanto o cutover
-não acontece, rollback é não fazer nada.
+Nasceu como spike do estágio 1 (GO do owner em 19/08/2026) e foi construído lote a lote pelo
+mapa de paridade ([`docs/flutter-paridade.md`](docs/flutter-paridade.md)) atrás do plano de
+cutover ([`docs/flutter-cutover.md`](docs/flutter-cutover.md)). O cliente Blazor que ele
+substituiu ficou publicado em `legado.entrelares.app` como rota de rollback até **24/08/2026**,
+quando o owner declarou a rota desnecessária e o `entrelares-app` foi desligado e arquivado
+(T-56, [`docs/arquivamento-app.md`](docs/arquivamento-app.md)). **Não há mais volta**, que é a
+consequência ordinária de um cutover que deu certo.
 
 ## Estrutura (molde `irineus/desmalha`)
 
@@ -18,9 +19,18 @@ não acontece, rollback é não fazer nada.
 tool/setup_env.sh             # bootstrap idempotente de ambiente Linux (JDK 17, FVM, Android SDK)
 apps/entrelares_app/tool/     # subset_inter.py — regenera a fonte embarcada (U-27)
 packages/entrelares_core/     # Dart puro: espelhos-cliente das regras do servidor, testáveis com `dart test`
+packages/entrelares_core/test/mirrors/   # T-56: os espelhos Dart↔Deno (i18n.ts, migrations)
+packages/entrelares_db_contracts/        # T-56 PR 6: as formas de linha do PostgREST, lidas pelo app E pelo gate
+packages/entrelares_db_gate/  # T-56 PRs 6-16: o gate de banco (225 testes), Dart puro
+supabase/                     # T-56 PR 3: migrations, Edge Functions e o runbook de deploy
+backlog/                      # T-56 PR 4a: a memória escrita do produto (registros + archive/)
+store/                        # T-56 PR 4c: listagens da Play, masters de marca e seus geradores
 apps/entrelares_app/          # o app Flutter (só orquestra e apresenta)
 apps/entrelares_app/lib/theme/  # U-27: tokens.dart (a única fonte de cor) + app_theme.dart
 ```
+
+> Nenhum pacote sob `packages/` pode importar Flutter: o gate tem de rodar sob `dart test` puro,
+> e os contratos precisam ser importáveis pelos dois lados.
 
 ## Comandos
 
@@ -36,10 +46,10 @@ cd apps/entrelares_app && fvm flutter run -d web-server --web-port 8080
 # E2E (lote 3): app real em emulador contra o projeto dev — exige a service_role key
 cd apps/entrelares_app && fvm flutter test integration_test/swap_workflow_test.dart \
   --flavor dev --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
-# Gate de banco: 221 testes de RLS/RPC/trigger contra o projeto dev, com família
+# Gate de banco: 225 testes de RLS/RPC/trigger contra o projeto dev, com família
 # descartável. Exige a service_role do DEV (nunca a de produção); sem ela a suíte
 # aborta com instruções em vez de rodar pela metade.
-cd db-gate/Entrelares.IntegrationTests && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> dotnet test -c Release
+cd packages/entrelares_db_gate && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> fvm dart test
 # Espelho do board no Notion: lê os TRÊS repos (este, entrelares-app e entrelares-site,
 # encontrados por padrão como irmãos deste checkout) e gera o corpo das páginas.
 python tool/notion_mirror.py -o mirror.json
@@ -70,28 +80,27 @@ da suíte web (`E2E-<runId>`, e-mails `@resend.dev`, teardown sempre via
 `e2e-pack` = `p0` de fumaça ou `full`). A `service_role` do dev chega só pelo secret
 `SUPABASE_SERVICE_ROLE_DEV` → `--dart-define`; nunca entra no repositório.
 
-## Gate de banco (`db-gate/`)
+## Gate de banco (`packages/entrelares_db_gate/`)
 
-**221 testes** sobre RLS, RPCs `SECURITY DEFINER`, triggers e o ledger de cobrança,
+**225 testes** sobre RLS, RPCs `SECURITY DEFINER`, triggers e o ledger de cobrança,
 rodando contra o projeto **dev** real com família descartável. É a camada que prova o
 invariante do produto — *o cliente ESPELHA, o banco IMPÕE* — e veio do `entrelares-app`,
 que está sendo arquivado (ver [`docs/arquivamento-app.md`](docs/arquivamento-app.md)).
 
-Ainda é **C#**, de propósito: a suíte só precisava do cliente Blazor pelos modelos
-PostgREST, então erguer esses tipos num projeto próprio (`Entrelares.DbContracts`, 1.010
-linhas cuja única dependência é o pacote `Supabase`) trouxe os 221 testes **sem reescrever
-uma linha deles**. A decisão registrada é **portá-la para Dart**, suíte por suíte; carregá-la
-intacta primeiro é o que mantém o gate coberto durante a travessia, em vez de trocar um gate
-que funciona por uma migração.
+Chegou em **C#** e é **Dart puro desde 24/08/2026** (T-56, PRs 6 a 16): cada PR da travessia
+traduziu um grupo e apagou, **no mesmo commit**, as classes C# que substituiu — o gate nunca
+ficou descoberto, e a soma `C# + Dart` fechou 225 em todos eles. O que sobreviveu à travessia
+como decisão de arquitetura são três coisas: os contratos PostgREST viraram um pacote próprio
+(`packages/entrelares_db_contracts`), lido pelo app **e** pelo gate; o `supabase` puro (nunca
+o `supabase_flutter`, que é singleton por processo e não sabe conviver com cinco identidades
+na mesma execução); e um **entrypoint agregador** — `dart test` dá um `setUpAll` por ARQUIVO,
+então as 43 suítes são bibliotecas chamadas por um único `_test.dart`, que é o que mantém
+**uma** família descartável por execução em vez de 43.
 
 No CI é o job `db-gate` do `verify.yml`, nos mesmos eventos do `verify` e **bloqueando o
 `deploy-web` junto com ele**. Roda serializado no repo inteiro (`concurrency: db-gate`):
 famílias são únicas por execução, mas as seeds de billing do T-39 usam ids externos FIXOS
 (`sub_e2e_*`), e duas execuções sobrepostas apagariam as linhas uma da outra.
-
-> Enquanto o `entrelares-app` não for esvaziado, a mesma suíte existe **nos dois repos** — lá
-> ela é dependência do Playwright por `ProjectReference` e não pode sair antes dele. A cópia
-> daqui é a autoridade; a de lá segue viva até o PR de esvaziamento.
 
 ## Assinatura (release) — T-55
 

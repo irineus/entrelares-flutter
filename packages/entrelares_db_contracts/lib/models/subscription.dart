@@ -31,6 +31,15 @@ class Subscription {
   /// the paid period on [currentPeriodEnd]; never F-42-reactivatable.
   final bool singleCharge;
 
+  /// T-48: the Play purchase token, on a `play` row. A UNIQUE index makes it
+  /// fund exactly ONE family — which is the only place a replayed receipt can
+  /// be stopped, since the client is never what grants Premium.
+  final String? storePurchaseToken;
+
+  /// T-48: `premium_monthly` | `premium_annual`, verbatim from Play. The ids are
+  /// pinned by test: renaming one orphans real purchases.
+  final String? storeProductId;
+
   /// `monthly` | `annual`.
   final String cycle;
 
@@ -38,6 +47,13 @@ class Subscription {
   final DateTime? currentPeriodEnd;
   final DateTime? overdueSince;
   final DateTime? canceledAt;
+
+  /// S-15/B-3: when the "you are about to lose Premium" notice went out for the
+  /// CURRENT overdue cycle. The app never reads it — the notice is the cron's
+  /// business — but the gate does, because it is what makes the warning fire
+  /// exactly once, and a trigger clears it when a NEW overdue cycle starts. A
+  /// stale marker would silence the second warning forever.
+  final DateTime? graceWarningSentAt;
 
   const Subscription({
     required this.id,
@@ -48,11 +64,14 @@ class Subscription {
     this.status = 'pending',
     this.billingType,
     this.singleCharge = false,
+    this.storePurchaseToken,
+    this.storeProductId,
     this.cycle = 'monthly',
     this.priceCents = 0,
     this.currentPeriodEnd,
     this.overdueSince,
     this.canceledAt,
+    this.graceWarningSentAt,
   });
 
   factory Subscription.fromJson(Map<String, dynamic> json) => Subscription(
@@ -64,11 +83,14 @@ class Subscription {
         status: (json['status'] as String?) ?? 'pending',
         billingType: json['billing_type'] as String?,
         singleCharge: (json['single_charge'] as bool?) ?? false,
+        storePurchaseToken: json['store_purchase_token'] as String?,
+        storeProductId: json['store_product_id'] as String?,
         cycle: (json['cycle'] as String?) ?? 'monthly',
         priceCents: (json['price_cents'] as num?)?.toInt() ?? 0,
         currentPeriodEnd: _utc(json['current_period_end'] as String?),
         overdueSince: _utc(json['overdue_since'] as String?),
         canceledAt: _utc(json['canceled_at'] as String?),
+        graceWarningSentAt: _utc(json['grace_warning_sent_at'] as String?),
       );
 
   static DateTime? _utc(String? wire) =>

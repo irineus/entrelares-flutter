@@ -572,7 +572,7 @@ class FakeCustodyDataSource implements CustodyDataSource {
   }
 
   @override
-  Future<void> sendPasswordReset(String email) async {
+  Future<void> sendPasswordReset(String email, AppLanguage language) async {
     if (throwOnProfileWrite != null) throw throwOnProfileWrite!;
     passwordResets.add(email);
   }
