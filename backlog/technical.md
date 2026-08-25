@@ -527,8 +527,27 @@ Two seconds is not enough for a single round trip to Supabase, let alone a seede
 **Scope**
 
 1. **The guard: require positive proof of execution**, not the absence of an error. Suggested shape — the suites record how many tests ran in `binding.reportData` (a `tearDownAll`), `test_driver/integration_test.dart` swaps `integrationDriver()` for `integrationDriver(responseDataCallback: …)` writing that out, and the workflow step fails when the file is missing or the count is zero / below expectation. **Design it against the first genuinely green web run** — at the time of writing none has ever existed, so nobody knows what `flutter drive` prints on a real web success. A guard that greps expected output is how this class of bug is written a second time.
-2. **Correct [`docs/arquivamento-app.md`](../docs/arquivamento-app.md), the PR-5 line.** It records *"144 s para os dois packs (5 testes)"*. That timed **compilation** — 2 targets × ~42 s + startup ≈ 144 s — with zero tests executed. The sentence is false and reads as current state, which is how it was believed for a day.
-3. **Decide the regime, and that part is the owner's.** A gate that actually asserts can actually block a publish. That is its declared purpose, but in practice it is a change of regime, not a repaired test — which is exactly why it is an item and not a fix folded into someone's PR.
+2. **Decide the regime, and that part is the owner's.** A gate that actually asserts can actually block a publish. That is its declared purpose, but in practice it is a change of regime, not a repaired test — which is exactly why it is an item and not a fix folded into someone's PR.
+
+**Already done, and by someone else (25/08/2026).** This item opened carrying a third piece of
+scope — correcting the false PR-5 line in [`docs/arquivamento-app.md`](../docs/arquivamento-app.md),
+which recorded *"144 s para os dois packs (5 testes)"* while having timed **compilation** (2 targets
+× ~42 s + startup) with zero tests executed. That correction landed in
+[#82](https://github.com/irineus/entrelares-flutter/pull/82) hours later, written by the session
+that owned the T-56 record: the "(5 testes)" claim is gone and the row now carries an explicit
+`⚠️ CORRIGIDO` saying the lane was not blocking anything. Nothing is left of that piece.
+
+**The method lesson that PR left, and the reason it belongs here rather than there.** It is the
+rule the guard has to satisfy, stated better than this record first stated it:
+
+> A probe proves what it exercises and nothing more. That one proved the lane can report a failing
+> **assertion**; it never asked whether the lane can report a suite that **never got as far as
+> asserting**. When a test exists precisely because the TOOL lies about success, the probe has to
+> cover every way the run can end — and the record has to say which ways were covered.
+
+Read against this item: a guard validated only by "we broke a test and the job went red" would
+reproduce the original defect exactly. The acceptance for the guard is that it goes red on a suite
+that runs **zero** tests — which is the case nobody checked, and the whole reason this item exists.
 
 **Deliberately NOT in scope:** the three stacked E2E defects themselves (the `roles.role_name` column, `bootApp`'s inverted order, the unpinned language). Those belong to PR #81. This item is about the lane being *unable to lie*, not about the tests it happens to be running today.
 
@@ -539,4 +558,3 @@ A gate that approves without asserting is worse than no gate: it spends the trus
 - `apps/entrelares_app/test_driver/integration_test.dart` — the driver's `responseDataCallback`
 - `apps/entrelares_app/integration_test/*.dart` — the executed-count report
 - `.github/workflows/verify.yml` — the assertion in the `web-e2e` step
-- `docs/arquivamento-app.md` — the PR-5 measurement line
