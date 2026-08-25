@@ -37,6 +37,9 @@ void main() {
 
   late E2eFamily family;
   late DateTime targetDay;
+  // Whether `app.main()` has already initialized the Supabase singleton in
+  // this process. See `bootApp` for why the answer cannot simply be asked.
+  var appBooted = false;
 
   setUpAll(() async {
     E2eFamily.requireKey();
@@ -54,12 +57,25 @@ void main() {
   });
 
   /// Boots the real app with a clean local state, signed out.
+  ///
+  /// The sign-out is guarded because `Supabase.instance` is an ASSERTION, not
+  /// a nullable getter: until `app.main()` has run once there is no singleton,
+  /// and touching it throws *"You must initialize the supabase instance"* —
+  /// which is what killed the FIRST boot of this test, i.e. every run.
+  /// From the second boot on the singleton is alive (it is per PROCESS, the
+  /// pilot's lesson 8), and signing out is precisely what makes the next user
+  /// start clean. `Supabase.initialize` itself is idempotent in 2.17.2 — it
+  /// logs and returns the existing instance — so calling `app.main()` again is
+  /// safe; the package's own docstring still claims otherwise and is stale.
   Future<void> bootApp(WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
-    await Supabase.instance.client.auth
-        .signOut(scope: SignOutScope.local)
-        .catchError((_) {});
+    if (appBooted) {
+      await Supabase.instance.client.auth
+          .signOut(scope: SignOutScope.local)
+          .catchError((_) {});
+    }
     app.main();
+    appBooted = true;
     await tester.pumpAndSettle(const Duration(seconds: 10));
   }
 
