@@ -446,7 +446,11 @@ aqui, então não há janela descoberta.
   fecho operacional, com a ordem que fecha a janela. **O padrão a levar: toda configuração
   externa acrescentada por um runbook precisa da linha que a desfaz, escrita no mesmo runbook.**
 
-- **`env.dart` ainda nomeia `qa.entrelares.app` no flavor dev** (`webHostname`). Não quebra nada
-  e não é urgente: é só o rótulo que o dev reporta ao Umami, e o dev tem `umamiWebsiteId` vazio
-  de propósito, então a chamada inteira é no-op. Mas passa a nomear um host que deixou de
-  existir — troca cosmética para uma próxima entrega que já toque o arquivo.
+- ~~**`env.dart` ainda nomeia `qa.entrelares.app` no flavor dev**~~ **Corrigido em 25/08/2026**
+  para `dev.web.entrelares.app`. Era inerte — o dev tem `umamiWebsiteId` vazio de propósito,
+  então `AnalyticsService.isEnabled` é falso e o rótulo nunca sai —, mas nomeava um host que
+  deixou de existir. **A troca não é de nome, é de espécie:** aquele valor era um host REAL que
+  por acaso servia de rótulo, e desde o desligamento não existe implantação web de dev nenhuma,
+  então qualquer host real ali estaria morto ou seria de outra pessoa. Agora é sintético e
+  simétrico ao vizinho `dev.app.entrelares.app`, e o comentário do campo diz por quê — que é o
+  que impede alguém de repor um host real no lugar.
