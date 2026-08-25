@@ -14,8 +14,8 @@ documents; what matters day to day is that **a merge to `main` reaches real user
 
 **The rollback is dead, and that is the end of T-56 (24/08/2026).** The Blazor client was frozen
 on 19/08 and published at `legado.entrelares.app` as the documented way back; the owner declared
-that way back no longer needed the day after the cutover, and `entrelares-app` was shut down and
-left to be archived. There is no way back any more, which is the ordinary consequence of a
+that way back no longer needed the day after the cutover; the client was shut down and
+`entrelares-app` is **archived** since 25/08/2026 — read-only, kept for its history. There is no way back any more, which is the ordinary consequence of a
 cutover that worked: **this repo is the only client the product has**, and a merge to `main`
 reaches real users with nothing behind it.
 

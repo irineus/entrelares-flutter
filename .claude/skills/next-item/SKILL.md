@@ -27,10 +27,10 @@ delivered in another**:
 | **Play listing + brand masters** | **here**, in `store/` (T-56 PR 4c) — the TWA/Bubblewrap project stayed behind, and retiring that package is **T-52** |
 | The old Blazor client | `entrelares-app`, **shut down and archived** (24/08/2026). It holds the frozen client and its unit suite, nothing else, and nothing is deployed from it. Nothing there needs to be read to work here |
 
-**T-56 is CLOSED (24/08/2026)** — the table above is the settled layout, not a transition. What
-remains is a short list of owner console actions (delete the `master` ruleset in the old repo,
-promote `dev`→`master`, drop the Cloudflare domain and Pages project, archive), none of which
-moves a file. The plan, the measurements and the PR-by-PR record are in
+**T-56 is CLOSED** — the table above is the settled layout, not a transition. The code closed on
+24/08/2026 and the owner's console work on 25/08: `entrelares-app` is **archived**, and
+`legado.entrelares.app` no longer resolves. Nothing about the product lives outside this repo and
+`entrelares-site`. The plan, the measurements and the PR-by-PR record are in
 [`docs/arquivamento-app.md`](../../../docs/arquivamento-app.md). **If a row above no longer
 matches reality, that doc is the authority and this table is stale: fix it in the same
 delivery.**
