@@ -163,8 +163,24 @@ void main() {
     await signIn(tester, family.member.email);
 
     await openDay(tester, targetDay.day);
-    expect(find.text(l[K.frozenSwapTitle]), findsOneWidget,
-        reason: 'the approver taps a frozen day and gets the panel');
+    // The `reason` carries the DIAGNOSIS, not just the claim. Two runs died
+    // here saying only "found 0 widgets", which names the symptom and hides
+    // every candidate cause: the request may have resolved, the tap may have
+    // opened the ordinary editor, or no sheet may be open at all. The reason
+    // string is the one channel guaranteed to reach the `flutter drive` log on
+    // web, so it answers those three at once.
+    if (find.text(l[K.frozenSwapTitle]).evaluate().isEmpty) {
+      final stillOpen = await family.openRequests();
+      final onScreen = find
+          .byType(Text)
+          .evaluate()
+          .map((e) => (e.widget as Text).data)
+          .whereType<String>()
+          .toList();
+      fail('the approver taps a frozen day and gets the panel — '
+          'open requests at this moment: $stillOpen | '
+          'texts on screen: $onScreen');
+    }
     await tester.tap(find.text(l[K.frozenApprove]));
     await tester.pumpAndSettle(const Duration(seconds: 10));
 
