@@ -223,6 +223,18 @@ These survived the rewrite because none of them is about the client language.
   concurrency group dies before its teardown, leaving fixed-id seeds behind for the next run to
   collide with. The suite deletes those seeds before creating them, and the orphan sweep spares
   anything younger than 2 h so parallel runs do not eat each other.
+- **A `cancelled` `db-gate` is usually an EVICTION, not a verdict.** The job holds a repo-wide
+  serialized group (`concurrency: db-gate`, `cancel-in-progress: false`), and that `false`
+  protects the job that is RUNNING — not the one waiting. GitHub keeps exactly ONE pending entry
+  per group, so a third claimant drops the queued one. Read it off the shape: an evicted job
+  reports `cancelled` and comes back with **no `steps` array at all**, because it never started.
+  The response is to let the group drain and re-run THAT run — never to cancel somebody else's to
+  get ahead. It does not need two people, either: pushing three times in quick succession to one
+  branch is three claimants (25/08/2026 — seven pushes on one PR, and three evictions measured in
+  an hour the same day). The serialization itself is load-bearing and must not be scoped per ref:
+  the T-39 billing seeds use FIXED external ids, so two overlapping runs delete each other's rows
+  — which is the gotcha directly above. Only the queue DEPTH is the flaw, and the real fix, if it
+  is ever worth it, is to give those seeds a run scope like the `evt_e2e_*` events already have.
 - **Supabase CLI on Windows:** `db dump -f` resolves against the CLI's own cwd — dump to a bare
   filename, then move.
 
