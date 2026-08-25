@@ -2948,16 +2948,22 @@ the start, 225 at the end**, printed in every run's summary and repeated in ever
   is the two-writer hazard decision 5 exists to prevent, and it lived on for one day inside the
   branch nobody was pushing to.
 
-  **It did not finish in this session, and the reason is worth keeping.** The promotion
-  `dev`→`master` was refused by a repository ruleset requiring the status check **`deploy`** —
-  the check produced by the workflow the same delivery removes. The lock outlived the door: the
-  ruleset protected a production the shutdown had just retired, and satisfying it would have
-  meant re-adding a pipeline to an archive. So `dev` carries the final state, `master` stays at
-  the pre-shutdown commit, and two owner actions close it — delete the ruleset, promote — with
-  the Cloudflare and archive steps in the same list. **The generalizable half:** a required
-  status check is a dependency on a workflow's continued existence, so any delivery that removes
-  a pipeline must ask what is still requiring its checks. Nothing is at risk while it waits —
-  archiving makes the repository read-only, and the ruleset already makes that branch unpushable.
+  **The promotion needed a second pass, and the reason is worth keeping.** `dev`→`master` was
+  refused by a repository ruleset requiring the status check **`deploy`** — the check produced by
+  the workflow the same delivery removes. The lock outlived the door: the ruleset protected a
+  production the shutdown had just retired, and satisfying it would have meant re-adding a
+  pipeline to an archive. **The generalizable half:** a required status check is a dependency on
+  a workflow's continued existence, so any delivery that removes a pipeline must ask what is
+  still requiring its checks.
+
+  **Unblocked by the owner on 25/08/2026, and reading the rule changed the action.** The first
+  instruction written for it was "delete the ruleset" — written before anyone had read it.
+  `protect-master` has THREE rules: `deletion`, `non_fast_forward` and the required check. Only
+  the last one blocked a fast-forward promotion, so unchecking *Require status checks* cleared
+  the way while keeping the branch protected against deletion and history rewrite, which is what
+  that ruleset existed to do. **A rule that gets in the way is not automatically a rule to
+  delete**, and the difference between the two actions cost one read-only API call.
+  `origin/master` now sits on the shutdown commit with no `.github/` at all.
 
 **The four mirrors, and the defect the port found (24/08/2026)**
 Four unit tests left with the `supabase/` they read: `RoleCatalogMirrorTests`,
@@ -3041,6 +3047,32 @@ waiting for the one in front. That last part is wider than the finding and was t
 deliberately: it was the workflow-level group that had been protecting them, and removing it
 without replacing it would have silently made a concurrent push able to interrupt a production
 deploy.
+
+**What the shutdown's own cleanup list was missing (25/08/2026)**
+Writing the owner's runbook in detail found two things the plan had never written down, and both
+are about the same blind spot: **a runbook records what it ADDS and rarely what undoes it.**
+- **The Auth allow-list.** Step 4b of the cutover added `legado.entrelares.app` to the Supabase
+  Redirect URLs so recovery and invitations still worked through the rollback route. Nothing
+  anywhere said to remove it. Alone it is a dead entry; combined with a DANGLING CNAME — which is
+  exactly what remains if the Pages project is deleted before its custom domain — it becomes a
+  path for whoever claims that subdomain to receive password-recovery links. The runbook now
+  orders the steps so the CNAME dies with the domain, before the project is deleted.
+- **The Site URL is a second field, and nobody looked at it.** Removing `legado.` from the
+  Redirect URLs is the obvious half; the **Site URL** on the same screen is what GoTrue falls
+  back to when a `redirect_to` does not match the allow-list — silently, per runbook §5.3. The
+  DEV project's Site URL was `https://qa.entrelares.app`, and that host died with the Pages
+  project, so the dev fallback started pointing at nothing. **This lands on this item's own
+  change:** the `?lang=` restored above is precisely the case where an allow-list entry written
+  without a query string may fail to match, and this record's claim that the worst case is MILD
+  rests on `passwordRecovery` routing from wherever the app is — which is only true while the
+  Site URL is a LIVE host. A mitigation that depends on configuration has to be re-checked every
+  time the configuration moves. Found by reading the console screenshots of the cleanup, not by
+  any test.
+- **`cutover.web_date` looks like cutover litter and is pinned by the gate.**
+  `packages/entrelares_db_gate/test/suites/app_settings.dart` asserts the row exists with
+  `value_type = 'string'`, so tidying it away turns `db-gate` red and blocks the web publish. The
+  suite header already says the key is spelled out by hand there precisely because the helper
+  that owned it died with the Blazor client — the warning is now in the owner's runbook too.
 
 **Related**
 T-53 (the cutover that inverted the two repos' roles), T-52 (the legacy Play package, whose

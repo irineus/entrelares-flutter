@@ -9,7 +9,7 @@ Tudo que diz respeito ao aplicativo Entrelares passa a viver aqui, no `entrelare
 > **desligamento do cliente Blazor**, que o plano deixava sem data. Ele não chegou pela medição
 > da decisão 7: o owner declarou a rota de rollback desnecessária, que é a decisão que a medição
 > existia para provocar. O que resta são **ações de console do owner**, listadas em
-> [§ O que falta, e é do owner](#o-que-falta-e-é-do-owner) — nenhuma delas é código, e nada está
+> [§ O fecho operacional](#o-fecho-operacional--dois-passos-feitos-três-restantes) — nenhuma delas é código, e nada está
 > em risco enquanto esperam.
 
 > **Este documento REVOGA uma decisão escrita.** O plano de cutover
@@ -81,7 +81,7 @@ fica descoberto durante a travessia.
 | **6…16** ✅ | flutter | **O port do gate para Dart** (24/08/2026), suíte por suíte — o fatiamento detalhado está na seção seguinte. O PR 6 levou a fundação (contratos erguidos, clientes por identidade, fixture) e uma suíte real como prova; o 16 apagou `db-gate/` e o lane `dotnet`. As 225 asserções são todas Dart |
 | **F** ✅ | app | **O esvaziamento, num toque só** (24/08/2026, [`entrelares-app` #309](https://github.com/irineus/entrelares-app/pull/309)): 242 arquivos, −46.941 linhas. Sobra o cliente Blazor, sua suíte unitária e um `deploy.yml` reduzido à metade que publica — o deploy de QA que seguiu o merge fechou **verde em 1 min 39 s**, contra os ~15 min do gate antigo. Saíram também, por decisão do owner, as DUAS suítes C# e o `dependabot.yml`; o que ficou para trás e por quê está no registro do T-56. Não arquiva ainda |
 | **G** ✅ | app | **O desligamento** (24/08/2026, [`entrelares-app` #310](https://github.com/irineus/entrelares-app/pull/310)): sai o `deploy.yml` inteiro — a metade que publicava —, sai o modelo de PR que ainda instruía um fluxo sem deploy atrás dele, e os dois documentos passam a descrever um arquivo em vez de um cliente publicado. `E2ETests` e `IntegrationTests` já tinham saído no PR F. Com ele morrem o alias de QA `qa.entrelares.app` e a última esteira fora daqui que ainda alcançava produção |
-| **∅** | app | **O que sobra é console do owner**: apagar o ruleset do `master`, promover `dev`→`master`, tirar domínio e projeto Pages no Cloudflare, arquivar. Ver § O que falta |
+| **∅** | app | **O que sobra é console do owner.** Ruleset e promoção FEITOS em 25/08/2026 — `origin/master` está no commit do desligamento e sem `.github/`. Restam Cloudflare (domínios, DNS, projeto), a allow-list do Auth e o archive. Ver § O fecho operacional |
 
 ## O port do gate para Dart (PRs 6 a 16)
 
@@ -233,54 +233,130 @@ o CI, não contra a memória:
 O `keepalive-dev.yml` daqui não precisou de secret novo: a URL do dev é pública (a mesma do
 `env.dart`) e a `SUPABASE_SERVICE_ROLE_DEV` já existia aqui.
 
-## O que falta, e é do owner
+## O fecho operacional — dois passos feitos, três restantes
 
-Quatro ações de console, nenhuma delas código. **Nada está em risco enquanto esperam**: arquivar
-torna o repositório somente-leitura, e o próprio ruleset já impede qualquer push naquele branch.
+**Nada está em risco enquanto os restantes esperam**, e a razão é dupla: arquivar torna o
+repositório somente-leitura, e o `master` do `entrelares-app` já carrega o commit do
+desligamento.
 
-**1. Apagar o ruleset do `master` do `entrelares-app`.** A promoção da decisão 8 foi RECUSADA
-por ele: exige o status check **`deploy`**, que é produzido pela esteira que o desligamento
-remove. É um cadeado que sobreviveu à porta — ele protegia uma produção que o desligamento
-acabou de aposentar, e satisfazê-lo significaria recolocar uma esteira num arquivo.
-→ https://github.com/irineus/entrelares-app/settings/rules — abrir o ruleset que cobre
-`refs/heads/master`, botão **Delete ruleset** (ou desmarcar *Require status checks to pass* e
-salvar, se preferir manter o registro dele).
-*Sucesso:* a tela de rules deixa de listar o ruleset ativo para `master`.
+### ~~1. Apagar o ruleset do `master`~~ — RESOLVIDO em 25/08/2026, e não por apagá-lo
 
-**2. Promover `dev`→`master`** (a última promoção do Blazor). Depois do passo 1:
+A promoção da decisão 8 foi RECUSADA por ele: exigia o status check **`deploy`**, produzido
+pela esteira que o desligamento remove. Cadeado que sobreviveu à porta — protegia uma produção
+que o desligamento acabou de aposentar, e satisfazê-lo significaria recolocar uma esteira num
+arquivo.
+
+**Ler a regra antes de agir mudou a ação.** O ruleset é o `protect-master` (id `18872971`,
+criado em 13/07/2026) e tem **três** regras, não uma:
+
+| Regra | O que faz | Bloqueava a promoção? |
+|---|---|---|
+| `deletion` | impede apagar o branch | não |
+| `non_fast_forward` | impede force-push e reescrita de histórico | **não** — a promoção é `--ff-only` |
+| `required_status_checks` → contexto `deploy` | exige o check da esteira removida | **sim, só esta** |
+
+Então o certo não era *Delete ruleset*, era desmarcar **Require status checks to pass** e salvar:
+o `master` continua protegido contra deleção e reescrita, que é o que aquele ruleset existia
+para fazer. Feito assim.
+
+### ~~2. Promover `dev`→`master`~~ — FEITO em 25/08/2026
+
+`origin/master` está em `800d3ec` — *"chore: o cliente Blazor desliga — a rota de rollback deixa
+de existir (#310)"* —, e `.github/` não existe mais naquele branch. Com isso morre o risco que
+tornava este passo mais que cosmético: o `master` anterior ainda carregava o `deploy.yml`
+PRÉ-esvaziamento, com os passos *"Aplicar migrations e functions em PRODUÇÃO"* apontando para um
+`supabase/` parado desde o PR 3 — dois escritores no mesmo banco, que é o que a decisão 5 existe
+para impedir.
+
+### 3. Cloudflare e Supabase — nesta ordem, e a ordem tem motivo
+
+> **Duas travas antes de começar.**
+> **(a) Não toque no projeto `entrelares-web`** — é ele que serve `web.entrelares.app`, a
+> produção. O que morre é o **`entrelares-app`**. Os nomes são parecidos e ficam lado a lado na
+> mesma lista.
+> **(b) Não apague a linha `cutover.web_date` do `app_settings`.** Parece lixo do cutover, e o
+> gate de banco a fixa: `packages/entrelares_db_gate/test/suites/app_settings.dart` afirma que
+> ela existe com `value_type = 'string'`. Apagar deixa o `db-gate` vermelho, e ele bloqueia a
+> publicação web. O cabeçalho daquela suíte já diz que a chave está escrita à mão ali justamente
+> porque o helper que a possuía morreu com o Blazor.
+
+**Por que a ordem importa.** Um domínio customizado de Pages é um **CNAME na zona apontando para
+`entrelares-app.pages.dev`**. Apagar o projeto primeiro e deixar o CNAME de pé cria um registro
+*pendurado* — apontando para um alvo que deixou de ser nosso —, e aqui isso é pior que o normal:
+`legado.entrelares.app` **ainda está na allow-list de Redirect URLs do Auth** (passo 4b do
+runbook do cutover). Quem tomasse o subdomínio receberia link de recuperação de senha. Remover o
+domínio ANTES de apagar o projeto faz o CNAME sair junto.
+
+**3a — remover os domínios customizados.**
+→ https://dash.cloudflare.com → **Workers & Pages** → projeto **`entrelares-app`** → aba
+**Custom domains**: remover **`legado.entrelares.app`** e **`qa.entrelares.app`** (o alias de QA
+que o branch `dev` alimentava; sai de cena com a esteira).
+*Sucesso:* a aba fica sem domínios, só o `entrelares-app.pages.dev`.
+
+**3b — conferir que o DNS foi junto.**
+→ mesma dashboard → zona **`entrelares.app`** → **DNS → Records**: procurar `legado` e `qa`; se
+sobrou registro, apagar à mão. **É o passo que fecha a janela descrita acima** — não pule.
+*Sucesso:* nenhum registro `legado` nem `qa`. O `web` continua lá e não se mexe.
+
+**3c — apagar o projeto Pages.**
+→ projeto `entrelares-app` → **Settings** → fim da página → **Delete project**, confirmando o nome.
+*Sucesso:* a lista passa a mostrar só `entrelares-web`, `entrelares-site` e `entrelares-site-preview`.
+
+**3d — tirar `legado.entrelares.app` das Redirect URLs do Supabase.**
+Foi acrescentado no dia do corte para que recuperação de senha e convites funcionassem pela rota
+de rollback; sem a rota, é entrada morta numa allow-list de autenticação.
+→ produção: https://supabase.com/dashboard/project/jptqbwfziyzlhlmoekzu/auth/url-configuration
+→ dev/QA, por garantia: https://supabase.com/dashboard/project/buroanotfjcgvbfmacuh/auth/url-configuration
+Remover as entradas com `legado.entrelares.app`. **Não mexa nas de `web.entrelares.app`** — a
+§5.3 do runbook registra que um projeto cuja allow-list não inclui a própria URL do app volta
+silenciosamente a mandar todo mundo para o Site URL, sem erro em lugar nenhum.
+*Sucesso:* nenhuma linha com `legado.` na lista.
+
+**3e — conferir o SITE URL dos dois projetos, não só a allow-list.** *(achado em 25/08/2026, ao
+conferir os prints do passo 3 — não estava previsto)*
+O passo 3d tira `legado.` da lista de Redirect URLs, e é fácil parar aí. Mas o **Site URL** é
+outro campo, na mesma tela, e é ele que o GoTrue usa quando um `redirect_to` NÃO casa com a
+allow-list — silenciosamente, sem erro em lugar nenhum (§5.3 do runbook). O projeto **dev** tinha
+`https://qa.entrelares.app` como Site URL, e o `qa.` acabou de morrer com o projeto Pages: o
+fallback do dev passou a apontar para um host que não resolve.
+→ dev: trocar o Site URL para **`https://web.entrelares.app`** — é o host que o app dev de fato
+manda no `redirect_to` (o `DeepLinkUrls` não é por flavor), já está na allow-list de lá, e está
+vivo. → prod: conferir que continua `https://web.entrelares.app`.
+Na mesma tela do dev, remover as entradas mortas: `https://qa.entrelares.app/**` e
+`https://dev.sharedparentalcustody.pages.dev/**` (alias do projeto Pages pré-rebrand, que não
+resolve mais — é a MESMA forma de alvo pendurado que o passo 3b fecha, num nome `.pages.dev` que
+alguém pode reivindicar). Os dois `localhost` são portas do Blazor local: inofensivos, limpeza
+quando der.
+*Sucesso:* nenhum host morto no Site URL nem na allow-list dos dois projetos.
+
+> **Por que isto ficou mais grave do que era.** O `?lang=` que o T-56 repôs no `redirect_to` do
+> reset é exatamente o caso em que a allow-list pode não casar — uma entrada sem query string
+> contra uma URL com `?lang=pt-BR`. Quando isso acontece o GoTrue cai no Site URL, e o registro
+> deste item afirma que a pior hipótese é BRANDA porque o `passwordRecovery` roteia para
+> `/update-password` de onde o app estiver. **Essa afirmação só vale enquanto o Site URL for um
+> host vivo.** Com o dev apontando para o `qa.` morto, a pior hipótese deixava de ser branda
+> naquele projeto. Vale como padrão: uma mitigação que depende de configuração precisa ser
+> reconferida toda vez que a configuração muda.
+
+**Verificação do passo 3, de fora da conta:**
 
 ```powershell
-git -C <caminho>\entrelares-app fetch origin
-git -C <caminho>\entrelares-app checkout master
-git -C <caminho>\entrelares-app merge --ff-only origin/dev
-git -C <caminho>\entrelares-app push origin master
+curl.exe -s -o NUL -w "legado: %{http_code}`n" https://legado.entrelares.app/
+curl.exe -s -o NUL -w "web:    %{http_code}`n" https://web.entrelares.app/
 ```
 
-*Sucesso:* `git log --oneline -1 origin/master` mostra
-`chore: o cliente Blazor desliga — a rota de rollback deixa de existir (#310)`. Não haverá run
-de Actions: o `deploy.yml` sai neste mesmo commit.
-*Por que importa mesmo com o repo indo para o arquivo:* o `master` de hoje ainda carrega o
-`deploy.yml` PRÉ-esvaziamento, com os passos *"Aplicar migrations e functions em PRODUÇÃO"*
-apontando para um `supabase/` parado desde o PR 3. É o risco de dois escritores que a decisão 5
-existe para impedir, e ele só morre quando aquele branch deixa de carregar aquele arquivo.
+`legado` deve parar de resolver (erro de DNS) ou devolver 404; **`web` tem de continuar 200**.
 
-**3. Tirar o domínio e o projeto Pages no Cloudflare.**
-→ https://dash.cloudflare.com → **Workers & Pages** → projeto **`entrelares-app`** →
-**Settings → Domains & Routes**: remover **`legado.entrelares.app`** (e o alias de QA
-**`qa.entrelares.app`**, que era alimentado pelo branch `dev`). Depois, no mesmo projeto,
-**Settings → Delete project**.
-*Sucesso:* `legado.entrelares.app` deixa de resolver para o projeto; o DNS do domínio pode ser
-removido em seguida na zona `entrelares.app`.
-*Atenção à ordem:* faça isto **depois** do passo 2, para que o commit que descreve o
-desligamento já esteja no branch que servia a produção.
+### 4. Arquivar o repositório — por último
 
-**4. Arquivar o repositório.**
-→ https://github.com/irineus/entrelares-app/settings → rolar até **Danger Zone** →
+→ https://github.com/irineus/entrelares-app/settings → **Danger Zone** →
 **Archive this repository** → confirmar digitando `irineus/entrelares-app`.
-*Sucesso:* o repositório passa a exibir a faixa *"This repository has been archived by the
-owner"* e fica somente-leitura. Arquivar também desliga agendamentos — e é por isso que o
-`backup.yml` e o `keepalive-dev.yml` vieram para cá no PR 3, meses antes de precisarem.
-*Reversível:* desarquivar é um clique, se algum dia for preciso.
+*Sucesso:* a faixa *"This repository has been archived by the owner"* aparece e o repo fica
+somente-leitura.
+*Por último de propósito:* arquivar desliga agendamentos — e é por isso que o `backup.yml` e o
+`keepalive-dev.yml` vieram para cá no PR 3, meses antes de precisarem. Os dois já rodaram verde
+aqui, então não há janela descoberta.
+*Reversível:* desarquivar é um clique.
 
 ## Pontas soltas registradas
 
@@ -340,5 +416,23 @@ owner"* e fica somente-leitura. Arquivar também desliga agendamentos — e é p
   próprio desligamento remove. Não era ordem errada da entrega: qualquer ordem esbarraria nisso,
   porque o commit que apaga a esteira é o commit que precisa do check dela. A generalização vale
   para a próxima vez: **toda entrega que remove uma esteira deve perguntar o que ainda exige os
-  checks dela** — branch protection, ruleset, badge, automação externa. O desbloqueio é do owner
-  e está em § O que falta.
+  checks dela** — branch protection, ruleset, badge, automação externa.
+  **Resolvido em 25/08/2026, e o desbloqueio ensinou uma segunda coisa:** a primeira instrução
+  escrita aqui era "apagar o ruleset", porque ninguém tinha LIDO a regra. Lida, ela tem três
+  partes e só uma bloqueava — desmarcar *Require status checks* resolveu sem abrir mão da
+  proteção contra deleção e reescrita que o resto do ruleset dá. **Uma regra que atrapalha não é
+  automaticamente uma regra para apagar**, e a diferença entre as duas ações custa um `curl` de
+  leitura.
+
+- **A allow-list de Redirect URLs do Auth não estava na lista do desligamento, e devia.** O passo
+  4b do runbook do cutover acrescentou `legado.entrelares.app` a ela; o inverso não foi escrito
+  em lugar nenhum. Sozinha é entrada morta, mas combinada com um CNAME pendurado — que é o que
+  sobra se o projeto Pages for apagado antes do domínio — vira caminho para receber link de
+  recuperação de senha de um subdomínio nosso que alguém reivindique. Está na sequência do § O
+  fecho operacional, com a ordem que fecha a janela. **O padrão a levar: toda configuração
+  externa acrescentada por um runbook precisa da linha que a desfaz, escrita no mesmo runbook.**
+
+- **`env.dart` ainda nomeia `qa.entrelares.app` no flavor dev** (`webHostname`). Não quebra nada
+  e não é urgente: é só o rótulo que o dev reporta ao Umami, e o dev tem `umamiWebsiteId` vazio
+  de propósito, então a chamada inteira é no-op. Mas passa a nomear um host que deixou de
+  existir — troca cosmética para uma próxima entrega que já toque o arquivo.
