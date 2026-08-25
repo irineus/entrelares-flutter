@@ -194,9 +194,9 @@ class E2eFamily {
     final familyId = founderRow['family_id'] as int;
 
     // Member — through the REAL invitation flow, as a family joiner.
-    final roles = await _get('/rest/v1/roles?select=id,role_name');
+    final roles = await _get('/rest/v1/roles?select=id,role');
     final motherRoleId = (roles.firstWhere((r) =>
-            (r as Map)['role_name'].toString().toLowerCase() == 'mother')
+            (r as Map)['role'].toString().toLowerCase() == 'mother')
         as Map)['id'] as int;
     final memberEmail = emailFor('member');
     final founderToken = await _accessToken(founderEmail, password);
@@ -338,9 +338,9 @@ class E2eFamily {
   }
 
   Future<int> roleIdOf(String roleName) async {
-    final roles = await _get('/rest/v1/roles?select=id,role_name');
+    final roles = await _get('/rest/v1/roles?select=id,role');
     return (roles.firstWhere((r) =>
-            (r as Map)['role_name'].toString().toLowerCase() ==
+            (r as Map)['role'].toString().toLowerCase() ==
             roleName.toLowerCase()) as Map)['id'] as int;
   }
 
