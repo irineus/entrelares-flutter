@@ -84,6 +84,89 @@ escape hatch is gone — which is the point, but worth doing knowingly.
 
 ---
 
+### S-18 — The privacy policy and Play's Data safety must catch up with the store billing rail
+
+| Field | Value |
+|---|---|
+| **Status** | `pending` |
+| **Priority** | `high` — the policy describes a payment arrangement that stopped being the whole truth on 23/08/2026, and Play reads the Data safety form and the policy against each other |
+| **Complexity** | `medium` — the console form is one sitting; deciding whether the policy change is MATERIAL is the expensive half, because material means blocking the entire user base for 15 days |
+| **Impact** | `high` — LGPD disclosure on one side, the store's own compliance review on the other |
+| **Roadmap** | Group 5 (polish), alongside T-57 — like it, this should precede the next PRODUCTION rollout; a closed test survives it. The board owns the order |
+| **Repo** | `flutter` (the Data safety answers, the `PolicyVersions` constants, the `app_settings` migration) **and** `entrelares-site` (the legal text itself) |
+
+**The finding (25/08/2026).** Surfaced while preparing the first Play upload since the cutover
+(`0.2.50+52` to *Closed testing – Alpha*), reading the console's declarations against the code
+rather than against our own notes — which is the [S-15](../CLAUDE.md) lesson applied to
+ourselves for the second time.
+
+1. **The published privacy policy never mentions Google Play.** A search of the whole rendered
+   text of `entrelares.app/privacidade.html` returns **zero** occurrences of "Play", "loja" or
+   "in-app". What it says is *"Os dados de pagamento são tratados diretamente pelo Asaas
+   (ver §7)"*, and §7's operator list names Asaas, Cloudflare, Umami and **Google — as Google
+   Fonts**, the glyph fallback of the WEB channel added on 23/08. Since that same day the
+   Android channel sells through **Play Billing** (T-48, `billing.store_enabled = true`, proven
+   by a real purchase), so the one rail the policy names is now the rail only half the users
+   are on.
+2. **The Data safety form was answered when Android sold nothing.** *Financial info → Purchase
+   history* now applies: `billing-store-verify` writes a subscription row and `billing_events`
+   ledger entries carrying the Play purchase token, tied to the family. **Marked on 25/08**
+   during this pass; the rest of this item is what that one checkbox revealed around it.
+3. **Two more declarations do not match the code, and one is undecided.**
+   - *App activity → App interactions* is **missing**. [`store/README.md`](../store/README.md)
+     §4 declares it, and the app POSTs to the third-party `cloud.umami.is` on every prod build
+     of both channels ([`analytics_service.dart`](../apps/entrelares_app/lib/services/analytics_service.dart)).
+     The console's overview showed *2 data types* total against a Personal info of *2/9* — the
+     whole total is Personal info, so App activity is at zero.
+   - *Messages → Other in-app messages* — **undecided, and the decision belongs in this item.**
+     F-44 gives a swap request `requestMessage`, `approvalNote` and `rejectionReason`: free text
+     one caregiver writes, our server stores, and **another caregiver reads**. It is not chat,
+     which is why it was never declared; it is also not nothing.
+   - *Personal info → User IDs* — judgment call on the profile UUID. The account is already
+     identified by the e-mail address, which is declared.
+
+**What is NOT the problem — recorded so it is not re-proposed.** *App content → Financial
+features* is correctly answered **"my app doesn't provide any financial features"**: that page
+asks whether the app IS a financial service (lending, crypto, insurance, trading), not whether
+it sells a subscription. There is **nothing anywhere on App content** that declares in-app
+purchases — verified on the real console on 22/08/2026 and recorded in
+[`supabase/README.md`](../supabase/README.md) §9-bis.0; Play derives "contains in-app purchases"
+from the products that exist in *Monetize → Subscriptions*.
+
+**Why it is an item and not a fix in passing.** If adding an operator to §7 is a **material**
+change, it is four things in ONE delivery (CLAUDE.md → *Legal pages*): `PolicyVersions.current`,
+an `enforceFrom` of *the date the text becomes VISIBLE* + 15 days, the matching
+`policy.current_version` **and** `policy.enforce_from` rows via migration, and an entry in the
+change summary the screen renders. Miss the settings rows and the RPC refuses every accept in
+production — users are told to update an app that is already current and nobody gets through.
+That is a whole-base blocking screen; it cannot ride along inside another PR. **Whether it is
+material is the owner's call**, and it is the first decision of this item, not the last.
+
+**What to do**
+1. **Decide materiality** (owner; counsel if the answer is not obvious). A new operator
+   receiving personal data is the kind of change that usually is.
+2. `entrelares-site`: §7 gains Google/Google Play as the payment operator of the STORE channel,
+   and the subscription paragraph stops implying Asaas is the only rail. Mirror the
+   *substance*, not line for line.
+3. `flutter`, only if material: the four-part delivery above, with the integration tests that
+   compare each constant against its server setting staying green — they are the red gate that
+   replaces a live lockout, and they are never to be weakened.
+4. Play Console → *Data safety*: add **App interactions**; decide **Messages** and **User IDs**;
+   *Purchase history* is already marked.
+5. [`store/README.md`](../store/README.md) §4: bring the table to whatever ends up declared, and
+   retire the caveat still written in the future tense (*"the day that switch is flipped"* — it
+   was flipped on 23/08/2026).
+
+**Verification**
+- Data safety *Preview* (step 5 of the wizard) matches `store/README.md` §4 line for line, in
+  both directions: nothing declared that the code does not do, nothing the code does left out.
+- A pass over §7 against the code with the same test: every operator that receives data is
+  named, and no operator is named that does not.
+- If the policy bumped: the constant-vs-setting integration tests green, and a real accept in
+  production after the migration.
+
+---
+
 _S-12 (Phase 5 item 5.12) was completed in July 2026 (v1.5.21) — its record lives in [`archive/phase-5.md`](archive/phase-5.md). Key decision: column-level encryption **not adopted** (proportionate posture = platform AES-256 + TLS + bcrypt + RLS + zero anon access); revisit before public availability, alongside S-13._
 
 ---
