@@ -2965,6 +2965,12 @@ the start, 225 at the end**, printed in every run's summary and repeated in ever
   delete**, and the difference between the two actions cost one read-only API call.
   `origin/master` now sits on the shutdown commit with no `.github/` at all.
 
+  **The console work finished on 25/08/2026 and was verified from outside the account**: the
+  `legado.` and `qa.` hosts no longer resolve, the Pages project is gone, the zone carries no
+  dangling record, both Auth projects are clean, and `irineus/entrelares-app` is **archived** —
+  read-only, kept for its history. `web.entrelares.app` and the landing answered 200 throughout.
+  **T-56 ends there.**
+
 **The four mirrors, and the defect the port found (24/08/2026)**
 Four unit tests left with the `supabase/` they read: `RoleCatalogMirrorTests`,
 `EmailDateFormatMirrorTests`, `AuthMailMirrorTests` and `NotificationParamsCoverageTests`. They

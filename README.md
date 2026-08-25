@@ -8,7 +8,8 @@ Nasceu como spike do estágio 1 (GO do owner em 19/08/2026) e foi construído lo
 mapa de paridade ([`docs/flutter-paridade.md`](docs/flutter-paridade.md)) atrás do plano de
 cutover ([`docs/flutter-cutover.md`](docs/flutter-cutover.md)). O cliente Blazor que ele
 substituiu ficou publicado em `legado.entrelares.app` como rota de rollback até **24/08/2026**,
-quando o owner declarou a rota desnecessária e o `entrelares-app` foi desligado e arquivado
+quando o owner declarou a rota desnecessária; o cliente foi desligado e o `entrelares-app` está
+**arquivado** desde 25/08/2026, somente-leitura
 (T-56, [`docs/arquivamento-app.md`](docs/arquivamento-app.md)). **Não há mais volta**, que é a
 consequência ordinária de um cutover que deu certo.
 

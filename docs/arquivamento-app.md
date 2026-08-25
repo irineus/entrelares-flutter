@@ -5,12 +5,12 @@
 Tudo que diz respeito ao aplicativo Entrelares passa a viver aqui, no `entrelares-flutter`. O
 `entrelares-site` continua existindo e responde por tudo do site.
 
-> **Estado em 24/08/2026, fim do dia:** as dezessete fatias entraram, incluindo a última — o
+> **FECHADO em 25/08/2026.** As dezessete fatias entraram, incluindo a última — o
 > **desligamento do cliente Blazor**, que o plano deixava sem data. Ele não chegou pela medição
 > da decisão 7: o owner declarou a rota de rollback desnecessária, que é a decisão que a medição
-> existia para provocar. O que resta são **ações de console do owner**, listadas em
-> [§ O fecho operacional](#o-fecho-operacional--dois-passos-feitos-três-restantes) — nenhuma delas é código, e nada está
-> em risco enquanto esperam.
+> existia para provocar. As ações de console foram executadas e conferidas no dia seguinte, e o
+> `entrelares-app` está **arquivado**. O passo a passo, e os dois achados que só apareceram ao
+> executá-lo, estão em [§ O fecho operacional](#o-fecho-operacional--executado-em-25082026).
 
 > **Este documento REVOGA uma decisão escrita.** O plano de cutover
 > (`entrelares-app/docs/flutter-cutover.md`, § *"Onde o rollback morre"*, 23/08/2026) diz:
@@ -81,7 +81,7 @@ fica descoberto durante a travessia.
 | **6…16** ✅ | flutter | **O port do gate para Dart** (24/08/2026), suíte por suíte — o fatiamento detalhado está na seção seguinte. O PR 6 levou a fundação (contratos erguidos, clientes por identidade, fixture) e uma suíte real como prova; o 16 apagou `db-gate/` e o lane `dotnet`. As 225 asserções são todas Dart |
 | **F** ✅ | app | **O esvaziamento, num toque só** (24/08/2026, [`entrelares-app` #309](https://github.com/irineus/entrelares-app/pull/309)): 242 arquivos, −46.941 linhas. Sobra o cliente Blazor, sua suíte unitária e um `deploy.yml` reduzido à metade que publica — o deploy de QA que seguiu o merge fechou **verde em 1 min 39 s**, contra os ~15 min do gate antigo. Saíram também, por decisão do owner, as DUAS suítes C# e o `dependabot.yml`; o que ficou para trás e por quê está no registro do T-56. Não arquiva ainda |
 | **G** ✅ | app | **O desligamento** (24/08/2026, [`entrelares-app` #310](https://github.com/irineus/entrelares-app/pull/310)): sai o `deploy.yml` inteiro — a metade que publicava —, sai o modelo de PR que ainda instruía um fluxo sem deploy atrás dele, e os dois documentos passam a descrever um arquivo em vez de um cliente publicado. `E2ETests` e `IntegrationTests` já tinham saído no PR F. Com ele morrem o alias de QA `qa.entrelares.app` e a última esteira fora daqui que ainda alcançava produção |
-| **∅** | app | **O que sobra é console do owner.** Ruleset e promoção FEITOS em 25/08/2026 — `origin/master` está no commit do desligamento e sem `.github/`. Restam Cloudflare (domínios, DNS, projeto), a allow-list do Auth e o archive. Ver § O fecho operacional |
+| **∅** ✅ | app | **O console do owner, em 25/08/2026**: ruleset, promoção `dev`→`master`, domínios e projeto Pages removidos, allow-list e Site URL do Auth limpos nos dois projetos, e o repositório **arquivado**. Conferido de fora da conta — a tabela está em § O fecho operacional. **O T-56 acaba aqui** |
 
 ## O port do gate para Dart (PRs 6 a 16)
 
@@ -233,13 +233,27 @@ o CI, não contra a memória:
 O `keepalive-dev.yml` daqui não precisou de secret novo: a URL do dev é pública (a mesma do
 `env.dart`) e a `SUPABASE_SERVICE_ROLE_DEV` já existia aqui.
 
-## O fecho operacional — dois passos feitos, três restantes
+## O fecho operacional — EXECUTADO em 25/08/2026
 
-**Nada está em risco enquanto os restantes esperam**, e a razão é dupla: arquivar torna o
-repositório somente-leitura, e o `master` do `entrelares-app` já carrega o commit do
-desligamento.
+Quatro passos de console, nenhum deles código, todos feitos e conferidos **de fora da conta**:
 
-### ~~1. Apagar o ruleset do `master`~~ — RESOLVIDO em 25/08/2026, e não por apagá-lo
+| Verificação, em 25/08/2026 | Resultado |
+|---|---|
+| `origin/master` do `entrelares-app` | `800d3ec` — o commit do desligamento, e `.github/` não existe mais no branch |
+| `https://legado.entrelares.app/` | não resolve |
+| `https://qa.entrelares.app/` | não resolve |
+| `https://web.entrelares.app/` | **200** — produção intacta |
+| `https://entrelares.app/` | **200** — landing intacta |
+| zona `entrelares.app` | 13 registros, nenhum `legado`, nenhum `qa`, nenhum pendurado |
+| Workers & Pages | `entrelares-web`, `entrelares-site`, `entrelares-site-preview`, `desmalha` — o `entrelares-app` não existe mais |
+| allow-list do Auth, prod | `web.entrelares.app/**` e `app.guardacompartilhada.com/**` (este ainda responde 301, então não está pendurado — é resíduo do F-54 e sai com o T-52) |
+| allow-list do Auth, dev | uma entrada só: `web.entrelares.app/**`; Site URL corrigido |
+| `irineus/entrelares-app` | **archived: true**, somente-leitura desde 25/08/2026 |
+
+As seções abaixo ficam como o registro de COMO e POR QUÊ — a ordem tem motivo, e dois passos
+dela não estavam no plano original.
+
+### 1. O ruleset do `master` — RESOLVIDO em 25/08/2026, e não por apagá-lo
 
 A promoção da decisão 8 foi RECUSADA por ele: exigia o status check **`deploy`**, produzido
 pela esteira que o desligamento remove. Cadeado que sobreviveu à porta — protegia uma produção
@@ -259,7 +273,7 @@ Então o certo não era *Delete ruleset*, era desmarcar **Require status checks 
 o `master` continua protegido contra deleção e reescrita, que é o que aquele ruleset existia
 para fazer. Feito assim.
 
-### ~~2. Promover `dev`→`master`~~ — FEITO em 25/08/2026
+### 2. Promover `dev`→`master` — FEITO em 25/08/2026
 
 `origin/master` está em `800d3ec` — *"chore: o cliente Blazor desliga — a rota de rollback deixa
 de existir (#310)"* —, e `.github/` não existe mais naquele branch. Com isso morre o risco que
@@ -268,7 +282,7 @@ PRÉ-esvaziamento, com os passos *"Aplicar migrations e functions em PRODUÇÃO"
 `supabase/` parado desde o PR 3 — dois escritores no mesmo banco, que é o que a decisão 5 existe
 para impedir.
 
-### 3. Cloudflare e Supabase — nesta ordem, e a ordem tem motivo
+### 3. Cloudflare e Supabase — FEITO em 25/08/2026, e a ordem tinha motivo
 
 > **Duas travas antes de começar.**
 > **(a) Não toque no projeto `entrelares-web`** — é ele que serve `web.entrelares.app`, a
@@ -347,7 +361,7 @@ curl.exe -s -o NUL -w "web:    %{http_code}`n" https://web.entrelares.app/
 
 `legado` deve parar de resolver (erro de DNS) ou devolver 404; **`web` tem de continuar 200**.
 
-### 4. Arquivar o repositório — por último
+### 4. Arquivar o repositório — FEITO em 25/08/2026, por último
 
 → https://github.com/irineus/entrelares-app/settings → **Danger Zone** →
 **Archive this repository** → confirmar digitando `irineus/entrelares-app`.
