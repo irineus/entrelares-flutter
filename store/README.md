@@ -36,11 +36,13 @@ points at them; this directory is about the *presence*, not the pipeline.
   captured on **23/07/2026** from the QA environment of the **Blazor** client, with the `[Dev]`
   badge masked in place. Two things have happened to them since: the cutover replaced the client
   they photograph, and U-27/U-28 replaced its visual system. So the listing shows a product that
-  no longer exists — cosmetically, not in what it claims. Recapturing is a piece of work nobody
-  has scheduled: it needs the Flutter app in production configuration, both languages
-  (`entrelares-site`'s **L-21** wants the EN set for the same frames), and a pass over both the
-  Play listing and the landing. Write it down before the next production rollout; a closed test
-  survives it.
+  no longer exists — cosmetically, not in what it claims. **Recapturing is scheduled as
+  [T-57](../backlog/technical.md)** (24/08/2026), which absorbed `entrelares-site`'s **L-21**:
+  that item wanted the EN set for the same frames, on the assumption the PT-BR ones were
+  current — an assumption the cutover ended. It needs the Flutter app in production
+  configuration (the dev flavour prefixes `[Dev] ` into stored notification titles), both
+  languages, and a pass over both the Play listing and the landing. It should precede the next
+  production rollout; a closed test survives a listing update.
 
 ## 2 · Brand assets
 
