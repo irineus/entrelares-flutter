@@ -169,7 +169,17 @@ void main() {
     // opened the ordinary editor, or no sheet may be open at all. The reason
     // string is the one channel guaranteed to reach the `flutter drive` log on
     // web, so it answers those three at once.
-    if (find.text(l[K.frozenSwapTitle]).evaluate().isEmpty) {
+    // `textContaining`, and that is the whole defect. `find.text` matches the
+    // widget's ENTIRE string, and the sheet renders `'$headerIcon '` before the
+    // catalogue sentence — the app keeps its emoji inside the sentences it
+    // writes (`screens/frozen_day_sheet.dart`). So the screen said
+    // "⏳ Solicitação de troca pendente" while the finder asked for
+    // "Solicitação de troca pendente", and the panel that was RIGHT THERE,
+    // with the requester, the proposed carer and both buttons correct, read as
+    // absent. Any assertion built from a catalogue key against a decorated
+    // title has this shape.
+    final panel = find.textContaining(l[K.frozenSwapTitle]);
+    if (panel.evaluate().isEmpty) {
       final stillOpen = await family.openRequests();
       final onScreen = find
           .byType(Text)
@@ -181,6 +191,8 @@ void main() {
           'open requests at this moment: $stillOpen | '
           'texts on screen: $onScreen');
     }
+    expect(panel, findsOneWidget,
+        reason: 'exactly one frozen panel, never two sheets stacked');
     await tester.tap(find.text(l[K.frozenApprove]));
     await tester.pumpAndSettle(const Duration(seconds: 10));
 
