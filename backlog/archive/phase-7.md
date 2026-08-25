@@ -2854,3 +2854,195 @@ cheap.
 - Spike location DECIDED at stage 1: the separate repo **`irineus/entrelares-flutter`**, so the
   production CI never sees the experiment and the bet stays reversible by construction
 - Nothing in the current app until stage 3
+
+---
+
+### T-56 — Archive the `entrelares-app` repository
+
+| Field | Value |
+|---|---|
+| **Status** | `completed` (24/08/2026) |
+| **Priority** | `high` — every extra day was a day the product's written memory lived in a repository nobody opened |
+| **Complexity** | `high` (70 migrations, 12 Edge Functions, a 225-test database gate, the whole backlog and three ops pipelines) |
+| **Impact** | `high` — it decided where the product's written memory lives |
+| **Roadmap** | Outside the groups: structural debt opened by the cutover, not forward plan |
+
+> **This item REVOKED a written decision.** The cutover plan
+> ([`../../docs/flutter-cutover.md`](../../docs/flutter-cutover.md), § *"Onde o rollback morre"*,
+> 23/08/2026) said: *"o repo `entrelares-app` NÃO é aposentado: ele continua sendo o repo do
+> banco, das Edge Functions, do backlog e do gate de integração"*. That held while this repo
+> was the T-53 spike and the Blazor client was the product. The cutover inverted both roles
+> the next day, and keeping the database, the gate and the written memory in a repository
+> nobody opens is the shortest path to losing them. New owner decision, 24/08/2026.
+
+**Description**
+Make `entrelares-app` **archived**: no longer needing to be updated and, above all, no longer
+needing to be consulted. Everything about the application moves to `entrelares-flutter`;
+`entrelares-site` keeps answering for the site.
+
+The **eight decisions**, the **three measurements** behind them and the **PR-by-PR plan** live
+in [`../../docs/arquivamento-app.md`](../../docs/arquivamento-app.md), which is this item's
+operational record. What the three measurements settled, because they overturned assumptions:
+the database gate was tied to the Blazor client by only 1.010 lines of PostgREST contracts (not
+by the suite itself); the Playwright suite was 62 tests against the 5 of this repo's
+`integration_test` lane, so replacing the FLOW gate — not the database one — was the hard
+problem; and this repo has no staging stage, since a merge to `main` publishes production.
+
+**How it closed**
+Seventeen PRs here plus two in the old repo, all on 24/08/2026. The session tooling and the
+memory moved first (1, 4a, 4b, 4c), then the database and its ops (2, 3), then the flow gate
+that had to exist before the Playwright suite could die (5), then the port of the database gate
+to Dart suite by suite (6…16), then the emptying of the old repo (F), and finally the shutdown
+(this record's last two bullets). The arithmetic that watched the port held: **225 assertions at
+the start, 225 at the end**, printed in every run's summary and repeated in every PR body.
+
+- ~~The **flow gate** replacing the Playwright suite.~~ **Delivered 24/08/2026**: the same
+  `integration_test` files run in a headless browser (`flutter drive` + chromedriver), 144 s for
+  both packs against the 10-15 min of the emulator lane. It was MEASURED before being trusted,
+  because `flutter drive` on web prints "All tests passed." whether or not anything ran: a probe
+  with a deliberately failing test turned the job red, and the full pack costs ~6 s more than
+  `p0`. It does not replace the emulator for what needs a device. **It blocks the web publish since
+  24/08/2026** — the role Playwright played for the old repo's promotion, and what makes it a
+  gate rather than a report.
+- ~~The **port of the database gate to Dart**, suite by suite.~~ **Done 24/08/2026**, in the
+  eleven PRs (6…16) whose slicing, merge authorization and verification arithmetic are in
+  [`../../docs/arquivamento-app.md`](../../docs/arquivamento-app.md). The 225 tests are 43 suite
+  libraries under `packages/entrelares_db_gate/test/suites/`, and `db-gate/` is gone with PR 16.
+  Its foundation (PR 6) settled three things the ten that followed inherited: the row contracts
+  left the app into `packages/entrelares_db_contracts`, so the gate asserts against the SAME
+  shape the app reads; the gate is one aggregating entrypoint rather than a file per suite,
+  because `dart test` gives a `setUpAll` per FILE and the naive port would create 41 throwaway
+  families per run against the shared QA project; and the identity clients come from the
+  PURE-Dart `supabase` package, never `supabase_flutter`, whose per-process singleton (the
+  pilot's lesson 8) could hold exactly one of the four the gate needs.
+
+  **What the crossing found, which is the argument for having done it as eleven PRs against the
+  real database rather than as one rewrite.** PR 7 turned red on
+  `type 'Null' is not a subtype of type 'String'` — `FamilyDeletionRequest.fromJson` read
+  `created_at` and the table has no such column, it is `requested_at`. That factory is the one
+  the app parses through, and the Família screen renders `requestedAt`, so **the screen crashed
+  for every family with a pending deletion request**, in production, since the cutover. No
+  widget test could have caught it: they build the object in memory, and the column name is only
+  a claim about a table nobody was asking. The gate asked on its first run.
+- ~~The **emptying** of the old repo, in a single PR.~~ **Done 24/08/2026** (`entrelares-app`
+  #309, squash-merged to `dev`): 242 files, −46.941 lines. What was left there is the frozen
+  client, its unit suite and a `deploy.yml` reduced to the half that publishes — the QA deploy
+  that followed the merge went green in **1 min 39 s**, against the ~15 min of the old gate.
+  Three things that were NOT in the plan are recorded in **What stayed behind, and why** below.
+- ~~The **gap the emptying opened**: four C#↔Deno mirrors with no Dart equivalent.~~
+  **Closed 24/08/2026**, and it is the one open end that turned out to be hiding a live defect —
+  see **The four mirrors** below.
+- ~~The **Blazor shutdown**, which is when the rollback dies — triggered by a measured condition
+  (N days without a hit on `legado.entrelares.app`), never by a date.~~ **Done 24/08/2026, and
+  not by the measurement.** The owner declared the rollback no longer needed, which is the
+  decision the measurement existed to provoke rather than to replace: decision 7 bought a
+  verifiable trigger so the last step could not drift indefinitely, and the trigger was overtaken
+  before it ever fired. `entrelares-app` #310 removed the last workflow, the QA alias
+  `qa.entrelares.app` and the PR template that still instructed a flow with no deploy behind it,
+  and rewrote both docs to describe an archive rather than a published client.
+
+  **What that closed, and it is more than a domain.** The old `master` still carried the
+  PRE-emptying `deploy.yml` — including its *"Aplicar migrations e functions em PRODUÇÃO"*
+  steps, pointed at a `supabase/` copy that had been standing still since PR 3. Any push there
+  would have written production schema from the stale copy, in competition with this repo. That
+  is the two-writer hazard decision 5 exists to prevent, and it lived on for one day inside the
+  branch nobody was pushing to.
+
+  **It did not finish in this session, and the reason is worth keeping.** The promotion
+  `dev`→`master` was refused by a repository ruleset requiring the status check **`deploy`** —
+  the check produced by the workflow the same delivery removes. The lock outlived the door: the
+  ruleset protected a production the shutdown had just retired, and satisfying it would have
+  meant re-adding a pipeline to an archive. So `dev` carries the final state, `master` stays at
+  the pre-shutdown commit, and two owner actions close it — delete the ruleset, promote — with
+  the Cloudflare and archive steps in the same list. **The generalizable half:** a required
+  status check is a dependency on a workflow's continued existence, so any delivery that removes
+  a pipeline must ask what is still requiring its checks. Nothing is at risk while it waits —
+  archiving makes the repository read-only, and the ruleset already makes that branch unpushable.
+
+**The four mirrors, and the defect the port found (24/08/2026)**
+Four unit tests left with the `supabase/` they read: `RoleCatalogMirrorTests`,
+`EmailDateFormatMirrorTests`, `AuthMailMirrorTests` and `NotificationParamsCoverageTests`. They
+were the C#↔Deno mirrors — the Edge Functions cannot call into the client, so the role labels,
+the e-mail date format, the `redirect_to` language marker and the `params` coverage over every
+notification writer are duplicated ON PURPOSE, and those tests were what made the duplication's
+drift RED. They are Dart now, in `packages/entrelares_core/test/mirrors/`, reading the same
+`_shared/i18n.ts` and the same `supabase/migrations`. They live in the CORE package, not in the
+app: they need no Flutter, and the core lane runs first, so a drift goes red in the cheapest job
+of the run.
+
+**Porting one of them found a missing half.** `AuthMailMirrorTests` asserted that the client
+writes `?lang=` into the reset `redirect_to`; the Flutter app never did — `DeepLinkUrls.updatePassword`
+was a bare constant. Nothing was broken, and that is exactly why it survived the cutover
+unnoticed: `send-auth-email` ranks `profiles.language_detected` third and the app writes that
+column, so anyone who had signed in once still got their language. But signal 2 is the only one
+that serves a person who CANNOT sign in — which is the definition of someone asking for a
+password reset — and it was always absent. Restored with `DeepLinkUrls.updatePasswordFor(language)`
+and the shared key in `AuthMail.languageQueryParam`.
+
+The worst case was checked against the CODE rather than inherited from the Blazor record: if a
+project's Redirect URLs allow-list does not match a query string, GoTrue falls back to the Site
+URL, and `AuthChangeEvent.passwordRecovery` routes to `/update-password` from wherever the app
+is — the same mitigation `MainLayout` used to give.
+
+The reset mirror is the one translation that STRENGTHENS its original instead of copying it: the
+C# pinned a single named method, and this app has two reset entry points, so the Dart version
+reads every `resetPasswordForEmail` call site under `lib/` and requires each to carry the
+language. All four were then measured before being trusted — a divergent label, a divergent
+month, the Deno constant renamed, a call site stripped of its language and a live `INSERT` with
+no `params` each turned the matching suite red.
+
+**What stayed behind in the old repo, and why (the emptying, 24/08/2026)**
+- **`Entrelares/` and `Entrelares.Tests`** — the client that served the rollback route, and the
+  only suite that could still validate a change to it. Everything else went. They stay in the
+  archived repository as history: with the shutdown there is no route left to fix.
+- **The Playwright suite and the C# integration suite went, both of them** (owner decision,
+  24/08/2026). The plan had kept them on one sentence — *"until then it is still the flow gate
+  of the promotion to production"* — and that sentence expired the same day: this repo's own
+  flow gate (PR 5) now blocks the web publish, the database gate had lived in `db-gate/` since
+  PR 2, and the Blazor client was frozen. They left together because `Entrelares.E2ETests`
+  referenced `Entrelares.IntegrationTests` by `ProjectReference`.
+- **The test steps left `deploy.yml`, which was the point rather than a side effect.** Both
+  suites ran against the SAME dev Supabase project that `db-gate` now uses on every PR here,
+  and the T-39 billing seeds use FIXED external ids (`sub_e2e_*`): two overlapping runs delete
+  each other's rows. The migrations/functions steps went with them (schema and app travel in
+  the same push, in the repo where the app lives), and so did the unit-test step — without the
+  other two it protected nothing that repository still decided.
+- **`dependabot.yml` went too** (owner decision): a weekly NuGet/Actions PR aimed at `dev` is,
+  with no gate left, an unvalidated change to a rollback route. Security ALERTS do not come
+  from that file and are unaffected.
+- **Three defects the sweep found, none of them on the list.** The `.gitignore` still named the
+  PRE-REBRAND folder for the app settings, so since F-54 the real file — which carries the
+  environment's URL and anon key — was ignored by nobody; `SharedParentalCustody.slnx` pointed
+  at two projects that stopped existing with the same rebrand; and `tsconfig.json` +
+  `Directory.Build.props` existed only to keep `supabase/**/*.ts` out of the MSBuild TypeScript
+  compiler. The lesson is about method: a list of "what comes" written before execution is not
+  a check — what checks is reading the source repository whole, at the end.
+
+**The adversarial finding, and the CI consequence it left (24/08/2026)**
+`AdversarialTests.CrossFamilyAuditLog_IsNotReadable` went red with
+`57014 — canceling statement due to statement timeout` after five suite runs in two hours
+against the dev project. It was NOT an RLS breach: the assertion never ran. The test read
+`activity_logs` **with no filter** and let RLS do the work, so its cost grew with everything the
+QA project had accumulated — not with the size of its own throwaway family — and it hit the
+8 s `statement_timeout` of the `authenticated` role. **Applied in PR 7**, and it is the one line
+of the whole port that is not a translation: the Dart `adversarial.dart` filters by the foreign
+log's own id and asserts the result is empty, which is the same claim at constant cost. The
+suite header says so, so the divergence from the C# original cannot read as a slip.
+
+**The process half of that episode is fixed too.** `verify.yml` cancelled in-progress runs of
+the same ref at WORKFLOW level, which is right for minutes and wrong for `db-gate`: a job cannot
+opt out of a workflow-level cancellation, so the serialized group that existed precisely to keep
+two suites from overlapping was still being killed mid-suite, and a killed run dies before its
+teardown and leaves a throwaway family for the orphan sweep to collect two hours later.
+Cancellation moved down to the jobs that can afford it (`verify`, `apk`, `e2e`, `web-e2e`);
+`db-gate` keeps its repo-wide serialized group, and **`db-prod` and `deploy-web` now QUEUE
+instead of cancelling** — killing a migration or a publish half-way is a worse outcome than
+waiting for the one in front. That last part is wider than the finding and was taken
+deliberately: it was the workflow-level group that had been protecting them, and removing it
+without replacing it would have silently made a concurrent push able to interrupt a production
+deploy.
+
+**Related**
+T-53 (the cutover that inverted the two repos' roles), T-52 (the legacy Play package, whose
+Blazor arms died with this shutdown), T-29 (schema and app travel in the same push — the
+invariant decision 5 preserves).

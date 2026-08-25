@@ -18,9 +18,11 @@
 /// **The name tables are hardcoded, deliberately.** The web repo's server
 /// mirror (`functions/_shared/i18n.ts`) refuses `Intl` so a runtime upgrade
 /// cannot restyle every e-mail with no commit to point at; `intl`'s ICU data
-/// is the same trap here. Hardcoding keeps the three renderers (app, web,
-/// e-mail) provably in step — `EmailDateFormatMirrorTests` is the C# gate,
-/// `date_formats_test.dart` the one here.
+/// is the same trap here. Hardcoding keeps the two renderers (app, e-mail)
+/// provably in step — `date_formats_test.dart` pins what this file renders and
+/// `test/mirrors/email_date_format_mirror_test.dart` pins the Deno copy against
+/// it. (Three renderers until 23/08/2026: the web one was the Blazor client's,
+/// and it died with the cutover.)
 library;
 
 import 'localization.dart';

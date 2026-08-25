@@ -37,9 +37,27 @@ on:
         options: [p0, full]
         default: p0
 
-concurrency:
-  group: verify-${{ github.ref }}
-  cancel-in-progress: true
+# NO workflow-level `concurrency` — deliberately, since 24/08/2026 (T-56).
+#
+# It used to be `group: verify-${{ github.ref }}` with `cancel-in-progress: true`,
+# and that is right for the cheap Flutter lanes and wrong for everything that
+# touches state outside this runner. A workflow-level cancellation kills EVERY
+# job of the run, and a job's own `concurrency:` cannot opt out of it — so
+# `db-gate`, whose serialized group exists precisely so two suites never
+# overlap, was still being killed mid-suite by the next push. A killed run dies
+# before its teardown and leaves its `E2E-<runId>` family behind for the orphan
+# sweep to collect two hours later. That is the episode recorded in
+# `docs/arquivamento-app.md`; this is its fix.
+#
+# So cancellation moved to the jobs that can afford it, and the ones that cannot
+# queue instead:
+#   · `verify` / `apk` / `e2e` — cancel: nothing outside the runner survives them
+#     (the emulator lane keeps the ref-scoped group it had, no behaviour change);
+#   · `db-gate` — its own repo-wide serialized group, never cancelled;
+#   · `web-e2e` — cancels, as designed in PR 5: it invents its own family per run
+#     and holds no fixed-id seed;
+#   · `db-prod` / `deploy-web` — queue, never cancel. Killing a migration or a
+#     publish half-way is a worse outcome than waiting for the one in front.
 
 permissions:
   contents: read
@@ -47,6 +65,9 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    concurrency:
+      group: verify-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -218,6 +239,9 @@ jobs:
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    concurrency:
+      group: e2e-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       - name: Read Flutter version from .fvmrc
@@ -279,6 +303,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.build-apk
     needs: verify
     runs-on: ubuntu-latest
+    concurrency:
+      group: apk-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       - name: Read Flutter version from .fvmrc
@@ -401,6 +428,11 @@ jobs:
     if: github.event_name == 'push' && github.ref_name == 'main'
     needs: [verify, db-gate]
     runs-on: ubuntu-latest
+    # Queue, never cancel: a `db push` interrupted between two migrations leaves
+    # production half-applied, and no later run can tell that from a clean state.
+    concurrency:
+      group: db-prod
+      cancel-in-progress: false
     env:
       # Account-scoped tokens; two named ones (ci-qa/ci-prod) give separate
       # revocation and audit per pipeline.
@@ -466,6 +498,11 @@ jobs:
     #     never serves an app whose schema failed to apply.
     needs: [verify, db-gate, web-e2e, db-prod]
     runs-on: ubuntu-latest
+    # Queue, never cancel — same reason as `db-prod`, one step later: a publish
+    # killed mid-upload can leave the channel serving a half-written build.
+    concurrency:
+      group: deploy-web
+      cancel-in-progress: false
     # Job level on purpose: this is what the publish step reads in its own
     # `if`, and a step cannot reliably test the `env:` it declares itself.
     env:

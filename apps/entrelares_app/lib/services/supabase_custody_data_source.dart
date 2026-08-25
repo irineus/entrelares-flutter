@@ -1140,9 +1140,9 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   }
 
   @override
-  Future<void> sendPasswordReset(String email) async {
+  Future<void> sendPasswordReset(String email, AppLanguage language) async {
     await _client.auth.resetPasswordForEmail(email.trim(),
-        redirectTo: DeepLinkUrls.updatePassword);
+        redirectTo: DeepLinkUrls.updatePasswordFor(language));
   }
 
   @override

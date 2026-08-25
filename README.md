@@ -1,15 +1,16 @@
-# Entrelares — Flutter (T-53, aposta de plataforma)
+# Entrelares — o app de produto (Flutter/Dart)
 
-A reescrita do [Entrelares](https://github.com/irineus/entrelares-app) (hoje Blazor WASM
-PWA) em **Flutter/Dart**. Nasceu como spike do **estágio 1**; com o GO do owner
-(19/08/2026) e o **estágio 3 aberto**, este repositório é o app de produto sendo
-construído lote a lote pelo mapa de paridade (`entrelares-app/docs/flutter-paridade.md`,
-ordem 1→2→3→4→6→5).
+**Este repositório É o produto, nos dois canais.** O pacote Play `com.entrelares.app` carrega
+este bundle e `web.entrelares.app` é servido daqui — desde o cutover do T-53, em **23/08/2026**.
+Um merge em `main` chega a usuário real.
 
-**Estado:** os **seis lotes estão entregues** (20/08/2026, com o lote 5 — premium/billing e
-o redesenho T-48 de Play Billing). O estágio 3 está funcionalmente completo; o que vem é o
-**cutover do estágio 4**. O Blazor segue congelado e em produção até lá — enquanto o cutover
-não acontece, rollback é não fazer nada.
+Nasceu como spike do estágio 1 (GO do owner em 19/08/2026) e foi construído lote a lote pelo
+mapa de paridade ([`docs/flutter-paridade.md`](docs/flutter-paridade.md)) atrás do plano de
+cutover ([`docs/flutter-cutover.md`](docs/flutter-cutover.md)). O cliente Blazor que ele
+substituiu ficou publicado em `legado.entrelares.app` como rota de rollback até **24/08/2026**,
+quando o owner declarou a rota desnecessária e o `entrelares-app` foi desligado e arquivado
+(T-56, [`docs/arquivamento-app.md`](docs/arquivamento-app.md)). **Não há mais volta**, que é a
+consequência ordinária de um cutover que deu certo.
 
 ## Estrutura (molde `irineus/desmalha`)
 
@@ -18,9 +19,18 @@ não acontece, rollback é não fazer nada.
 tool/setup_env.sh             # bootstrap idempotente de ambiente Linux (JDK 17, FVM, Android SDK)
 apps/entrelares_app/tool/     # subset_inter.py — regenera a fonte embarcada (U-27)
 packages/entrelares_core/     # Dart puro: espelhos-cliente das regras do servidor, testáveis com `dart test`
+packages/entrelares_core/test/mirrors/   # T-56: os espelhos Dart↔Deno (i18n.ts, migrations)
+packages/entrelares_db_contracts/        # T-56 PR 6: as formas de linha do PostgREST, lidas pelo app E pelo gate
+packages/entrelares_db_gate/  # T-56 PRs 6-16: o gate de banco (225 testes), Dart puro
+supabase/                     # T-56 PR 3: migrations, Edge Functions e o runbook de deploy
+backlog/                      # T-56 PR 4a: a memória escrita do produto (registros + archive/)
+store/                        # T-56 PR 4c: listagens da Play, masters de marca e seus geradores
 apps/entrelares_app/          # o app Flutter (só orquestra e apresenta)
 apps/entrelares_app/lib/theme/  # U-27: tokens.dart (a única fonte de cor) + app_theme.dart
 ```
+
+> Nenhum pacote sob `packages/` pode importar Flutter: o gate tem de rodar sob `dart test` puro,
+> e os contratos precisam ser importáveis pelos dois lados.
 
 ## Comandos
 
