@@ -18,31 +18,42 @@ _U-11 (Phase 5 item 5.5) was completed in July 2026 (v1.5.5) — its record live
 
 ---
 
-### U-12 — Add dark mode support
+### U-12 — Dark mode: the user-facing theme switch
 
 | Field | Value |
 |---|---|
 | **Status** | `pending` |
 | **Priority** | `low` |
-| **Complexity** | `medium` |
+| **Complexity** | `low` |
 | **Impact** | `medium` |
 
 **Description**
-The entire app is hardcoded to a light theme. Modern PWAs are expected to respect `prefers-color-scheme: dark`. Add CSS custom properties (design tokens) for background, surface, text, and accent colours, then provide a dark variant using `@media (prefers-color-scheme: dark)` or a manual toggle stored in `localStorage`.
+Both themes already exist and ship: **U-27** (20/08/2026) delivered light and dark
+hand-written from the token file, and the app follows the system setting
+(`themeMode: ThemeMode.system`). What remains of this item is only the **user-facing
+preference** — "sempre claro / sempre escuro / seguir o sistema":
 
-> **Mostly delivered elsewhere (20/08/2026).** `U-27` shipped both themes in the Flutter app,
-> hand-written from the token file, and the app already follows the system setting
-> (`themeMode: ThemeMode.system`). What is left of this item is the **user-facing switch** —
-> the "always dark / always light / follow the system" preference and where it is persisted.
-> The Blazor description above is history: the frozen web client will not receive this.
+- a three-state control on the profile/settings surface (coordinate placement with U-21,
+  which reorganizes that page);
+- persisted locally per device (`shared_preferences`) — a display preference, not family
+  data, so it never touches the database;
+- applied at startup before the first frame, feeding `MaterialApp.themeMode`;
+- strings through the U-13 catalogs.
+
+> **Rewritten 26/08/2026 (post-cutover board sweep).** The original record asked for CSS
+> custom properties across the Blazor pages — that whole scope was delivered by U-27's token
+> architecture, so complexity dropped `medium → low`. The frozen web client never received
+> it, by design.
 
 **Justification**
-Most mobile users enable system-wide dark mode. A family app used daily — often checked at night before sleep — benefits significantly from reduced eye strain. This also improves OLED battery life on mobile.
+Most mobile users enable system-wide dark mode, and `ThemeMode.system` already honours it —
+but a per-app override is a common, cheap expectation (reading in bed with the phone on
+light system theme, or vice versa), and everything expensive about it is already built.
 
 **Files affected**
-- `Entrelares/wwwroot/css/app.css` or root styles — define CSS custom properties and dark overrides
-- All `.razor.css` files — replace hardcoded colour values with `var(--token)` references
-- `Entrelares/wwwroot/index.html` — update `theme-color` meta for dark variant
+- `apps/entrelares_app/lib/` — theme preference service + the three-state switch;
+  `MaterialApp.themeMode` reads it
+- Widget test: the three states + persistence across restart
 
 ---
 

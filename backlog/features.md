@@ -63,50 +63,48 @@ Sharing the custody plan with schools, doctors, or a family court is a real-worl
 | **Impact** | `medium` |
 
 **Description**
-Extend the swap-request notification system with Web Push so users are notified even when the app is closed or not in the foreground. Requires: VAPID key generation, a `push_subscriptions` table, a `service-worker.js` push event handler, and an additional Supabase Edge Function (or extending `send-swap-email`) to call the Web Push API. The in-app notification channel (F-10) and email channel (Resend Edge Function) are already implemented prerequisites. The revert workflow and urgency logic from F-10 must also be reflected in push payloads.
+Notify users when the app is closed or in the background. Since the T-53 cutover the Android
+channel is a **native app**, so the natural transport is **FCM** (`firebase_messaging`) — not
+the Web Push/VAPID stack the original record was written around.
 
-**Increment (Aug 2026 — external product review): the opt-in flow is the hard part, not the
-transport.** The review asked for a dedicated, contextual permission flow that knows whether the
-PWA is installed — correctly, because on **iOS the Web Push API only exists for a PWA added to
-the home screen** (16.4+), so asking a Safari tab for permission is asking for a prompt that
-cannot appear. What that adds to this item:
+> **Rewritten 26/08/2026 (post-cutover board sweep).** The record assumed the Blazor PWA:
+> VAPID keys, a service-worker `push` handler, `js/pwa.js` install-state detection, the
+> iOS-needs-an-installed-PWA branch. The shipped `service-worker.js` is deliberately a
+> TOMBSTONE and cannot gain a push handler, and the PWA-install branch died with the PWA.
+> Everything below survives from the original design.
 
-- **The install-state detection already exists.** `wwwroot/js/pwa.js` classifies the session as
-  `installed` (`display-mode: standalone` / `navigator.standalone`), `ios` (no
-  `beforeinstallprompt` — manual instructions) or promptable, and `index.html` captures
-  `beforeinstallprompt` before Blazor loads. Reuse it; do not write a second detector.
-- **Two different screens, not one.** Installed → ask for permission, in context. iOS + not
-  installed → *install first*, with the Compartilhar → "Adicionar à Tela de Início" steps
-  (the landing's own guide is **L-19**; keep the two texts saying the same thing).
-- **Never ask on load.** The prompt must ride a user gesture and land after the person has a
-  reason to want it — the first swap request they live through, or an explicit action on the
-  Notificações screen. A denied permission is expensive: the browser will not ask again, and
-  the only recovery is site settings.
-- **Wire it into the U-23 onboarding surface** (`Helpers/OnboardingSteps` +
-  `Services/OnboardingService`) instead of adding a fourth "seen" flag — and honour that item's
-  rule: a step reads REAL state. Here the real state is the `push_subscriptions` row, so the
-  step closes when a subscription exists, never when a modal was shown.
-- **Server side: hang the dispatcher off the single writer, don't re-derive the events.** Every
-  push-worthy moment already writes a `notifications` row (swap requested / approved / refused /
-  reverted / auto-approved). Trigger the push from **that** insert (DB webhook → Edge Function),
-  so push, in-app and e-mail can never tell three different stories. Since U-13/U-24 the row
-  carries `params` with ISO dates and is rendered in the **reader's** language — the push
-  payload must be assembled per recipient with the server-side mirror
-  (`functions/_shared/i18n.ts`), never from a PT-BR string.
-- **Secrets:** VAPID keys are per project and must exist on dev **and** prod *before* CI
-  redeploys the functions — the same ordering trap S-16 documented for the API keys.
-- **Quota:** push has no Resend-style shared allowance (T-49 does not apply), which raises a
-  product question worth settling here: for which events does push **replace** the e-mail (F-38's
+- **Native first (Android now, iOS with T-40).** `firebase_messaging` with per-flavor Firebase
+  config; token registration into a new `push_subscriptions` table (per profile, per device,
+  RLS: own rows only). APNs rides the same plugin when T-40 happens — this item is T-40's
+  named push companion. **Flutter Web push is a separate, later decision**: it needs its own
+  service worker, and the tombstone constraint means it must be designed, never bolted on.
+- **Server side unchanged: hang the dispatcher off the single writer.** Every push-worthy
+  moment already writes a `notifications` row (swap requested / approved / refused / reverted /
+  auto-approved). Trigger the push from **that** insert (DB webhook → new Edge Function), so
+  push, in-app and e-mail can never tell three different stories. Since U-13/U-24 the row
+  carries `params` with ISO dates and is rendered in the **reader's** language — assemble the
+  payload per recipient with the server-side mirror (`functions/_shared/i18n.ts`), never from
+  a PT-BR string.
+- **The opt-in flow is still the hard part.** Never ask on load: Android 13+ has a real runtime
+  permission with the same "denied is expensive" economics the web prompt had. The request
+  rides a user gesture after the person has a reason to want it — the first swap request they
+  live through, or an explicit action on the Notificações screen. Wire it into the U-23
+  onboarding surface and honour its rule: a step reads REAL state, so it closes when a
+  `push_subscriptions` row exists, never when a modal was shown.
+- **Secrets/config:** the Firebase project config is per environment (dev/prod flavors) and
+  any function secret must exist on dev **and** prod *before* CI redeploys the functions — the
+  same ordering trap S-16 documented for the API keys.
+- **Quota:** push has no Resend-style shared allowance (T-49 does not apply), which raises the
+  product question to settle here: for which events does push **replace** the e-mail (F-38's
   quota exists precisely because e-mail is the scarce channel) and for which does it add to it.
 
 **Files affected**
-- `database/migrations/V004__push_subscriptions.pgsql` — new table
-- `Entrelares/wwwroot/service-worker.published.js` — push event handler
-- `Entrelares/Services/PushSubscriptionService.cs` — new service (subscribe / unsubscribe)
-- `supabase/functions/send-push-notification/index.ts` — new Edge Function
-- `wwwroot/js/pwa.js` (reuse the install-state classifier) + a permission-request sheet under
-  `Pages/Components/`; `Helpers/OnboardingSteps.cs` — the subscription step
-- Catalogue keys for every new string (U-13), covered by `LocalizationTests`
+- New migration — `push_subscriptions` table + RLS (own rows only)
+- `apps/entrelares_app/` — `firebase_messaging` wiring per flavor, token lifecycle, the
+  permission sheet, the U-23 onboarding step
+- `supabase/functions/send-push-notification/` — new Edge Function (**add it to
+  `.github/functions.sh`**, or the drift guard fails the run)
+- Catalog keys for every new string (U-13), DB rules covered in `packages/entrelares_db_gate`
 
 ---
 

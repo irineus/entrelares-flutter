@@ -3118,3 +3118,55 @@ are about the same blind spot: **a runbook records what it ADDS and rarely what 
 T-53 (the cutover that inverted the two repos' roles), T-52 (the legacy Play package, whose
 Blazor arms died with this shutdown), T-29 (schema and app travel in the same push — the
 invariant decision 5 preserves).
+
+---
+
+### T-47 — iOS publishability spike (real App Review verdict before T-40) — SKIPPED
+
+| Field | Value |
+|---|---|
+| **Status** | `skipped` (26/08/2026 — post-cutover board sweep, owner decision) |
+| **Priority** | `high` (as scoped) |
+| **Complexity** | `medium` |
+| **Impact** | `high` (as scoped) |
+
+**Why it was skipped.** The item existed to buy **Apple's own verdict** on the risk that a
+Capacitor shell around the Blazor WASM app would be rejected as a "thin wrapper" (Guideline
+4.2) — a fear born in the Aug 2026 architecture review that evaluated and declined a .NET
+MAUI rewrite, since a MAUI Blazor Hybrid faced the same WKWebView review. The T-53 cutover
+(23/08/2026) dissolved the premise instead of answering it: the product is a Flutter app, the
+iOS channel is a **native build** (`flutter build ipa`), and there is no wrapper for Apple to
+judge. Paying US$99 + days of spike effort to test a shell that will never ship stopped
+making sense.
+
+**What survived.** The spike's useful mechanics — validate the platform work cheaply, with
+zero users affected, before the listing budget is spent — became **step 1 of the rewritten
+T-40**: a TestFlight validation pass (build, signing, upload, one internal round) that
+surfaces icons, launch screen, permission strings and plugin platform code early. The
+build-lane consideration (macOS runner's 10× minutes multiplier vs a local Mac; click-by-click
+steps for a Windows owner) moved into T-40's scope verbatim.
+
+---
+
+### T-50 — Move the Playwright traces off the GitHub artifact quota (to R2) — SKIPPED
+
+| Field | Value |
+|---|---|
+| **Status** | `skipped` (26/08/2026 — post-cutover board sweep, owner decision) |
+| **Priority** | `medium` (as scoped) |
+| **Complexity** | `low` |
+| **Impact** | `medium` (as scoped) |
+
+**Why it was skipped.** Created 07/08/2026 from a real incident: a red E2E run could not
+upload its `e2e-traces` because the account-wide 500 MB artifact quota was full, so the
+diagnostic vanished exactly when a test was failing. The producer of those traces was the
+Blazor repo's Playwright suite — and it died whole with the archiving of `entrelares-app`
+(T-56, 24/08/2026). The flow-gate role passed to `web-e2e` (the same `integration_test`
+files in a headless browser), which uploads nothing, and this repo's only CI artifact is the
+debug APK at **1-day retention**. The quota pressure the item existed to relieve no longer
+has a source.
+
+**What survived.** The lesson, not the work: a diagnostic step must never be able to change a
+verdict (`continue-on-error: true` on any future upload step), and if the `web-e2e`/emulator
+lanes ever start recording heavy diagnostics, a **new item with real scope** replaces this
+one — the R2 bucket + credential pattern from T-19 remains the named lever.
