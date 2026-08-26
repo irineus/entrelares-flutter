@@ -1567,6 +1567,11 @@ class _DayCell extends StatelessWidget {
                                 ? slot.tone.onSolid
                                 : Theme.of(context).hintColor)),
                   ),
+                  // U-29 round 4 (owner): the same breath the date already
+                  // gets above the avatar — without it the time sat glued to
+                  // the initial. Gated, so a badge-less cell stays centred.
+                  if (frozenMark != null || day?.handoffTime != null)
+                    const SizedBox(height: 2),
                   // Web parity: the frozen badge REPLACES the handoff badge.
                   // (U-29: its label rides the CELL's semantics node now.)
                   if (frozenMark != null)

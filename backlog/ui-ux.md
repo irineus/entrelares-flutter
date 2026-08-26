@@ -364,6 +364,9 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
   navigates and does nothing; sometimes the banner opens"). `reopenChecklist()` now notifies
   — the same mechanism as the tour replay — and the calendar reloads its signals on the ping,
   so the banner returns at once.
+- **F28 — Breathing room in the day cell.** The handoff time sat glued to the carer's initial;
+  it now gets the same 2 px the date already had above the avatar (gated, so badge-less cells
+  stay centred).
 
 **Files affected**
 - Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`
@@ -379,6 +382,6 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
   `store/README.md` §2 · `apps/entrelares_app/pubspec.yaml` (launcher-icons block) · the
   regenerated brand/web/mipmap assets, adaptive XML (+monochrome) and `values/colors.xml`
 - Round 4: `widgets/app_splash.dart` (F25) · `widgets/onboarding.dart` (F26) ·
-  `services/onboarding_service.dart` + `calendar_screen.dart` (F27)
+  `services/onboarding_service.dart` + `calendar_screen.dart` (F27, F28)
 - Widget tests updated/added in the same delivery; the two source gates
   (`no_color_literal_test`, `no_literal_snack_test`) stay green.
