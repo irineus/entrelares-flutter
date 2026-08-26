@@ -195,3 +195,93 @@ the system, so what is left there is only the user-facing switch._
 _**U-28** (screen-by-screen visual harmonization — the U-27 adoption pass) was completed in
 Phase 7 on 20/08/2026 — record in [`archive/phase-7.md`](archive/phase-7.md). It is the item
 that spent what U-27 built: `AppCard` was used ONCE in the whole app before it._
+
+---
+
+### U-29 — Senior UI/UX design review: full-app audit and consistency fixes
+
+| Field | Value |
+|---|---|
+| **Status** | `in-progress` |
+| **Priority** | `medium` |
+| **Complexity** | `medium` |
+| **Impact** | `high` — every finding is on a shipping surface; the fixes close drift the U-27/U-28 system was built to prevent |
+| **Roadmap** | Group 4, Ordem 0 (owner decision 26/08/2026: first of the current queue) |
+
+> **Created 26/08/2026 (owner request):** a full review of the app's UI/UX — every screen,
+> icon and the navigation experience — acting as a senior product designer, with the findings
+> registered here and the fixes that fit delivered in the same item. The review was performed
+> over the code (all 23 screens/sheets, the `widgets/ui/` component set, `theme/`, the shell
+> and router), cross-checked against owner-supplied screenshots.
+
+**Overall verdict**
+The U-27 token architecture and the U-28 harmonization hold up very well: one colour source,
+hand-written light/dark themes, a real component vocabulary (cards, banners, badges, sheets,
+skeletons, timeline, danger zone), loading states with shape, and a navigation model (4-tab
+shell + bottom sheets) that is coherent and phone-first. The findings below are **drift and
+stragglers**, not architecture: places the conventions did not reach, plus one accessibility
+gap on the calendar grid.
+
+**Findings (F# = fixed in this delivery · R# = registered, not fixed here)**
+
+- **F1 — The bulk sheet missed the U-28 QA pass.** It still uses bare underline
+  `DropdownButton`s, loose `Text` labels and no card grouping — exactly what the day sheet
+  and the wizard were converted away from (their comments document the convention). Aligned:
+  `DropdownButtonFormField` with integrated labels, `AppFieldLabel` (+ the "Limpar"
+  checkboxes as label trailing), the same `AppCard` question blocks, Spacing tokens.
+- **F2 — Destructive confirmations wore the brand colour.** The final "Confirmar" of
+  leaving the family / deleting the account (profile), of opening a family-deletion request
+  and of "Excluir agora" (família) rendered as default `FilledButton` — indigo, the same as
+  "Salvar". The design system already states a destructive primary takes the danger tone
+  (`AppActionPair.destructive`, `AppDangerZone`); these three now do.
+- **F3 — U-19 parity regression: the password eye toggle survived only on register and
+  sudo.** Login, the profile's change-password pair and `/update-password` had obscured
+  fields with no show/hide — U-19 delivered that toggle product-wide in Phase 6. Restored on
+  all three (one toggle drives a pair, as register already does).
+- **F4 — Hand-glued `•` bullets** in the família deletion-pending panel and the
+  policy-update change list — the exact defect `AppBulletList` exists to fix (a wrapping
+  line restarts under its bullet). Both now use the component.
+- **F5 — `day_sheet` carried a private `_banner` duplicating `AppBanner`** — the "one
+  implementation cannot drift from itself" argument in reverse. Replaced with `AppBanner`.
+- **F6 — Invitation status as plain text.** "Enviado"/"Expirado" on the invitation card were
+  bare `bodySmall` runs while every other row state in the app is an `AppBadge`. Now badges
+  (info / warning).
+- **F7 — The profile password fields were raw `TextField`s**, the only two in the app
+  outside `AppTextField` — converted (which is also what F3 needed).
+- **F8 — iOS share glyph on the Android-first app.** The PDF tab's share button used
+  `Icons.ios_share` while the família screen shares with `Icons.share_outlined`. Unified on
+  the Material glyph.
+- **F9 — Load-error states were three different things.** Reports tabs: `AppBanner` (danger)
+  with title; família: plain text + reload button; calendar and notifications: a bare
+  centred sentence with no retry affordance at all (pull-to-refresh exists but is
+  undiscoverable as recovery). Unified: screen-level load errors render `AppBanner` (danger)
+  + a "Recarregar" button, keeping pull-to-refresh.
+- **F10 — The calendar grid was mute to screen readers.** A day cell announced only its
+  number (plus the frozen mark); who is responsible, the swap state and the handoff time —
+  the entire content of the grid — were visual-only, undermining the "colour is never the
+  only vector" principle for blind users. Each cell now carries a composed semantics label
+  ("12, Fernanda, trocado, troca 18:00") with the inner paint excluded.
+- **F11 — Custom-role delete confirm was a neutral `TextButton`** ("Sim") — now wears the
+  danger colour, consistent with every other destructive confirm.
+- **F12 — Stale doc comment on the calendar `_Legend`** said "scrolls sideways" while the
+  QA version wraps — fixed with the code it describes.
+
+**Registered, not fixed here**
+- **R1 — Profile page over-exposure** is already **U-21** (read-only groups + pencil
+  sheets); the review confirms it as the right next profile move. No new item.
+- **R2 — Day-sheet decluttering** is already **U-25**; confirmed, no new item.
+- **R3 — Dark-mode user switch** is **U-12**; confirmed.
+- **R4 — PDF tab's initial load uses a spinner** though the shape (filter card) is known —
+  a skeleton would follow the U-27 rule. Cosmetic; left for a future polish pass.
+- **R5 — Form-level errors as red text** under the submit button (login/register/update
+  password) are a consistent app-wide pattern and were deliberately kept — only
+  screen-level load errors moved to banners (F9).
+
+**Files affected**
+- `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart` (F2, F3,
+  F7) · `family_screen.dart` (F2, F4, F6) · `policy_update_screen.dart` (F4) ·
+  `day_sheet.dart` (F5) · `reports_pdf_tab.dart` (F8) · `calendar_screen.dart` (F9, F10,
+  F12) · `notifications_screen.dart` (F9) · `login_screen.dart` (F3) ·
+  `update_password_screen.dart` (F3) · `custom_roles_screen.dart` (F11)
+- Widget tests updated/added in the same delivery; the two source gates
+  (`no_color_literal_test`, `no_literal_snack_test`) stay green.

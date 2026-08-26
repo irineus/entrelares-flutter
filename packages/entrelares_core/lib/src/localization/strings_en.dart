@@ -110,6 +110,8 @@ abstract final class StringsEn {
     K.navReports: 'Reports',
     K.navLogout: 'Sign out',
     K.commonOptional: 'optional',
+    K.commonShowPassword: 'Show password',
+    K.commonHidePassword: 'Hide password',
     K.wizBlockParentLabel: 'Caregiver',
     K.editorHourLabel: 'Hour',
     K.editorMinuteLabel: 'Minute',

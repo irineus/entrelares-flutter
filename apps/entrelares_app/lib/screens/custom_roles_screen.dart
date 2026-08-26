@@ -1,6 +1,7 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
 import '../widgets/ui/ui.dart';
+import '../theme/tokens.dart';
 
 import 'package:entrelares_db_contracts/models/family.dart';
 import 'package:entrelares_db_contracts/models/role.dart';
@@ -259,7 +260,11 @@ class _CustomRolesScreenState extends State<CustomRolesScreen> {
                 child: Row(
                   children: [
                     Expanded(child: Text(l[K.rolesDeleteConfirm])),
+                    // U-29: the destructive answer wears the danger colour,
+                    // like every other delete confirm in the app.
                     TextButton(
+                      style: TextButton.styleFrom(
+                          foregroundColor: context.tokens.danger.solid),
                       onPressed: () => _delete(role, l),
                       child: Text(l[K.rolesYes]),
                     ),

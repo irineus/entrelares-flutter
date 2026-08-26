@@ -72,6 +72,10 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorKey;
   bool _busy = false;
 
+  /// U-29 — U-19's eye toggle, which the port kept on register and sudo but
+  /// dropped here, on the field people type a password into most often.
+  bool _obscured = true;
+
   // S-01 — progressive throttling (mirror in LoginThrottle).
   int _failedAttempts = 0;
   int _lockoutSecondsLeft = 0;
@@ -210,8 +214,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 AppTextField(
                   label: l[K.commonPassword],
                   controller: _password,
-                  obscureText: true,
+                  obscureText: _obscured,
                   autofillHints: const [AutofillHints.password],
+                  suffixIcon: IconButton(
+                    tooltip: l[_obscured
+                        ? K.commonShowPassword
+                        : K.commonHidePassword],
+                    icon: Icon(
+                        _obscured ? Icons.visibility : Icons.visibility_off),
+                    onPressed: () => setState(() => _obscured = !_obscured),
+                  ),
                   onSubmitted: (_) => _busy || _lockedOut ? null : _submit(),
                 ),
                 const SizedBox(height: 20),

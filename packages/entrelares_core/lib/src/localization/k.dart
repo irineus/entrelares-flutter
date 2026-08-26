@@ -128,6 +128,12 @@ abstract final class K {
   /// [AppInfoTip], which is why the hint strings below lost their brackets.
   static const String commonOptional = 'common.optional';
 
+  /// U-29 — the accessible name of the password eye toggle. U-19 gave every
+  /// obscured field a show/hide control; these are what a screen reader (and a
+  /// long-press) calls it, in the state it would SWITCH TO.
+  static const String commonShowPassword = 'common.showPassword';
+  static const String commonHidePassword = 'common.hidePassword';
+
   /// U-28 QA — the two halves of a handoff time. They exist because the pickers
   /// became real form fields with integrated labels: a bare "19" and "00" side
   /// by side say nothing about which is which.
@@ -1185,6 +1191,8 @@ abstract final class K {
     navReports,
     navLogout,
     commonOptional,
+    commonShowPassword,
+    commonHidePassword,
     wizBlockParentLabel,
     editorHourLabel,
     editorMinuteLabel,

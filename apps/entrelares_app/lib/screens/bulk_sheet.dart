@@ -573,190 +573,244 @@ class _BulkSheetState extends State<_BulkSheet> {
                   onNo: () => setState(() => _showDeleteAllConfirm = false),
                 )
               else ...[
+                // U-29: this sheet had missed the U-28 QA pass — bare
+                // underline `DropdownButton`s, loose labels and no grouping,
+                // exactly what the day sheet and the wizard were converted
+                // away from. Same conventions now: one AppCard per question,
+                // AppFieldLabel (the "Limpar" checkboxes ride as trailing),
+                // and bordered form fields.
+                //
                 // ── Planned parent ──
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(l[K.editorScheduledParent],
-                          style: Theme.of(context).textTheme.labelLarge),
-                    ),
-                    // QA: clearing assigned days is admin-only (S-09 fix).
-                    if (widget.adminBypass)
-                      TextButton(
-                        onPressed: _saving
-                            ? null
-                            : () =>
-                                setState(() => _showDeleteAllConfirm = true),
-                        style: TextButton.styleFrom(
-                            foregroundColor:
-                                Theme.of(context).colorScheme.error,
-                            visualDensity: VisualDensity.compact),
-                        child: Text(l[K.bulkClearDaysAction]),
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                              child:
+                                  AppFieldLabel(l[K.editorScheduledParent])),
+                          // QA: clearing assigned days is admin-only (S-09).
+                          if (widget.adminBypass)
+                            TextButton(
+                              onPressed: _saving
+                                  ? null
+                                  : () => setState(
+                                      () => _showDeleteAllConfirm = true),
+                              style: TextButton.styleFrom(
+                                  foregroundColor:
+                                      Theme.of(context).colorScheme.error,
+                                  visualDensity: VisualDensity.compact),
+                              child: Text(l[K.bulkClearDaysAction]),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-                DropdownButton<int>(
-                  key: const Key('bulkScheduled'),
-                  isExpanded: true,
-                  value: _scheduledParentId,
-                  items: [
-                    DropdownMenuItem(
-                        value: 0, child: Text(l[K.editorSelectPlaceholder])),
-                    for (final m in widget.activeMembers)
-                      DropdownMenuItem(
-                          value: m.id, child: Text(m.fullName)),
-                  ],
-                  onChanged: _saving
-                      ? null
-                      : (v) => setState(() => _scheduledParentId = v ?? 0),
-                ),
-                if (!widget.adminBypass && _assignedCount > 0)
-                  Text(
-                    l.format(
-                        _assignedCount == 1
-                            ? K.bulkKeptScheduledOne
-                            : K.bulkKeptScheduledMany,
-                        [_assignedCount]),
-                    style: Theme.of(context).textTheme.bodySmall,
+                      DropdownButtonFormField<int>(
+                        key: const Key('bulkScheduled'),
+                        isExpanded: true,
+                        decoration: const InputDecoration(),
+                        initialValue: _scheduledParentId,
+                        items: [
+                          DropdownMenuItem(
+                              value: 0,
+                              child: Text(l[K.editorSelectPlaceholder])),
+                          for (final m in widget.activeMembers)
+                            DropdownMenuItem(
+                                value: m.id, child: Text(m.fullName)),
+                        ],
+                        onChanged: _saving
+                            ? null
+                            : (v) =>
+                                setState(() => _scheduledParentId = v ?? 0),
+                      ),
+                      if (!widget.adminBypass && _assignedCount > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: Spacing.xs),
+                          child: Text(
+                            l.format(
+                                _assignedCount == 1
+                                    ? K.bulkKeptScheduledOne
+                                    : K.bulkKeptScheduledMany,
+                                [_assignedCount]),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                    ],
                   ),
-                const SizedBox(height: 16),
+                ),
+                const SizedBox(height: Spacing.sm),
 
                 // ── Actual parent + Limpar (lote 3: workflow routing) ──
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(l[K.editorActualParent],
-                          style: Theme.of(context).textTheme.labelLarge),
-                    ),
-                    _clearCheckbox(
-                      l,
-                      value: _clearActual,
-                      unavailable: _actualParentId != 0,
-                      enabled: fieldsEnabled,
-                      onChanged: (v) => setState(() => _clearActual = v),
-                    ),
-                  ],
-                ),
-                DropdownButton<int>(
-                  key: const Key('bulkActual'),
-                  isExpanded: true,
-                  value: _actualParentId,
-                  items: [
-                    DropdownMenuItem(
-                        value: 0, child: Text(l[K.editorSameAsPlanned])),
-                    for (final m in widget.activeMembers)
-                      DropdownMenuItem(value: m.id, child: Text(m.fullName)),
-                  ],
-                  onChanged: !fieldsEnabled
-                      ? null
-                      : (v) => setState(() {
-                            _actualParentId = v ?? 0;
-                            if (_actualParentId != 0) _clearActual = false;
-                          }),
-                ),
-                const SizedBox(height: 16),
-
-                // ── Handoff time + Limpar ──
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(l[K.editorHandoffTime],
-                          style: Theme.of(context).textTheme.labelLarge),
-                    ),
-                    _clearCheckbox(
-                      l,
-                      value: _clearHandoff,
-                      unavailable: _handoffHour >= 0,
-                      enabled: fieldsEnabled,
-                      onChanged: (v) => setState(() => _clearHandoff = v),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    DropdownButton<int>(
-                      key: const Key('bulkHandoffHour'),
-                      value: _handoffHour,
-                      items: [
-                        const DropdownMenuItem(value: -1, child: Text('--')),
-                        for (var h = 0; h < 24; h++)
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                              child: AppFieldLabel(l[K.editorActualParent])),
+                          _clearCheckbox(
+                            l,
+                            value: _clearActual,
+                            unavailable: _actualParentId != 0,
+                            enabled: fieldsEnabled,
+                            onChanged: (v) =>
+                                setState(() => _clearActual = v),
+                          ),
+                        ],
+                      ),
+                      DropdownButtonFormField<int>(
+                        key: const Key('bulkActual'),
+                        isExpanded: true,
+                        decoration: const InputDecoration(),
+                        initialValue: _actualParentId,
+                        items: [
                           DropdownMenuItem(
-                              value: h,
-                              child: Text(h.toString().padLeft(2, '0'))),
-                      ],
-                      onChanged: !fieldsEnabled
-                          ? null
-                          : (v) => setState(() {
-                                _handoffHour = v ?? -1;
-                                if (_handoffHour >= 0) _clearHandoff = false;
-                              }),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(':'),
-                    ),
-                    DropdownButton<int>(
-                      key: const Key('bulkHandoffMinute'),
-                      value: _handoffMinute,
-                      items: [
-                        for (var m = 0; m < 60; m++)
-                          DropdownMenuItem(
-                              value: m,
-                              child: Text(m.toString().padLeft(2, '0'))),
-                      ],
-                      onChanged: !fieldsEnabled || _handoffHour < 0
-                          ? null
-                          : (v) => setState(() => _handoffMinute = v ?? 0),
-                    ),
-                  ],
+                              value: 0,
+                              child: Text(l[K.editorSameAsPlanned])),
+                          for (final m in widget.activeMembers)
+                            DropdownMenuItem(
+                                value: m.id, child: Text(m.fullName)),
+                        ],
+                        onChanged: !fieldsEnabled
+                            ? null
+                            : (v) => setState(() {
+                                  _actualParentId = v ?? 0;
+                                  if (_actualParentId != 0) {
+                                    _clearActual = false;
+                                  }
+                                }),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Spacing.sm),
 
-                // ── Day note + Limpar ──
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(l[K.editorDayNote],
-                          style: Theme.of(context).textTheme.labelLarge),
-                    ),
-                    _clearCheckbox(
-                      l,
-                      value: _clearNotes,
-                      unavailable: _notes.text.isNotEmpty,
-                      enabled: fieldsEnabled,
-                      onChanged: (v) => setState(() => _clearNotes = v),
-                    ),
-                  ],
+                // ── Handoff time and the day note, one card (day-sheet
+                //    grouping) ──
+                AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                              child: AppFieldLabel(l[K.editorHandoffTime])),
+                          _clearCheckbox(
+                            l,
+                            value: _clearHandoff,
+                            unavailable: _handoffHour >= 0,
+                            enabled: fieldsEnabled,
+                            onChanged: (v) =>
+                                setState(() => _clearHandoff = v),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              key: const Key('bulkHandoffHour'),
+                              decoration: InputDecoration(
+                                  labelText: l[K.editorHourLabel]),
+                              initialValue: _handoffHour,
+                              items: [
+                                const DropdownMenuItem(
+                                    value: -1, child: Text('--')),
+                                for (var h = 0; h < 24; h++)
+                                  DropdownMenuItem(
+                                      value: h,
+                                      child:
+                                          Text(h.toString().padLeft(2, '0'))),
+                              ],
+                              onChanged: !fieldsEnabled
+                                  ? null
+                                  : (v) => setState(() {
+                                        _handoffHour = v ?? -1;
+                                        if (_handoffHour >= 0) {
+                                          _clearHandoff = false;
+                                        }
+                                      }),
+                            ),
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(
+                                horizontal: Spacing.sm, vertical: 16),
+                            child: Text(':'),
+                          ),
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              key: const Key('bulkHandoffMinute'),
+                              decoration: InputDecoration(
+                                  labelText: l[K.editorMinuteLabel]),
+                              initialValue: _handoffMinute,
+                              items: [
+                                for (var m = 0; m < 60; m++)
+                                  DropdownMenuItem(
+                                      value: m,
+                                      child:
+                                          Text(m.toString().padLeft(2, '0'))),
+                              ],
+                              onChanged: !fieldsEnabled || _handoffHour < 0
+                                  ? null
+                                  : (v) =>
+                                      setState(() => _handoffMinute = v ?? 0),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: Spacing.md),
+
+                      // ── Day note + Limpar ──
+                      Row(
+                        children: [
+                          Expanded(child: AppFieldLabel(l[K.editorDayNote])),
+                          _clearCheckbox(
+                            l,
+                            value: _clearNotes,
+                            unavailable: _notes.text.isNotEmpty,
+                            enabled: fieldsEnabled,
+                            onChanged: (v) =>
+                                setState(() => _clearNotes = v),
+                          ),
+                        ],
+                      ),
+                      // U-27: the note had only a placeholder, which
+                      // disappears the moment someone types — the label is
+                      // the accessible name.
+                      AppTextField(
+                        label: l[K.editorDayNote],
+                        hint: l[K.bulkNotePlaceholder],
+                        controller: _notes,
+                        maxLength: 100,
+                        enabled: fieldsEnabled,
+                        onChanged: (v) {
+                          if (v.isNotEmpty && _clearNotes) {
+                            setState(() => _clearNotes = false);
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                // U-27: the note had only a placeholder, which disappears the
-                // moment someone types — the label is the accessible name.
-                AppTextField(
-                  label: l[K.editorDayNote],
-                  hint: l[K.bulkNotePlaceholder],
-                  controller: _notes,
-                  maxLength: 100,
-                  enabled: fieldsEnabled,
-                  onChanged: (v) {
-                    if (v.isNotEmpty && _clearNotes) {
-                      setState(() => _clearNotes = false);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
 
                 // ── F-44: shown only when the batch can open swap/revert
                 //    requests; one message rides every request it creates ──
                 if (_actualParentId != 0 || _clearActual) ...[
-                  AppTextField(
-                    label:
-                        '${l[K.editorMessageLabel]} ${l[K.bulkMessageHint]}',
-                    hint: l[K.bulkMessagePlaceholder],
-                    controller: _swapMessage,
-                    maxLength: 200,
-                    enabled: fieldsEnabled,
+                  const SizedBox(height: Spacing.sm),
+                  AppCard(
+                    child: AppTextField(
+                      label:
+                          '${l[K.editorMessageLabel]} ${l[K.bulkMessageHint]}',
+                      hint: l[K.bulkMessagePlaceholder],
+                      controller: _swapMessage,
+                      maxLength: 200,
+                      enabled: fieldsEnabled,
+                    ),
                   ),
-                  const SizedBox(height: 16),
                 ],
+                const SizedBox(height: Spacing.md),
 
                 if (_saving) ...[
                   LinearProgressIndicator(value: _progress),

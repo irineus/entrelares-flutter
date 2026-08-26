@@ -468,22 +468,10 @@ class _DaySheetState extends State<_DaySheet> {
     );
   }
 
-  Widget _banner(String text, {ToneColors? tone}) {
-    final t = tone ?? context.tokens.warning;
-    final (bg, border, fg) = (t.container, t.border, t.onContainer);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: bg,
-        border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(text,
-          textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: fg)),
-    );
-  }
+  /// U-29: the shared [AppBanner] — this sheet carried a private copy of it,
+  /// which is exactly the drift U-27 argued a component exists to prevent.
+  Widget _banner(String text, {ToneColors? tone}) =>
+      AppBanner(tone: tone ?? context.tokens.warning, message: text);
 
   @override
   Widget build(BuildContext context) {

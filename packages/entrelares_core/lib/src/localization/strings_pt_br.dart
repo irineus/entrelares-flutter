@@ -110,6 +110,8 @@ abstract final class StringsPtBr {
     K.navReports: 'Relatórios',
     K.navLogout: 'Sair',
     K.commonOptional: 'opcional',
+    K.commonShowPassword: 'Mostrar senha',
+    K.commonHidePassword: 'Ocultar senha',
     K.wizBlockParentLabel: 'Responsável',
     K.editorHourLabel: 'Hora',
     K.editorMinuteLabel: 'Minuto',

@@ -449,8 +449,10 @@ void main() {
       await pumpPolicy(tester, source());
 
       expect(find.text(l[K.policyWhatChanged]), findsOne);
+      // U-29: the summary renders through AppBulletList — the glyph is its
+      // own widget, so the assertion is on the change text itself.
       for (final change in PolicyVersions.changeSummary) {
-        expect(find.text('• $change'), findsOne);
+        expect(find.text(change), findsOne);
       }
     });
 
@@ -509,7 +511,7 @@ void main() {
     testWidgets('an English reader gets the courtesy summary', (tester) async {
       await pumpPolicy(tester, source(), language: AppLanguage.en);
 
-      expect(find.text('• ${PolicyVersions.changeSummaryEn.first}'), findsOne);
+      expect(find.text(PolicyVersions.changeSummaryEn.first), findsOne);
     });
   });
 }
