@@ -370,9 +370,12 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
 - **F29 — The Resumo stat cards wrapped at random.** Label and value shared one line via a
   side-by-side `Wrap`, so each row broke wherever the carer's numbers met the reader's font
   scale ("cedeu 23 ·" / "recebeu 9") and neighbouring cards wrapped differently — disorder in
-  the one tab built for comparing carers. The label now sits ABOVE its value, a deliberate
-  two-line shape identical across every card, language and scale; the labels lost their
-  trailing colons in both catalogs (a stacked label carries none).
+  the one tab built for comparing carers. Final form (the owner's own sketch, second
+  iteration): two bands of PAIRED stats, each value under its own label — Programado beside
+  Realizado, and under a hairline rule Cedeu beside Recebeu (the single `sumSwapSplit` string
+  split into two labelled stats, in days); Previsto joins full-width when the U-20 toggle is
+  on. Every card shares the same grid at any font scale. The labels lost their trailing
+  colons in both catalogs.
 
 **Files affected**
 - Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`

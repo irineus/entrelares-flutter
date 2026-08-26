@@ -765,7 +765,8 @@ abstract final class StringsEn {
     K.sumPlanned: 'Planned',
     K.sumActual: 'Actual',
     K.sumProjected: 'Projected',
-    K.sumSwaps: 'Swaps',
+    K.sumGiven: 'Gave away',
+    K.sumReceived: 'Received',
     K.repErrInit: 'Initialisation failed: {0}',
     // ── Reports: adjustment history ──
     K.auditPageTitle: 'Adjustment history',
@@ -790,7 +791,6 @@ abstract final class StringsEn {
     K.sumFutureToggle: 'Include future swaps already accepted',
     K.sumDaysOne: '{0} day',
     K.sumDaysMany: '{0} days',
-    K.sumSwapSplit: 'gave {0} · received {1}',
     K.sumTotalSwaps: 'Shared-custody swaps completed in the period: <strong>{0}</strong>',
     K.sumTotalSwapsProjected: 'Custody swaps in the period, including future ones already accepted: <strong>{0}</strong>',
     K.auditTabRecent: 'Recent',

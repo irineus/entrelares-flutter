@@ -765,7 +765,8 @@ abstract final class StringsPtBr {
     K.sumPlanned: 'Programado',
     K.sumActual: 'Realizado',
     K.sumProjected: 'Previsto',
-    K.sumSwaps: 'Trocas',
+    K.sumGiven: 'Cedeu',
+    K.sumReceived: 'Recebeu',
     K.repErrInit: 'Falha na inicialização: {0}',
     // ── Reports: adjustment history ──
     K.auditPageTitle: 'Histórico de Ajustes',
@@ -790,7 +791,6 @@ abstract final class StringsPtBr {
     K.sumFutureToggle: 'Considerar trocas futuras já aceitas',
     K.sumDaysOne: '{0} dia',
     K.sumDaysMany: '{0} dias',
-    K.sumSwapSplit: 'cedeu {0} · recebeu {1}',
     K.sumTotalSwaps: 'Total de trocas de guarda compartilhada realizadas no período: <strong>{0}</strong>',
     K.sumTotalSwapsProjected: 'Total de trocas de guarda no período, incluindo futuras já aceitas: <strong>{0}</strong>',
     K.auditTabRecent: 'Recentes',

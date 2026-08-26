@@ -824,7 +824,8 @@ abstract final class K {
   static const String sumPlanned = 'rep.sum.planned';
   static const String sumActual = 'rep.sum.actual';
   static const String sumProjected = 'rep.sum.projected';
-  static const String sumSwaps = 'rep.sum.swaps';
+  static const String sumGiven = 'rep.sum.given';
+  static const String sumReceived = 'rep.sum.received';
   static const String repErrInit = 'rep.err.init';
 
   // ── Reports: adjustment history ──
@@ -850,7 +851,6 @@ abstract final class K {
   static const String sumFutureToggle = 'rep.sum.futureToggle';
   static const String sumDaysOne = 'rep.sum.daysOne';
   static const String sumDaysMany = 'rep.sum.daysMany';
-  static const String sumSwapSplit = 'rep.sum.swapSplit';
   static const String sumTotalSwaps = 'rep.sum.totalSwaps';
   static const String sumTotalSwapsProjected = 'rep.sum.totalSwapsProjected';
   static const String auditTabRecent = 'rep.audit.tabRecent';
@@ -1830,7 +1830,8 @@ abstract final class K {
     sumPlanned,
     sumActual,
     sumProjected,
-    sumSwaps,
+    sumGiven,
+    sumReceived,
     repErrInit,
     auditPageTitle,
     auditSubtitle,
@@ -1854,7 +1855,6 @@ abstract final class K {
     sumFutureToggle,
     sumDaysOne,
     sumDaysMany,
-    sumSwapSplit,
     sumTotalSwaps,
     sumTotalSwapsProjected,
     auditTabRecent,

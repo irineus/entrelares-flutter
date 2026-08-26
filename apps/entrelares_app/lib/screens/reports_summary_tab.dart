@@ -311,18 +311,28 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: Spacing.sm),
-            _statRow(l[K.sumPlanned], _daysLabel(stat.plannedDays, l),
-                tone: slot.tone),
-            _statRow(l[K.sumActual], _daysLabel(stat.actualDays, l),
-                highlight: true, tone: slot.tone),
-            if (_includeFutureSwaps)
-              _statRow(l[K.sumProjected], _daysLabel(stat.projectedDays, l),
-                  highlight: true, tone: slot.tone),
+            // U-29 round 4 (owner's sketch): two bands of PAIRED stats, each
+            // value under its own label — planned beside actual, given beside
+            // received. Every card shares the same grid, whatever the
+            // reader's font scale does inside a column.
+            _statPair(
+              l[K.sumPlanned], _daysLabel(stat.plannedDays, l),
+              l[K.sumActual], _daysLabel(stat.actualDays, l),
+              tone: slot.tone,
+            ),
+            if (_includeFutureSwaps) ...[
+              const SizedBox(height: Spacing.sm),
+              _stat(l[K.sumProjected], _daysLabel(stat.projectedDays, l),
+                  tone: slot.tone),
+            ],
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+              child: Container(height: 1, color: slot.tone.border),
+            ),
             // U-07: who gave days away and who received them.
-            _statRow(
-              l[K.sumSwaps],
-              l.format(
-                  K.sumSwapSplit, [stat.swapsGiven, stat.swapsReceived]),
+            _statPair(
+              l[K.sumGiven], _daysLabel(stat.swapsGiven, l),
+              l[K.sumReceived], _daysLabel(stat.swapsReceived, l),
               tone: slot.tone,
             ),
           ],
@@ -336,36 +346,35 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
   String _daysLabel(int count, Localization l) =>
       l.format(count == 1 ? K.sumDaysOne : K.sumDaysMany, [count]);
 
-  /// U-29 round 4 (owner): the label sits ABOVE its value, always. The
-  /// previous side-by-side `Wrap` broke at whatever point the carer's numbers
-  /// met the reader's font scale ("cedeu 23 ·" / "recebeu 9"), and a card
-  /// whose rows wrap differently from its neighbour's reads as disorder in
-  /// the one tab built for comparing the two. Stacking makes the two-line
-  /// shape deliberate and identical across every card, language and scale.
-  Widget _statRow(String label, String value,
-          {bool highlight = false, ToneColors? tone}) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: tone?.onContainer)),
-            Text(
-              value,
+  /// One stat: label above, value under it. The label may wrap inside its
+  /// column; the value never leaves it — which is what keeps every card on
+  /// the same grid at any font scale.
+  Widget _stat(String label, String value, {required ToneColors tone}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: tone.onContainer)),
+          Text(value,
               style: TextStyle(
-                fontWeight: highlight ? FontWeight.bold : FontWeight.w600,
-                color: tone?.onContainer ??
-                    (highlight
-                        ? Theme.of(context).colorScheme.primary
-                        : null),
-              ),
-            ),
-          ],
-        ),
+                  fontWeight: FontWeight.bold, color: tone.onContainer)),
+        ],
+      );
+
+  /// Two stats side by side in equal columns — the owner's sketch:
+  /// Programado | Realizado over their values, Cedeu | Recebeu under the rule.
+  Widget _statPair(String leftLabel, String leftValue, String rightLabel,
+          String rightValue, {required ToneColors tone}) =>
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _stat(leftLabel, leftValue, tone: tone)),
+          const SizedBox(width: Spacing.sm),
+          Expanded(child: _stat(rightLabel, rightValue, tone: tone)),
+        ],
       );
 
   Widget _emptyState(Localization l) => AppEmptyState(
