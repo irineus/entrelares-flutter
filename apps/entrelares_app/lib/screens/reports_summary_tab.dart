@@ -199,21 +199,21 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Semantics(
-              label: l[K.repPeriodAria],
-              child: SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment(value: false, label: Text(l[K.repByYear])),
-                  ButtonSegment(value: true, label: Text(l[K.repByMonth])),
-                ],
-                selected: {_byMonth},
-                onSelectionChanged: _loading
-                    ? null
-                    : (s) {
-                        setState(() => _byMonth = s.first);
-                        _load();
-                      },
-              ),
+            // U-29: the shared segmented control — this tab had kept the raw
+            // one, the only place in the app still drawing the ✓ inside the
+            // selected segment (the fill already says which one is chosen).
+            AppSegmented<bool>(
+              semantics: l[K.repPeriodAria],
+              options: [
+                (value: false, label: l[K.repByYear]),
+                (value: true, label: l[K.repByMonth]),
+              ],
+              selected: _byMonth,
+              enabled: !_loading,
+              onChanged: (v) {
+                setState(() => _byMonth = v);
+                _load();
+              },
             ),
             const SizedBox(height: 8),
             Row(

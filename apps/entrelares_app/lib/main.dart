@@ -309,7 +309,11 @@ class _EntrelaresAppState extends State<EntrelaresApp>
                     sudo: _sudo,
                     onOpenFamily: () => _router.go('/family'),
                     onReopenOnboarding: ({required bool replayTour}) async {
-                      await _onboarding.reopenChecklist();
+                      // U-29: "Ver o tour de novo" asks for the TOUR — it no
+                      // longer reopens the checklist banner as a side effect,
+                      // which is what left an unrelated banner on the
+                      // calendar after a replay.
+                      if (!replayTour) await _onboarding.reopenChecklist();
                       _onboarding.tourReplayRequested = replayTour;
                       if (mounted) _router.go('/');
                     },
@@ -477,6 +481,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     _inactivityTimer?.cancel();
     _adminMode.dispose();
     _storeBilling?.dispose();
+    _onboarding.dispose();
     _sudo.dispose();
     _badge.dispose();
     _refresh.dispose();

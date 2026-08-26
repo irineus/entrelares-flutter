@@ -242,6 +242,11 @@ abstract final class K {
   static const String editorPastReadonly = 'editor.pastReadonly';
   static const String editorFrozenReadonly = 'editor.frozenReadonly';
   static const String editorScheduledParent = 'editor.scheduledParent';
+
+  /// U-29 — the parenthetical explainers left the labels for the ⓘ tip,
+  /// completing in PT-BR what the English catalog had already done.
+  static const String editorScheduledParentHint = 'editor.scheduledParentHint';
+  static const String editorActualParentHint = 'editor.actualParentHint';
   static const String editorSelectPlaceholder = 'editor.selectPlaceholder';
   static const String editorLockedHint = 'editor.lockedHint';
   static const String editorActualParent = 'editor.actualParent';
@@ -1280,6 +1285,8 @@ abstract final class K {
     editorPastReadonly,
     editorFrozenReadonly,
     editorScheduledParent,
+    editorScheduledParentHint,
+    editorActualParentHint,
     editorSelectPlaceholder,
     editorLockedHint,
     editorActualParent,

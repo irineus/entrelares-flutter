@@ -548,9 +548,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(target.isAdmin ? l[K.profIsAdmin] : l[K.profIsNotAdmin],
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
-          OutlinedButton(
+          // U-29: the shield moved from an emoji in the string to the app's
+          // own icon, pairing with the mail button below.
+          OutlinedButton.icon(
             onPressed: () => _toggleAdmin(l),
-            child: Text(
+            icon: const Icon(Icons.shield_outlined),
+            label: Text(
                 target.isAdmin ? l[K.profRemoveAdmin] : l[K.profMakeAdmin]),
           ),
           const SizedBox(height: 8),

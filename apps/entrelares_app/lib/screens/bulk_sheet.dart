@@ -588,8 +588,10 @@ class _BulkSheetState extends State<_BulkSheet> {
                       Row(
                         children: [
                           Expanded(
-                              child:
-                                  AppFieldLabel(l[K.editorScheduledParent])),
+                              child: AppFieldLabel(
+                                  l[K.editorScheduledParent],
+                                  info:
+                                      l[K.editorScheduledParentHint])),
                           // QA: clearing assigned days is admin-only (S-09).
                           if (widget.adminBypass)
                             TextButton(
@@ -648,7 +650,8 @@ class _BulkSheetState extends State<_BulkSheet> {
                       Row(
                         children: [
                           Expanded(
-                              child: AppFieldLabel(l[K.editorActualParent])),
+                              child: AppFieldLabel(l[K.editorActualParent],
+                                  info: l[K.editorActualParentHint])),
                           _clearCheckbox(
                             l,
                             value: _clearActual,
@@ -763,9 +766,28 @@ class _BulkSheetState extends State<_BulkSheet> {
                       const SizedBox(height: Spacing.md),
 
                       // ── Day note + Limpar ──
+                      //
+                      // U-29 (QA over the owner's screenshots): the loose
+                      // section label above the field REPEATED the field's
+                      // own integrated label — the checkbox rides beside the
+                      // field instead, the way the day sheet parks its ⓘ.
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Expanded(child: AppFieldLabel(l[K.editorDayNote])),
+                          Expanded(
+                            child: AppTextField(
+                              label: l[K.editorDayNote],
+                              hint: l[K.bulkNotePlaceholder],
+                              controller: _notes,
+                              maxLength: 100,
+                              enabled: fieldsEnabled,
+                              onChanged: (v) {
+                                if (v.isNotEmpty && _clearNotes) {
+                                  setState(() => _clearNotes = false);
+                                }
+                              },
+                            ),
+                          ),
                           _clearCheckbox(
                             l,
                             value: _clearNotes,
@@ -775,21 +797,6 @@ class _BulkSheetState extends State<_BulkSheet> {
                                 setState(() => _clearNotes = v),
                           ),
                         ],
-                      ),
-                      // U-27: the note had only a placeholder, which
-                      // disappears the moment someone types — the label is
-                      // the accessible name.
-                      AppTextField(
-                        label: l[K.editorDayNote],
-                        hint: l[K.bulkNotePlaceholder],
-                        controller: _notes,
-                        maxLength: 100,
-                        enabled: fieldsEnabled,
-                        onChanged: (v) {
-                          if (v.isNotEmpty && _clearNotes) {
-                            setState(() => _clearNotes = false);
-                          }
-                        },
                       ),
                     ],
                   ),

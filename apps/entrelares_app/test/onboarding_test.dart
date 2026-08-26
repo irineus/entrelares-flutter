@@ -348,4 +348,52 @@ void main() {
     expect(find.text(Localization(AppLanguage.en)[K.onbChecklistTitle]),
         findsOne);
   });
+
+  group('U-29 regressions (owner-reported)', () {
+    testWidgets('dismissing a REOPENED checklist removes it — the session '
+        'reopen flag is cleared, not just the stamp', (tester) async {
+      // All steps done and previously dismissed: only the reopen flag keeps
+      // the launcher visible, which is exactly the state the ✕ could not
+      // escape before.
+      final ds = source(members: [
+        seenTour(
+            dismissed: DateTime.utc(2026, 8, 2),
+            explained: DateTime.utc(2026, 8, 1)),
+      ]);
+      final onboarding = OnboardingService(ds)..checklistReopened = true;
+      await pumpCalendar(tester, ds, onboarding: onboarding);
+
+      expect(find.text(l[K.onbChecklistTitle]), findsOne);
+
+      await tester.tap(find.byTooltip(l[K.onbChecklistDismissAria]));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l[K.onbChecklistTitle]), findsNothing);
+      expect(onboarding.checklistReopened, isFalse);
+    });
+
+    testWidgets('an explicit tour replay pings the LIVING calendar — no '
+        'reload in between, and a second replay still works', (tester) async {
+      final keys = TourKeys();
+      final ds = source(members: [seenTour()]);
+      final onboarding = OnboardingService(ds);
+      await pumpCalendar(tester, ds, onboarding: onboarding, tourKeys: keys);
+
+      // Already seen: the tour must not auto-run.
+      expect(find.text(l.format(K.tourProgress, [1, 4])), findsNothing);
+
+      onboarding.tourReplayRequested = true;
+      await tester.pumpAndSettle();
+      expect(find.text(l.format(K.tourProgress, [1, 4])), findsOne);
+      await tester.tap(find.text(l[K.tourSkip]));
+      await tester.pumpAndSettle();
+
+      // The old `_tourShown` gate blocked any second replay in a session.
+      onboarding.tourReplayRequested = true;
+      await tester.pumpAndSettle();
+      expect(find.text(l.format(K.tourProgress, [1, 4])), findsOne);
+      await tester.tap(find.text(l[K.tourSkip]));
+      await tester.pumpAndSettle();
+    });
+  });
 }

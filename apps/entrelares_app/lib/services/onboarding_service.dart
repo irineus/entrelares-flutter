@@ -1,4 +1,5 @@
 import 'package:entrelares_core/entrelares_core.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:entrelares_db_contracts/models/member.dart';
 import 'custody_data_source.dart';
@@ -10,7 +11,7 @@ import 'custody_data_source.dart';
 /// it is written to be CHEAP because the calendar is the hottest screen in the
 /// app: a member who already dismissed the card costs zero queries, and the two
 /// optional reads are skipped whenever an earlier fact already settles the step.
-class OnboardingService {
+class OnboardingService extends ChangeNotifier {
   final CustodyDataSource _dataSource;
 
   OnboardingService(this._dataSource);
@@ -18,7 +19,17 @@ class OnboardingService {
   /// Session-scoped, deliberately not persisted: "show it again" is a request
   /// for THIS session, not a new stored preference.
   bool checklistReopened = false;
-  bool tourReplayRequested = false;
+
+  /// U-29: a NOTIFYING flag, because the calendar's State stays alive in the
+  /// tab stack — before, the profile's "Ver o tour de novo" set a flag nobody
+  /// was watching, and the tour only fired when a background reload happened
+  /// to run. Setting it true pings listeners; the calendar reacts at once.
+  bool get tourReplayRequested => _tourReplayRequested;
+  bool _tourReplayRequested = false;
+  set tourReplayRequested(bool value) {
+    _tourReplayRequested = value;
+    if (value) notifyListeners();
+  }
 
   /// [members] and [invitationsPending] are already in the caller's hands, so
   /// they are passed in rather than re-fetched.

@@ -174,6 +174,9 @@ class _CalendarScreenState extends State<CalendarScreen>
     _pageController = PageController(initialPage: _basePage);
     WidgetsBinding.instance.addObserver(this);
     widget.adminMode.addListener(_onAdminModeChanged);
+    // U-29: the profile's "Ver o tour de novo" pings this — the State lives
+    // on in the tab stack, so nothing else runs when the user lands back.
+    widget.onboarding?.addListener(_onTourReplayRequested);
     _load();
     _loadHorizonInputs();
     _watch();
@@ -257,6 +260,7 @@ class _CalendarScreenState extends State<CalendarScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.adminMode.removeListener(_onAdminModeChanged);
+    widget.onboarding?.removeListener(_onTourReplayRequested);
     _unwatch?.call();
     _unwatchWorkflow?.call();
     _pollTimer?.cancel();
@@ -343,16 +347,41 @@ class _CalendarScreenState extends State<CalendarScreen>
 
     // The tour runs ONCE, on the first authenticated session, and hands over
     // to the checklist when it ends — the web's FinishTour does the same.
-    final replay = onboarding.tourReplayRequested;
+    // (Explicit replays arrive through [_onTourReplayRequested] now.)
     if (!_tourShown &&
         widget.tourKeys != null &&
-        (replay || me.onboardingTourSeenAt == null)) {
+        me.onboardingTourSeenAt == null) {
       _tourShown = true;
-      onboarding.tourReplayRequested = false;
+      // U-29: the launcher banner the setState above may have inserted shifts
+      // the whole column AFTER the spotlight would measure its targets — let
+      // the frame settle first, or the holes light where things WERE.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
       await showGuidedTour(context: context, keys: widget.tourKeys!);
       await onboarding.markTourSeen();
-      if (mounted && !replay && _showChecklist) await _openChecklist();
+      if (mounted && _showChecklist) await _openChecklist();
     }
+  }
+
+  /// U-29 — the deterministic replay path. Before, the flag was only read
+  /// inside `_load`, which does not run when the user navigates back from the
+  /// profile (this State stays alive in the shell's IndexedStack), so "Ver o
+  /// tour de novo" waited for a background refresh — and a second replay in
+  /// the same session was blocked by `_tourShown` outright.
+  Future<void> _onTourReplayRequested() async {
+    final onboarding = widget.onboarding;
+    if (onboarding == null ||
+        !onboarding.tourReplayRequested ||
+        widget.tourKeys == null) {
+      return;
+    }
+    onboarding.tourReplayRequested = false;
+    _tourShown = true;
+    // Let the navigation back to this tab land before measuring targets.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await showGuidedTour(context: context, keys: widget.tourKeys!);
+    await onboarding.markTourSeen();
   }
 
   Future<void> _openChecklist() async {
@@ -385,6 +414,11 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   Future<void> _dismissChecklist() async {
+    // U-29 (owner-reported bug): the reopen flag is what keeps a reopened
+    // checklist visible past `allDone`, and nothing ever cleared it — so the
+    // ✕ stamped the dismissal and the banner came straight back, for the
+    // rest of the session. Dismissing answers the reopen too.
+    widget.onboarding?.checklistReopened = false;
     await widget.onboarding?.markChecklistDismissed();
     if (!mounted) return;
     setState(() => _onboardingSignals =

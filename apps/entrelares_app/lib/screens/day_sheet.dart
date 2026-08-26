@@ -462,6 +462,11 @@ class _DaySheetState extends State<_DaySheet> {
         slot: slot,
         radius: 14,
       ),
+      // U-29: the check REPLACED the avatar on the selected chip — the one
+      // chip whose identity matters most lost its initial and colour. The
+      // fill already says "selected" (the same reason AppSegmented turned
+      // its icon off).
+      showCheckmark: false,
       label: Text(label),
       selected: selected,
       onSelected: onSelected == null ? null : (_) => onSelected(id),
@@ -633,8 +638,12 @@ class _DaySheetState extends State<_DaySheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+      // U-29: the "(Planejado)" explainer left the label for the ⓘ, as the
+      // English catalog had already done. The S-09 lock hint outranks it.
       AppFieldLabel(l[K.editorScheduledParent],
-          info: _scheduledLocked ? l[K.editorLockedHint] : null),
+          info: _scheduledLocked
+              ? l[K.editorLockedHint]
+              : l[K.editorScheduledParentHint]),
       Wrap(
         spacing: 8,
         children: [
@@ -668,6 +677,7 @@ class _DaySheetState extends State<_DaySheet> {
       // sentence was — so it rides here, on the label of the field that owns it.
       AppFieldLabel(
         l[K.editorActualParent],
+        info: l[K.editorActualParentHint],
         trailing: isSwapped(_assignment)
             ? AppBadge(
                 text: l[K.calSwapped], tone: context.tokens.swapped.tone)

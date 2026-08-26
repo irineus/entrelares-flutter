@@ -859,8 +859,10 @@ void main() {
     final day = futureDay;
     if (day == null) return;
     await openDay(tester, day);
-    // Since lote 2 the sheet is the FULL editor — the planned-parent label.
-    expect(find.text('Responsável Agendado (Planejado)'), findsOneWidget);
+    // Since lote 2 the sheet is the FULL editor — the planned-parent label
+    // (U-29 moved the "(Planejado)" explainer into the label's info tip).
+    expect(find.text(Localization(AppLanguage.ptBr)[K.editorScheduledParent]),
+        findsOneWidget);
 
     await tapSheet(tester, find.widgetWithText(ChoiceChip, 'Bruno'));
     await tapSheet(tester, find.text('Salvar'));

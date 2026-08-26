@@ -248,6 +248,12 @@ Future<void> showGuidedTour({
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.transparent,
+      // U-29: the spotlight paints target rects measured in GLOBAL
+      // coordinates, but the default `useSafeArea: true` insets the dialog
+      // below the status bar — every hole landed one status bar too low
+      // (the legend spotlight lit the weekday row). The overlay must cover
+      // the whole screen so the two coordinate spaces agree.
+      useSafeArea: false,
       builder: (context) => _GuidedTour(keys: keys),
     );
 

@@ -277,11 +277,65 @@ gap on the calendar grid.
   password) are a consistent app-wide pattern and were deliberately kept — only
   screen-level load errors moved to banners (F9).
 
+**Round 2 — findings from the owner's device screenshots (26/08/2026).** The owner supplied
+~30 screenshots across seven batches; cross-checking them against the code produced eleven
+more findings, three of them behavioural bugs the code review alone had not caught:
+
+- **F13 — The selection ✓ covered the member chip's avatar** (day sheet): the one chip whose
+  identity matters most lost its initial and colour when chosen. `showCheckmark: false` —
+  the fill already says "selected", the same reason `AppSegmented` turned its icon off.
+- **F14/F16/F18 — Material icon + legacy emoji, side by side (systemic).** U-28 gave buttons
+  the app's own icons but the Blazor-era emoji stayed in the catalog strings: "+ + Adicionar
+  bloco" (wizard), two wastebaskets on "Limpar dia", two envelopes on "Enviar redefinição de
+  senha", doubled glyphs on "Alterar senha", "Exportar meus dados", "Ativar modo
+  administrador" and all five Premium benefit rows. Swept: the emoji left every string whose
+  render site carries a Material icon; it stays where it is the only glyph ("✉️ Enviar
+  convite", "✏️ Editar (N)"). "Tornar admin" gained the shield icon its sibling already had.
+- **F15 — The PT labels still carried the parentheses U-28 moved to the ⓘ** — "Responsável
+  Agendado (Planejado)" / "Responsável Real (Em caso de troca)"; the English catalog had
+  already dropped them. Both now read "Responsável agendado/real" with the explainer in an
+  `AppInfoTip` (new keys `editorScheduledParentHint`/`editorActualParentHint`), in the day
+  sheet AND the bulk sheet; "Gerar Plano" lost its stray Title Case.
+- **F17 — "Observação do dia" appeared twice in the bulk sheet** (loose section label + the
+  field's own integrated label, a pre-existing defect F1 had inherited): the clear checkbox
+  now rides beside the field, the way the day sheet parks its ⓘ.
+- **F19 — "👪 Família" was the one app-bar title with an emoji** among the four tabs.
+- **F20 — BUG (owner-reported): the "Primeiros passos" banner could not be dismissed** after
+  "Rever os primeiros passos": the session `checklistReopened` flag is what keeps a reopened
+  checklist visible past `allDone`, and nothing ever cleared it — the ✕ stamped the DB and
+  the banner returned every rebuild until sign-out. Dismissing now clears the flag.
+- **F21 — BUG cluster (owner-reported): the guided tour.** (a) The spotlight painted every
+  hole one status bar too low: target rects are global, but `showDialog`'s default
+  `useSafeArea: true` inset the overlay below the status bar → `useSafeArea: false`.
+  (b) The first stop measured its target before the launcher banner shifted the layout →
+  the tour now waits for `endOfFrame`. (c) "Ver o tour de novo" only worked by accident:
+  the replay flag was read only inside `_load`, which does not run on navigation (the
+  calendar State lives in the shell's IndexedStack), and a second replay was blocked by
+  `_tourShown` — `OnboardingService` is a `ChangeNotifier` now and the calendar replays
+  deterministically on the ping; the replay also no longer reopens the checklist banner as
+  a side effect.
+- **F22 — The Resumo tab kept the raw `SegmentedButton`**, the only place still drawing the
+  ✓ inside the selected segment — replaced with `AppSegmented`.
+- **F23 — "Sistema/Trigger" leaked developer jargon** into the audit timeline (and the
+  near-evidentiary PDF): the catalog string now reads "Sistema (automático)" / "System
+  (automatic)".
+- **R6 — Launcher icon vs. in-app brand.** The Android icon and native splash are a clay-style
+  green/terracotta illustration; everything inside the app is the flat neutral-plus-indigo
+  system with the blue/amber calendar mark. The opening sequence reads as two products, and
+  the icon's colours exist in no token. Owner decision required (recommendation: evolve the
+  icon toward the calendar mark); touches the Play listing → coordinate with **T-57**.
+- **R7 — "Avisos" vs "Notificações":** the tab and its page title use different words for the
+  same place. Defensible (short tab label), but one word would be firmer — owner's call.
+
 **Files affected**
-- `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart` (F2, F3,
-  F7) · `family_screen.dart` (F2, F4, F6) · `policy_update_screen.dart` (F4) ·
+- Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`
+  (F2, F3, F7) · `family_screen.dart` (F2, F4, F6) · `policy_update_screen.dart` (F4) ·
   `day_sheet.dart` (F5) · `reports_pdf_tab.dart` (F8) · `calendar_screen.dart` (F9, F10,
   F12) · `notifications_screen.dart` (F9) · `login_screen.dart` (F3) ·
   `update_password_screen.dart` (F3) · `custom_roles_screen.dart` (F11)
+- Round 2: the two localization catalogs in `entrelares_core` (F14–F19, F23) ·
+  `day_sheet.dart` + `bulk_sheet.dart` (F13, F15, F17) · `profile_screen.dart` (F18) ·
+  `calendar_screen.dart` + `services/onboarding_service.dart` + `widgets/onboarding.dart` +
+  `main.dart` (F20, F21) · `reports_summary_tab.dart` (F22)
 - Widget tests updated/added in the same delivery; the two source gates
   (`no_color_literal_test`, `no_literal_snack_test`) stay green.
