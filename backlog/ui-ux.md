@@ -375,7 +375,10 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
   Realizado, and under a hairline rule Cedeu beside Recebeu (the single `sumSwapSplit` string
   split into two labelled stats, in days); Previsto joins full-width when the U-20 toggle is
   on. Every card shares the same grid at any font scale. The labels lost their trailing
-  colons in both catalogs.
+  colons in both catalogs, and the PT "Programado" became **"Agendado"** — at large font
+  scales the ten-letter word broke mid-column, and the domain already calls the planned
+  responsible "agendado" (F15's "Responsável agendado"), so the shorter word is also the
+  more consistent one.
 
 **Files affected**
 - Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`

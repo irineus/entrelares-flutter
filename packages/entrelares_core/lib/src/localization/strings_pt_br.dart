@@ -762,7 +762,7 @@ abstract final class StringsPtBr {
     K.repFilter: 'Filtrar',
     K.sumEmptyTitle: 'Nenhum dado encontrado',
     K.sumEmptyBody: 'Não há agendamentos registrados para o período selecionado. Atribua responsáveis no calendário para que os dados apareçam aqui.',
-    K.sumPlanned: 'Programado',
+    K.sumPlanned: 'Agendado',
     K.sumActual: 'Realizado',
     K.sumProjected: 'Previsto',
     K.sumGiven: 'Cedeu',

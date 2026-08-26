@@ -365,7 +365,7 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
       );
 
   /// Two stats side by side in equal columns — the owner's sketch:
-  /// Programado | Realizado over their values, Cedeu | Recebeu under the rule.
+  /// Agendado | Realizado over their values, Cedeu | Recebeu under the rule.
   Widget _statPair(String leftLabel, String leftValue, String rightLabel,
           String rightValue, {required ToneColors tone}) =>
       Row(
