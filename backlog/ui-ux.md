@@ -367,6 +367,12 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
 - **F28 — Breathing room in the day cell.** The handoff time sat glued to the carer's initial;
   it now gets the same 2 px the date already had above the avatar (gated, so badge-less cells
   stay centred).
+- **F29 — The Resumo stat cards wrapped at random.** Label and value shared one line via a
+  side-by-side `Wrap`, so each row broke wherever the carer's numbers met the reader's font
+  scale ("cedeu 23 ·" / "recebeu 9") and neighbouring cards wrapped differently — disorder in
+  the one tab built for comparing carers. The label now sits ABOVE its value, a deliberate
+  two-line shape identical across every card, language and scale; the labels lost their
+  trailing colons in both catalogs (a stacked label carries none).
 
 **Files affected**
 - Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`
@@ -382,6 +388,7 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
   `store/README.md` §2 · `apps/entrelares_app/pubspec.yaml` (launcher-icons block) · the
   regenerated brand/web/mipmap assets, adaptive XML (+monochrome) and `values/colors.xml`
 - Round 4: `widgets/app_splash.dart` (F25) · `widgets/onboarding.dart` (F26) ·
-  `services/onboarding_service.dart` + `calendar_screen.dart` (F27, F28)
+  `services/onboarding_service.dart` + `calendar_screen.dart` (F27, F28) ·
+  `reports_summary_tab.dart` + the two catalogs (F29)
 - Widget tests updated/added in the same delivery; the two source gates
   (`no_color_literal_test`, `no_literal_snack_test`) stay green.

@@ -336,17 +336,18 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
   String _daysLabel(int count, Localization l) =>
       l.format(count == 1 ? K.sumDaysOne : K.sumDaysMany, [count]);
 
-  /// U-28: a `Wrap`, not a `Row`. At half the screen width "Programado" and
-  /// "161 dias" no longer fit on one line for every language, and a `Row` would
-  /// have overflowed rather than moved the value down.
+  /// U-29 round 4 (owner): the label sits ABOVE its value, always. The
+  /// previous side-by-side `Wrap` broke at whatever point the carer's numbers
+  /// met the reader's font scale ("cedeu 23 ·" / "recebeu 9"), and a card
+  /// whose rows wrap differently from its neighbour's reads as disorder in
+  /// the one tab built for comparing the two. Stacking makes the two-line
+  /// shape deliberate and identical across every card, language and scale.
   Widget _statRow(String label, String value,
           {bool highlight = false, ToneColors? tone}) =>
       Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: Spacing.sm,
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label,
                 style: Theme.of(context)
@@ -356,11 +357,11 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
             Text(
               value,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: highlight
-                    ? (tone?.onContainer ??
-                        Theme.of(context).colorScheme.primary)
-                    : tone?.onContainer,
+                fontWeight: highlight ? FontWeight.bold : FontWeight.w600,
+                color: tone?.onContainer ??
+                    (highlight
+                        ? Theme.of(context).colorScheme.primary
+                        : null),
               ),
             ),
           ],
