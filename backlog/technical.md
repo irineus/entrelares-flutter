@@ -549,6 +549,54 @@ Read against this item: a guard validated only by "we broke a test and the job w
 reproduce the original defect exactly. The acceptance for the guard is that it goes red on a suite
 that runs **zero** tests — which is the case nobody checked, and the whole reason this item exists.
 
+
+**And now the second half of the same question: the lane also OSCILLATES (26/08/2026).** The
+first measured non-determinism since the lane started genuinely executing. Three jobs of the
+same test code, no source change between them:
+
+| Job | Result | Window (UTC) |
+|---|---|---|
+| `web-e2e` of [#86](https://github.com/irineus/entrelares-flutter/pull/86) ([97881850874](https://github.com/irineus/entrelares-flutter/actions/runs/32872255730/job/97881850874)) | pass | 25/08 **16:29:24 → 16:38:33** |
+| `web-e2e` of [#87](https://github.com/irineus/entrelares-flutter/pull/87) ([97881998833](https://github.com/irineus/entrelares-flutter/actions/runs/32872300613/job/97881998833)) | **fail** | 25/08 **16:29:51 → 16:37:53** |
+| the same job, re-run ([98124411440](https://github.com/irineus/entrelares-flutter/actions/runs/32872300613/job/98124411440)) | pass | 26/08 09:12:12 → 09:21:28 |
+
+The failure: `Bad state: No element` from `ensureVisible` at `account_flows_test.dart:106`, in
+*"p0 — an invitation is created and revoked through the real Família page"*. A finder matched
+nothing. Both PRs were **documentation only** — neither touched a line the lane executes.
+
+**Two variables change between the red and the green, and neither is established.** The re-run is
+both *another day* and *alone*; the failure ran *alongside a sibling*. Read the windows: the two
+runs of 25/08 started 27 seconds apart and the failing one lived entirely inside the passing
+one's window. `web-e2e` is serialized **per ref** (`group: web-e2e-${{ github.ref }}`), so two
+PRs run the lane against the same dev project simultaneously — by design.
+
+Three candidate mechanisms, none of them demonstrated:
+
+1. **Two concurrent runs on one dev project.** The job's own comment states non-collision as a
+   *design assumption*, not a measurement: *"each invents its own `E2E-<runId>` family and both
+   orphan sweeps spare anything younger than 2h"*. That reasoning covers per-family state and
+   says nothing about what two runs SHARE — the Resend allowance is per ACCOUNT (a documented
+   gotcha: the suite once spent production's), and S-01 throttling is per identity. An
+   invitation e-mail that a shared limit refuses is exactly a finder that matches nothing.
+2. **A date-dependent path.** There is precedent in this product: the Blazor `BulkUiTests`
+   failure that held the `dev`→`master` promotion at the cutover was deterministic *only when
+   the allocated days fall on the last row of the month*. A calendar-shaped failure looks like
+   flakiness until somebody plots it against the date.
+3. **An ordinary render/timing race** in `ensureVisible`, which is the dullest explanation and
+   therefore the one most likely to be true.
+
+**Why this belongs to T-58 rather than to a new item.** T-58 asks whether the gate can be
+*trusted*, and there are two ways to fail that: it can approve without asserting (the original
+finding) and it can refuse for reasons unrelated to the change (this one). Both spend the same
+trust, and the second is the more corrosive in practice — a lane that goes red at random teaches
+everyone to re-run until green, which is indistinguishable from not having a gate at all. **The
+re-run above is exactly that behaviour**, done knowingly and recorded here rather than quietly.
+
+**How to settle it cheaply, before writing any fix.** Do not start from the code. Re-run the
+FAILING sha alone, on a day whose calendar shape differs, and separately push two branches on
+purpose within a minute of each other and watch both lanes. One of those two experiments
+separates the variables; guessing between them writes the wrong fix confidently.
+
 **Deliberately NOT in scope:** the three stacked E2E defects themselves (the `roles.role_name` column, `bootApp`'s inverted order, the unpinned language). Those belong to PR #81. This item is about the lane being *unable to lie*, not about the tests it happens to be running today.
 
 **Justification**
