@@ -12,7 +12,7 @@ _**T-35** (non-guessable concurrency token), **T-45** (next-day handoff consiste
 
 ---
 
-### T-18 — Add offline-first data strategy for service worker
+### T-18 — Offline-first data strategy (read cache + offline indicator)
 
 | Field | Value |
 |---|---|
@@ -22,50 +22,47 @@ _**T-35** (non-guessable concurrency token), **T-45** (next-day handoff consiste
 | **Impact** | `medium` |
 
 **Description**
-The published service worker caches static assets (DLLs, CSS, JS, images) but has no strategy for API data. If the user opens the app offline after the initial load, all Supabase API calls fail silently and the calendar shows empty or an error. Implement a cache-then-network strategy for read operations (cache the last successful API response in IndexedDB, serve it when offline, refresh when online) and a background-sync queue for write operations (save to IndexedDB, sync to Supabase when connectivity is restored).
+With no connectivity the app fails silently: every PostgREST call errors and the calendar
+renders empty. Cache the last successful read locally and serve it when the network fails, so
+the plan is still visible offline — the door-of-the-school moment ("ver o calendário na porta
+da escola ou no elevador") that an external product review asked for by name.
 
-**Justification**
-The app is marketed as a PWA that "works offline", but in practice only the shell loads offline — no data is visible. For a custody app, being able to check today's schedule without connectivity (e.g. in a basement, airplane, or rural area) is a core value proposition.
+> **Rewritten 26/08/2026 (post-cutover board sweep).** The original record was written for the
+> Blazor PWA — `service-worker.published.js`, IndexedDB via JS interop, `RealtimeBridgeService`,
+> `RetryHelper` — and every one of those surfaces died with the T-53 cutover (the shipped
+> `service-worker.js` is deliberately a TOMBSTONE and must stay one). The product decisions
+> survive unchanged; the implementation is Flutter's.
 
-**Increment (Aug 2026 — external product review).** The review asked for the *reading* half by
-name — "ver o calendário na porta da escola ou no elevador" — plus a discreet **"Modo offline"**
-indicator. Both are folded in here, and the review's framing is the useful one: **this item
-should be split, and the read half is the whole user-facing value.**
-
-- **PR 1 — read offline (the actual ask).** Cache the last successful read of the *current
-  month* + the today card, serve it when the network fails, refresh on reconnect. That is the
-  door-of-the-school moment; nothing else in the item is needed for it.
-- **A visible "Modo offline" strip, reading ONE connectivity state.** `navigator.onLine` alone
-  lies (it reports the interface, not reachability — a captive portal is "online"), so the
-  indicator must combine it with what the app already knows: `RealtimeBridgeService` tracks the
-  socket state and already retunes the F-23 safety poll on it (25s socket-down / 120s healthy),
-  and every PostgREST call goes through `RetryHelper`, which is where a failure is first seen.
-  Derive the state once, in one service, and let the strip and the poll cadence read the same
-  value — two independent notions of "offline" is a bug generator. The strip must also say
+- **PR 1 — read offline (the whole user-facing value).** Persist the last successful read of
+  the current month + the today card in a small local cache service (`shared_preferences` or a
+  file; a real local DB only if the shape ever demands it), serve it when the fetch fails,
+  refresh on reconnect. Nothing else in the item is needed for that moment.
+- **A visible "Modo offline" strip, reading ONE connectivity state.** Derive the state once, in
+  one service, from what the app already has — the native Realtime channel state and the
+  success/failure of the PostgREST calls — never from a bare reachability probe alone (it
+  reports the interface, not reachability; a captive portal is "online"). The strip must say
   **how stale** what is on screen is ("dados de HH:mm"), otherwise it invites the opposite
   mistake: trusting an old plan as current.
-- **The strings go through the U-13 catalogue** (both languages + a call site, per
-  `LocalizationTests`), and the date/time in "dados de …" through `DateFormats` (U-24).
+- **The strings go through the localization catalogs** (U-13, both languages) and the date/time
+  through the per-language formats (U-24).
 - **A write queue is NOT a free extension of the read cache — it is a separate decision.**
   Every day rule lives in the **database**, and a write parked offline can be legitimately
   refused when it flushes: the T-35 `submitted_token` echo is **stale by construction** if
   anyone else wrote the day in the meantime (the flush is *supposed* to fail); the day may have
   been frozen by a swap request in the interval; the F-39 planning horizon may have moved; and
-  a day that was in the future when queued may be in the past when it flushes (V008
-  immutability). So background sync needs a per-item conflict UI and a replay policy, not just
-  a queue — and a silent "saved" that later evaporates is worse than an honest "sem conexão".
-  Ship the read half first and take that decision on its own.
-- Store shells raise the stakes: a Play-installed app (T-38) that shows an empty calendar
-  offline reads as a broken *app*, not as a browser with no signal.
+  a day that was in the future when queued may be in the past when it flushes. So background
+  sync needs a per-item conflict UI and a replay policy, not just a queue — and a silent
+  "saved" that later evaporates is worse than an honest "sem conexão". Ship the read half
+  first and take that decision on its own.
+- The store raises the stakes, not the web: the Play-installed app IS this codebase now — an
+  empty calendar offline reads as a broken *app*, never as a browser with no signal.
 
 **Files affected**
-- `Entrelares/wwwroot/service-worker.published.js` — add API route interception and IndexedDB caching
-- New JS module: `Entrelares/wwwroot/js/offline-store.js` — IndexedDB wrapper for schedule data
-- `Entrelares/Services/CustodyService.cs` — optionally read from local cache when API fails (via JS interop)
-- A single connectivity state (extend `Services/RealtimeBridgeService.cs` or a small
-  `ConnectivityService`) + the indicator in `Layout/MainLayout.razor` — plus its catalogue keys
-- Tests: unit (the staleness sentence and the state machine — online → degraded → offline);
-  E2E is limited (Playwright can drop the context's network, but the cache lives in the SW)
+- New cache + connectivity service under `apps/entrelares_app/lib/services/`; the pure state
+  machine (online → degraded → offline) and the staleness sentence mirrored in
+  `packages/entrelares_core` with `dart test`
+- Calendar/today reads go through the cache; "Modo offline" strip in the app shell
+- Catalog keys for every new string (U-13/U-24)
 
 ---
 
@@ -164,7 +161,7 @@ when revenue starts.
 
 ---
 
-### T-40 — iOS App Store wrapper (Capacitor)
+### T-40 — iOS channel: native Flutter build + App Store listing
 
 | Field | Value |
 |---|---|
@@ -172,141 +169,59 @@ when revenue starts.
 | **Priority** | `low` |
 | **Complexity** | `high` |
 | **Impact** | `medium` |
-| **Roadmap** | Roadmap group 4 (distribution), **slot 2 — promoted from last (owner, Aug 2026)**: the earlier "deferred until monetization is validated" condition was dropped, the owner wants both store listings as soon as possible. The T-38-first ordering survives (Android proves the channel at a quarter of the cost). *(Was labelled "Phase 7 (Enhancement)" while phases doubled as a plan; since Aug 2026 the phase is assigned at CLOSE time and the group is the plan.)* |
-| **Prerequisites** | T-38 (Android first proves the store channel); **T-47 (App Review publishability spike) — its verdict shapes this item's scope**; reuses landing `L-03` screenshots; pairs with F-09 (native push) |
+| **Roadmap** | Roadmap group 4 (distribution) |
+| **Prerequisites** | Store assets exist (T-38/F-54; T-57's re-shoot should land first so the listing is not born stale); pairs with F-09 (push); Apple Developer Program — **US$99/yr, owner ops** |
 
 **Description**
-Apple does not accept a bare PWA, so an iOS App Store presence requires a **native wrapper
-(Capacitor)** around the existing Blazor WASM app. Beyond the wrapper, the real work is:
+Put the app on the App Store as a **native Flutter iOS build** (`flutter build ipa`) — the
+same codebase that ships the Android and web channels.
 
-- **Bundle the published app INTO the shell** (Capacitor local assets — added Aug 2026): never a
-  WebView loading the remote URL, which is the variant Guideline 4.2 ("minimum functionality")
-  rejects on sight. Local assets + APNs push + native touches are the standard defense — and
-  **T-47** validates exactly this combination with a real App Review verdict before this item's
-  budget is spent.
-- **Native push via APNs** — the F-29 realtime bridge is JS/WebSocket; native push needs a
-  Capacitor push plugin + APNs certificates (couples with F-09, Web/native Push).
-- **App Review scrutiny** — Apple rejects "thin wrappers"; the app is feature-rich enough to
-  pass, but expect to add native touches (splash, status-bar, share sheet) to feel native.
-- **IAP consideration** — if a subscription is sold *inside* the iOS app, Apple requires In-App
-  Purchase (15–30% cut). The **web-first billing** decision (T-39) is what lets the iOS app stay
-  a "manage your subscription on our website" client and avoid the cut — verify current App
-  Store review rules for the external-link allowance at build time. If store-cohort data ever
-  justifies native purchase on iOS, StoreKit via a Capacitor plugin is the incremental path (the
-  iOS mirror of **T-48**) — explicitly out of this item's scope.
-- Apple Developer Program (US$99/yr), provisioning, TestFlight, store assets (reuse L-03).
+> **Rewritten 26/08/2026 (post-cutover board sweep), absorbing T-47.** The item was born as a
+> Capacitor wrapper around the Blazor WASM app, and **T-47** existed to buy Apple's verdict on
+> that wrapper's "thin wrapper" risk (Guideline 4.2) before this item's budget was spent. A
+> native Flutter app is not a wrapper: that risk collapsed with the T-53 cutover, so T-47 was
+> closed `skipped` (owner, 26/08/2026) and its surviving idea — a cheap validation pass through
+> TestFlight before the real submission — became step 1 here.
 
-**Justification**
-iOS is a real distribution channel, but far costlier than the Android TWA (native shell, APNs,
-review risk, annual fee). Split out of T-38 so the cheap Android channel proves the store
-strategy first — that ordering still holds. What changed in Aug 2026 is the *timing*: it no
-longer waits for monetization to be validated, because the owner wants both listings as soon as
-possible. Two costs that ride along and are worth naming, since the same owner just created
-group 8 to hold platform spend until revenue: the **US$99/yr** Apple fee is recurring, and native
-push means bringing **F-09** (group 5) forward or shipping iOS without push at first.
+- **Step 1 — TestFlight validation pass (the surviving half of T-47).** First
+  `flutter build ipa`, signing, upload, one internal TestFlight round. Surfaces the platform
+  work — icons, launch screen, `Info.plist` permission strings, the iOS side of
+  `url_launcher`/`printing`/share — with zero users affected and before the listing work starts.
+- **Push:** native APNs rides the same `firebase_messaging` wiring F-09 chooses (the plugin
+  carries APNs on iOS) — bringing F-09 forward or shipping iOS without push at first is the
+  same trade-off as before.
+- **Billing:** the web-first rail (T-39) is what lets the iOS app stay a "manage your plan on
+  the website" client and avoid Apple's IAP cut — re-verify the App Store external-link rules
+  at build time. If store-cohort data ever justifies native purchase on iOS, StoreKit via
+  `in_app_purchase` is the incremental path (the iOS mirror of T-48) — explicitly out of this
+  item's scope.
+- **Build lane decided at execution:** GitHub Actions macOS runner (**10× minutes multiplier**
+  on the private-repo 2000/mo budget — a submission fits, a build loop does not) vs a
+  local/cloud Mac. The owner is on Windows, so signing/upload steps must be written
+  click-by-click.
+- Apple Developer Program (US$99/yr), provisioning, TestFlight, store assets (reuse the
+  T-38/T-57 set).
 
 **Files affected**
-- New Capacitor project/shell wrapping the published WASM app; APNs config
-- `wwwroot/manifest.webmanifest` / icons reused; native push plugin wiring (couples with F-09)
-- New `store/ios/README.md` — Capacitor build + App Store submission runbook
-
+- `apps/entrelares_app/ios/` — icons, launch screen, `Info.plist` permission strings, signing
+- New `store/ios/README.md` — build + signing + submission runbook (click-by-click)
+- CI: an optional macOS lane for the ipa build (`workflow_dispatch`, never per-push)
 
 ---
 
-### T-47 — iOS publishability spike (real App Review verdict before T-40)
-
-| Field | Value |
-|---|---|
-| **Status** | `pending` |
-| **Priority** | `high` |
-| **Complexity** | `medium` |
-| **Impact** | `high` |
-| **Roadmap** | Roadmap group 4 (distribution), between T-38 and T-40 |
-| **Prerequisites** | T-38 (store assets exist, Android proves the channel); Apple Developer Program account — **US$99/yr, owner ops** |
-
-**Description**
-Time-boxed spike whose deliverable is **Apple's own verdict** on the wrapped app, obtained with
-zero users affected and before T-40's budget is spent:
-
-- Minimal Capacitor shell with the **published app bundled** (local assets, never a remote-URL
-  WebView) + APNs registration wired — enough native surface to not read as a bare website.
-  Billing/upgrade entry points hidden (same rule as T-38's store-context detection).
-- Submit through App Store Connect with **manual release ("Pending Developer Release")** — the
-  review verdict arrives without anything being published to users.
-- **Approved** → the fear is closed by evidence; T-40 proceeds as scoped, and the approved shell
-  is its starting point. **Rejected** → the rejection reasons are recorded HERE and become T-40
-  scope items (almost always: more native integration), with years of lead time instead of a
-  launch-week surprise.
-- Build lane decided at execution: GitHub Actions macOS runner (**10× minutes multiplier** on the
-  private-repo 2000/mo budget — a single spike run fits, a build loop does not) vs a local/cloud
-  Mac. The owner is on Windows, so signing/upload steps must be written click-by-click.
-
-**Justification**
-Created Aug 2026 from the architecture review that considered (and declined) a .NET MAUI
-rewrite: the owner's core fear was "will Apple ever accept this app when the moment comes?".
-A MAUI Blazor Hybrid would face the SAME WKWebView review as Capacitor, so the migration would
-not have bought the guarantee — this spike buys the actual fact for days of effort and US$99.
-Its verdict is a formal prerequisite of T-40.
-
-**Files affected**
-- New `store/ios/` Capacitor spike project (becomes T-40's base if approved)
-- New/updated `store/ios/README.md` — build lane, signing, submission + the recorded verdict
+_T-47 (iOS publishability spike) was **skipped** on 26/08/2026 — its premise, a Capacitor
+shell around the Blazor WASM app needing Apple's verdict on the "thin wrapper" risk
+(Guideline 4.2), died with the T-53 cutover: the iOS channel is now a native Flutter build.
+The surviving idea (a cheap TestFlight validation pass before the real submission) is step 1
+of the rewritten **T-40**. Record in [`archive/phase-7.md`](archive/phase-7.md)._
 
 ---
 
-### T-50 — Move the Playwright traces off the GitHub artifact quota (to R2)
-
-| Field | Value |
-|---|---|
-| **Status** | `pending` |
-| **Priority** | `medium` |
-| **Complexity** | `low` |
-| **Impact** | `medium` |
-| **Roadmap** | Roadmap group 5 — but see "Why this is not cosmetic": it is already biting |
-| **Prerequisites** | None. The R2 bucket + credentials already exist for the weekly encrypted backup (T-19), so this reuses a path that is in production. |
-
-> **Created 07/08/2026**, from an incident. Diagnosing a red `dev` E2E run (the U-23 tour
-> blocking the whole smoke pack) had to be done by reading source, because the traces could
-> not be uploaded: `Failed to CreateArtifact: Artifact storage quota has been hit. Unable to
-> upload any new artifacts.`
-
-**Description**
-Upload `e2e-traces` (`deploy.yml`, on E2E failure) to the **Cloudflare R2 bucket the weekly
-backup already uses (T-19)** instead of GitHub Actions artifacts, and print the object URL in
-the job log. This takes the traces off GitHub's meter entirely — the lever `CLAUDE.md` already
-names as the next one if the pack ever grows again.
-
-**Why this is not cosmetic**
-The 500 MB artifact cap is **account-wide**, shared by both repos, and `e2e-traces` is the only
-artifact either of them produces — so it alone decides whether the quota holds. When it is
-full, the failure mode is precisely the worst one: **you lose the diagnostic exactly when a
-test is failing**, which is the only time the trace exists. It is a silent tax on every future
-red run, in both repos, and it compounds — a run you cannot diagnose is a run more likely to be
-"fixed" by guessing.
-
-The August 2026 mitigations (`Screenshots` OFF in `UiFixture`, retention lowered to **1 day**)
-bought real headroom — one red run had reached 391 MB by recording a frame-by-frame screencast
-of every context, including the tests that PASSED — but they did not remove the ceiling. This
-does.
-
-**Scope**
-- Replace the `actions/upload-artifact` step for `e2e-traces` with an R2 upload (the backup job
-  already has the credential pattern and the bucket).
-- Print the resulting URL in the job log, so a red run still tells you where its trace is.
-- Keep the trace CONTENT as it is: DOM `Snapshots` on, `Screenshots` off. The video is what
-  made the packs enormous; the step-by-step replay is what makes them useful.
-- Decide a retention/lifecycle rule on the bucket side (R2 lifecycle), so traces expire without
-  anyone remembering to delete them.
-
-**Do this first, regardless (one line, minutes)**
-Add `continue-on-error: true` to the trace-upload step. It is a **diagnostic** step, and today
-a full quota makes it fail and add noise to a job that had already failed for an unrelated
-reason. A step whose only job is to explain a failure must never be able to change a verdict.
-Worth doing even if this item is never scheduled.
-
-**Related**
-T-19 (the R2 bucket and the credentials this reuses). The `CLAUDE.md` "Repo went private"
-note (effect (b)) is where the quota mechanics and the 391 MB measurement are recorded.
+_T-50 (move the Playwright traces to R2) was **skipped** on 26/08/2026 — the artifact producer
+died with the archiving of `entrelares-app` (T-56): the Playwright suite is gone, and this
+repo's only CI artifact is the debug APK at 1-day retention. If the `web-e2e`/emulator lanes
+ever record heavy diagnostics, a new item with real scope replaces it. Record in
+[`archive/phase-7.md`](archive/phase-7.md)._
 
 ---
 
@@ -606,3 +521,48 @@ A gate that approves without asserting is worse than no gate: it spends the trus
 - `apps/entrelares_app/test_driver/integration_test.dart` — the driver's `responseDataCallback`
 - `apps/entrelares_app/integration_test/*.dart` — the executed-count report
 - `.github/workflows/verify.yml` — the assertion in the `web-e2e` step
+
+---
+
+### T-59 — Play production rollout: closed alpha → public availability
+
+| Field | Value |
+|---|---|
+| **Status** | `pending` |
+| **Priority** | `high` |
+| **Complexity** | `low` |
+| **Impact** | `high` |
+| **Roadmap** | Roadmap group 4 (distribution), after T-52 — the collector for the event the surrounding items keep referencing |
+
+**Description**
+The step every nearby item points at but none tracked: promoting the Play track from the
+closed alpha to production/open testing. Created 26/08/2026 by the post-cutover board sweep —
+T-57 and S-18 both say "should precede the next PRODUCTION rollout", T-36 gates a public
+listing, F-53 fulfils a public promise to the testers, and the Play Billing go-live is
+console ops (§9-bis) — but the rollout itself had no row. Like T-36, this is a **collector**:
+mostly owner ops, plus small PRs wherever a checkbox turns out to be code.
+
+**Checklist (each box names its own item where one exists)**
+- [ ] **F-53 executed** — tester families identified and granted the permanent comp (the
+  public promise of 11/08/2026; the mechanism exists since F-58).
+- [ ] **S-18 settled** — Play Data safety caught up (App interactions, the Messages call on
+  F-44 notes, the §7 operator list) + the materiality call on the policy text.
+- [ ] **T-57 shot** — the listing must not go public with screenshots of the dead Blazor
+  client under the pre-U-27 visual system.
+- [ ] **T-36 decision** — the no-PITR/no-daily-backup risk was accepted for a closed test
+  with ~12 testers; a public listing reopens that acceptance (T-36 is the dependency that
+  survived every reordering).
+- [ ] **Play Billing go-live** (§9-bis in [`supabase/README.md`](../supabase/README.md)) — or
+  an explicit decision to launch with the store rail dark (`billing.store_enabled = false`
+  shows the T-38 neutral note by design, and the web rail keeps selling).
+- [ ] **The rollout itself** — promote the bundle/track in the Play Console, verify the
+  public listing, record the date here and on the board.
+
+**Justification**
+The closed alpha is nearly done. Without a collector, the prerequisites live only as
+cross-references inside other items' prose — which is exactly how launch-week surprises
+happen (the S-15 lesson, applied to our own plan). One row makes the gate explicit and gives
+the board a place to record the date the product became publicly available.
+
+**Files affected**
+- Mostly none (Play Console + Supabase dashboard ops); small PRs may fall out of S-18/T-57
