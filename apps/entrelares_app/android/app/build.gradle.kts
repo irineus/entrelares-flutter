@@ -10,9 +10,11 @@ plugins {
 // T-55: release signing reads path/passwords from android/key.properties
 // (git-ignored; the keystores live OUTSIDE the repo — permanent rule 1). The
 // file carries per-flavor entries: `dev.*` points at the dedicated sideload
-// keystore, `prod.*` at the PRODUCT's upload keystore (store/android.keystore,
-// F-54) — the Play package only accepts that upload signature (stage-0
-// finding), so the two must never swap.
+// keystore, `prod.*` at the PRODUCT's upload keystore (F-54) — the Play package
+// only accepts that upload signature (stage-0 finding), so the two must never
+// swap. Both now live in `~/keystores/`: the upload key spent its life inside
+// `entrelares-app/store/`, which T-56 archived, and a publishing key cannot
+// depend on a clone nobody keeps any more (moved 25/08/2026).
 val keyPropertiesFile = rootProject.file("key.properties")
 val hasKeyProperties = keyPropertiesFile.exists()
 val keyProperties = Properties().apply {

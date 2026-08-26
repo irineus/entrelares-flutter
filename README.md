@@ -124,10 +124,14 @@ dev.storePassword=...
 dev.keyAlias=entrelares
 dev.keyPassword=...
 
-# prod — o keystore de UPLOAD do produto (entrelares-app/store/android.keystore, F-54).
-# O pacote da Play (com.entrelares.app) só aceita essa assinatura de upload (achado do
-# estágio 0) — nunca aponte prod.* para outro keystore.
-prod.storeFile=C:/Users/irineu/source/repos/entrelares-app/store/android.keystore
+# prod — o keystore de UPLOAD do produto (F-54). O pacote da Play
+# (com.entrelares.app) só aceita essa assinatura de upload (achado do estágio 0) —
+# nunca aponte prod.* para outro keystore. Ele nasceu em
+# `entrelares-app/store/android.keystore` e SAIU DE LÁ em 25/08/2026: aquele
+# repositório está arquivado (T-56), e uma chave de publicação não pode morar num
+# clone que ninguém tem mais motivo para manter no disco. A cópia é byte a byte, e
+# a impressão SHA-256 é a mesma que o assetlinks.json declara como upload.
+prod.storeFile=C:/Users/irineu/keystores/entrelares-upload.keystore
 prod.storePassword=...
 prod.keyAlias=android
 prod.keyPassword=...
@@ -136,6 +140,21 @@ prod.keyPassword=...
 As entradas são separadas por construção para o upload da Play nunca sair assinado com a
 chave de sideload por engano. O keystore deste card (`dev.*`) é só para distribuição
 direta/sideload; ele NÃO cria uma segunda identidade na Play.
+
+**Os dois keystores existem em UM lugar só, e é fora de qualquer repositório.** Perder o
+de upload não é fatal — o pacote usa **Play App Signing**, então a chave que assina o que
+o usuário instala é do Google e a nossa é só a de upload, que o suporte da Play redefine
+a pedido. Mas a redefinição custa dias de fila num canal que publica produção, então
+`~/keystores/` merece o mesmo backup que qualquer segredo: cópia fora da máquina, senhas
+no gerenciador. Para conferir que o Gradle enxerga os dois — sem abrir nenhuma senha:
+
+```
+cd apps/entrelares_app/android && ./gradlew :app:signingReport
+```
+
+O `Variant: prodRelease` tem que imprimir a impressão SHA-256 que o
+`apps/entrelares_app/web/.well-known/assetlinks.json` declara para `com.entrelares.app`.
+Se divergir, o build sai assinado com a chave errada e a Play recusa o upload.
 
 ## i18n (U-13/U-24 — lote 1)
 
