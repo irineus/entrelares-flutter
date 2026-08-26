@@ -188,13 +188,14 @@ flutter:
 # `mipmap-xxxhdpi/ic_launcher.png` existed, with no adaptive icon at all, so the
 # app the owner installed did not look like the app in the store.
 #
-# The art is the product's own emblem. Since T-56 (24/08/2026) both files are
-# GENERATED here: `python3 store/brand-icons.py` derives them from the two
-# approved masters (`store/brand-emblema*.png`), which used to live — with the
-# script — in `entrelares-app`, leaving this repo vendoring the results with no
-# way to reproduce them. `emblema-maskable.png` is the script's 78%
-# re-composition, which is what survives Android's adaptive-icon circle mask;
-# the square `emblema.png` stays as the legacy icon for pre-O launchers.
+# The art is the U-29 brand mark (26/08/2026, owner's concept): a calendar
+# card whose day cells draw the two interlocked houses — blue and amber days,
+# rose where they interlace, the today ring on a shared day. All three files
+# are GENERATED, and unlike the clay emblem they replaced (F-54 masters with
+# no vector source), the geometry lives in `store/brand-icons.py` itself:
+# `emblema.png` (indigo squircle — legacy launchers and the native splash),
+# `emblema-maskable.png` (transparent adaptive FOREGROUND, mark inside the
+# safe zone) and `emblema-monochrome.png` (the Android 13 themed-icon glyph).
 #
 # Regenerate: python3 store/brand-icons.py && fvm dart run flutter_launcher_icons
 flutter_launcher_icons:
@@ -202,9 +203,10 @@ flutter_launcher_icons:
   ios: false
   image_path: "assets/brand/emblema.png"
   adaptive_icon_foreground: "assets/brand/emblema-maskable.png"
-  # The emblem's own plaque tone, so the icon has no seam against its mask.
-  adaptive_icon_background: "#F5F1E8"
-  # The source is ALREADY the 78% maskable re-composition, so the generator's
-  # default 16% inset would shrink the emblem twice and leave it swimming.
+  # The brand indigo (tokens: accent.solid), decision A of the U-29 review.
+  adaptive_icon_background: "#4F46E5"
+  adaptive_icon_monochrome: "assets/brand/emblema-monochrome.png"
+  # The foreground is ALREADY composed for the 66% safe zone, so the
+  # generator's default inset would shrink the mark twice.
   adaptive_icon_foreground_inset: 0
   remove_alpha_ios: true

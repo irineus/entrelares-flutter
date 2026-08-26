@@ -46,41 +46,51 @@ points at them; this directory is about the *presence*, not the pipeline.
 
 ## 2 · Brand assets
 
-Two masters, both AI-generated and **approved by the owner** (F-54's "Emblema" identity: two
-interlocked house-rings, sage fabric and terracotta wood, over a cream squircle plaque). There is
-**no vector source** — changing the art means asking for a new generation and re-running the
-script, never editing a PNG by hand.
+**Since U-29 (26/08/2026) the app's mark is drawn, not generated.** The owner's concept: a
+calendar card whose **day cells draw the two interlocked houses** — the blue house and the amber
+house wear the calendar's own day colours, the cells where they interlace are the rose
+`#E11D48`, each house keeps a card-coloured "door" (an empty day), and the today ring sits on a
+shared day. Launcher background: the brand indigo `#4F46E5`. Every colour is a token from
+`apps/entrelares_app/lib/theme/tokens.dart` — the icon is the calendar screen, abstracted.
+
+The **script is the source**: the geometry lives as data in
+[`brand-icons.py`](brand-icons.py) (pure Pillow — `python3 store/brand-icons.py`), which also
+writes [`brand-calendario.svg`](brand-calendario.svg) as the vector artifact. Changing the art
+means editing the script and re-running it — never editing a PNG by hand.
 
 | File | What it is |
 |---|---|
-| [`brand-emblema.png`](brand-emblema.png) | 1024², **text-free**, the 3D render. Source of every icon. |
-| [`brand-emblema-flat.png`](brand-emblema-flat.png) | 1380×752, the flat rendition. Source of the 96 px favicon only — at that size the 3D render turns to mush and the flat linework stays crisp. |
-| [`brand-icons.py`](brand-icons.py) | Derives all seven icon files from the two masters (needs Pillow: `python3 store/brand-icons.py`). |
-| [`store_icon.png`](store_icon.png) | 512², the Play listing icon. **Hand-supplied, not a script output** — see below. |
+| [`brand-icons.py`](brand-icons.py) | Draws the mark and derives every icon file below. THE source. |
+| [`brand-calendario.svg`](brand-calendario.svg) | Vector rendition, written by the script — for print/large-format use, never edited by hand. |
+| [`store_icon.png`](store_icon.png) | 512², the Play listing icon. **Still the F-54 clay emblem, on purpose** — see below. |
+| [`brand-emblema.png`](brand-emblema.png) / [`brand-emblema-flat.png`](brand-emblema-flat.png) | The retired AI-generated clay masters (F-54). Kept because `store_icon.png` and the landing still show them; no script reads them any more. |
 
-`brand-icons.py` writes, and these are the ONLY places the emblem is vendored:
+`brand-icons.py` writes, and these are the ONLY places the mark is vendored:
 
 ```
-apps/entrelares_app/web/favicon.png                    (96, from the flat master)
-apps/entrelares_app/web/icons/Icon-{192,512}.png       (full frame)
+apps/entrelares_app/web/favicon.png                     (96, squircle)
+apps/entrelares_app/web/icons/Icon-{192,512}.png        (full-bleed)
 apps/entrelares_app/web/icons/Icon-maskable-{192,512}.png
-apps/entrelares_app/assets/brand/emblema.png           (= Icon-512)
-apps/entrelares_app/assets/brand/emblema-maskable.png  (= maskable 512)
+apps/entrelares_app/assets/brand/emblema.png            (512, indigo squircle —
+    legacy launchers AND the native splash bitmap)
+apps/entrelares_app/assets/brand/emblema-maskable.png   (512, adaptive
+    FOREGROUND: transparent, mark inside the 66% safe zone)
+apps/entrelares_app/assets/brand/emblema-monochrome.png (512, the Android 13
+    themed-icon glyph)
+store/brand-calendario.svg
 ```
 
-The last two are what `flutter_launcher_icons` reads (config block in
-`apps/entrelares_app/pubspec.yaml`), so the **Android launcher icon regenerates from the same
-masters** — until T-56 this repo vendored those two files with a comment saying it had no way to
-regenerate them and pointing at the other repository. Maskable variants re-compose the emblem at
-**78 %** over the artwork's own background tone, with a feathered paste so no seam shows, because
-Android's adaptive mask clips the plaque's corners otherwise. After running the script:
-`fvm dart run flutter_launcher_icons` refreshes the mipmaps.
+The three `assets/brand/` files are what `flutter_launcher_icons` reads (config block in
+`apps/entrelares_app/pubspec.yaml`: indigo adaptive background, zero foreground inset because
+the script already composes the safe zone, plus the monochrome layer). After running the script:
+`fvm dart run flutter_launcher_icons` refreshes the mipmaps and the adaptive XML.
 
-**Why `store_icon.png` is not written by the script.** It used to be (`maskable(512)`, byte for
-byte). On 13/08/2026 it was replaced by a **different generation of the same emblem** — a fuller
-framing that survives Play's own crop better — supplied by hand and versioned as it is. The
-script's write was removed with it, so that a routine re-run cannot silently regress the store
-icon to the worse framing.
+**Why `store_icon.png` is not written by the script.** Owner decision (26/08/2026, U-29): the
+Play **listing** stays on the clay emblem until the listing art is updated as a whole —
+screenshots, feature graphic and icon together (coordinate with **T-57**). Writing it here would
+silently push a rebrand into the store behind that decision. The same applies to the landing
+repo's favicon/OG art: moving it to the new mark is a follow-up of its own, not this script's
+reach.
 
 ## 3 · Feature graphic (1024×500, required)
 

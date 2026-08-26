@@ -319,13 +319,33 @@ more findings, three of them behavioural bugs the code review alone had not caug
 - **F23 — "Sistema/Trigger" leaked developer jargon** into the audit timeline (and the
   near-evidentiary PDF): the catalog string now reads "Sistema (automático)" / "System
   (automatic)".
-- **R6 — Launcher icon vs. in-app brand.** The Android icon and native splash are a clay-style
-  green/terracotta illustration; everything inside the app is the flat neutral-plus-indigo
-  system with the blue/amber calendar mark. The opening sequence reads as two products, and
-  the icon's colours exist in no token. Owner decision required (recommendation: evolve the
-  icon toward the calendar mark); touches the Play listing → coordinate with **T-57**.
+- **R6 — Launcher icon vs. in-app brand → delivered as F24 (round 3).** The Android icon and
+  native splash were a clay-style green/terracotta illustration; everything inside the app is
+  the flat neutral-plus-indigo system with the blue/amber calendar mark. The opening sequence
+  read as two products, and the icon's colours existed in no token.
 - **R7 — "Avisos" vs "Notificações":** the tab and its page title use different words for the
   same place. Defensible (short tab label), but one word would be firmer — owner's call.
+
+**Round 3 — the new brand mark (F24, owner's concept, 26/08/2026).** R6 was taken in-item.
+The owner supplied the creative direction live: *a calendar whose day cells draw the two
+interlocked houses*, in the calendar's own day colours. Three background candidates and five
+mark variants were rendered and reviewed; the owner picked **indigo background** (option A)
+and **V1** — filled houses, blue + amber, **rose `#E11D48` on the interlaced cells**, a
+card-coloured "door" in each house, the today ring on a shared day. Every colour is a token
+(`tokens.dart`), so the icon is the calendar screen abstracted — the opening sequence
+(icon → splash → calendar) now speaks one visual language.
+
+Delivery: `store/brand-icons.py` fully rewritten — the geometry is data in the script (pure
+Pillow, supersampled 4×), which replaced the AI clay masters as THE source and also writes
+`store/brand-calendario.svg` as the vector artifact. It regenerates the web icons
+(favicon, 192/512, maskable) and the three `assets/brand/` files `flutter_launcher_icons`
+reads; the adaptive icon gained the indigo background and the **Android 13 monochrome layer**
+(new), with `adaptive_icon_foreground_inset: 0` because the script already composes the 66%
+safe zone. The native splash inherits the new mark automatically (`launch_background.xml`
+draws `@mipmap/ic_launcher`). **Deliberately out (owner decision 26/08/2026):**
+`store/store_icon.png` stays on the clay emblem until the Play listing art is refreshed as a
+whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own —
+`store/README.md` §2 records both.
 
 **Files affected**
 - Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`
@@ -337,5 +357,8 @@ more findings, three of them behavioural bugs the code review alone had not caug
   `day_sheet.dart` + `bulk_sheet.dart` (F13, F15, F17) · `profile_screen.dart` (F18) ·
   `calendar_screen.dart` + `services/onboarding_service.dart` + `widgets/onboarding.dart` +
   `main.dart` (F20, F21) · `reports_summary_tab.dart` (F22)
+- Round 3 (F24): `store/brand-icons.py` (rewritten) · `store/brand-calendario.svg` (new) ·
+  `store/README.md` §2 · `apps/entrelares_app/pubspec.yaml` (launcher-icons block) · the
+  regenerated brand/web/mipmap assets, adaptive XML (+monochrome) and `values/colors.xml`
 - Widget tests updated/added in the same delivery; the two source gates
   (`no_color_literal_test`, `no_literal_snack_test`) stay green.
