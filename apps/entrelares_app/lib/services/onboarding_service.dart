@@ -82,8 +82,14 @@ class OnboardingService extends ChangeNotifier {
   /// The permanent door back in, from the profile page. It raises the
   /// session flag AND clears the stored dismissal — a guide you can only read
   /// once, by accident, is not a guide.
+  ///
+  /// U-29 (owner-reported, round 3): it also NOTIFIES, for the same reason the
+  /// tour replay does — the calendar's State stays alive in the tab stack, so
+  /// a flag nobody is told about only surfaces when a background reload
+  /// happens to run ("sometimes the banner opens").
   Future<void> reopenChecklist() async {
     checklistReopened = true;
     await _dataSource.clearChecklistDismissal();
+    notifyListeners();
   }
 }

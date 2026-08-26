@@ -102,8 +102,11 @@ class _AppSplashState extends State<AppSplash>
       );
 }
 
-/// The product's mark: a little month whose weeks alternate between two carers
-/// and where two cells trade colour.
+/// The product's mark: a month whose day cells draw the two interlocked
+/// houses — the U-29 brand (owner's concept, 26/08/2026), the same figure the
+/// launcher icon wears. The geometry below mirrors `store/brand-icons.py`
+/// cell for cell; keep the two in step, or the opening sequence
+/// (icon → splash → login) splits back into two brands.
 ///
 /// Shared with the login screen, which shows it STILL ([swap] left null) — the
 /// same drawing in both places is what makes it read as a mark rather than as
@@ -122,19 +125,32 @@ class AppBrandMark extends StatelessWidget {
 
   const AppBrandMark({super.key, this.swap, this.still = false, this.width = 168});
 
-  /// Which cells are blank at the start and end of the month, so the mark reads
-  /// as a real month rather than as a full rectangle. Same shape as the web's.
-  static const _blankLeading = 2;
-  static const _blankTrailing = 2;
-  static const _rows = 5;
+  static const _cols = 8;
+  static const _rows = 6;
 
-  /// The two cells that change hands — one in the second week, one in the
-  /// third, so the eye catches the exchange rather than a single blink.
-  static const _swapA = 3 * 7 + 3;
-  static const _swapB = 2 * 7 + 3;
+  /// A filled 5-wide pentagon: apex, roof row, three wall rows — the script's
+  /// `_house`, as (row, col) records.
+  static Set<(int, int)> _house(int c0, int r0) => {
+        (r0, c0 + 2),
+        for (var c = c0 + 1; c < c0 + 4; c++) (r0 + 1, c),
+        for (var r = r0 + 2; r < r0 + 5; r++)
+          for (var c = c0; c < c0 + 5; c++) (r, c),
+      };
 
-  /// The cell the month is "on".
-  static const _today = 7 + 2;
+  static final _left = _house(0, 1); // the blue house, grounded
+  static final _right = _house(3, 0); // the amber house, raised — the interlace
+  static final _shared = _left.intersection(_right); // the five rose days
+
+  /// A vacant day at each house's threshold — the card shows through.
+  static const _doors = {(5, 2), (4, 5)};
+
+  /// Today is a SHARED day — the script's `sorted(_BOTH)[len//2]`.
+  static const _today = (3, 4);
+
+  /// The two cells that change hands on the splash — one wall of each house,
+  /// trading colours: a day moving between the two homes.
+  static const _swapA = (4, 1); // blue wall → amber while traded
+  static const _swapB = (2, 6); // amber wall → blue while traded
 
   @override
   Widget build(BuildContext context) {
@@ -190,11 +206,11 @@ class AppBrandMark extends StatelessWidget {
               padding: EdgeInsets.only(top: row == 0 ? 0 : 3),
               child: Row(
                 children: [
-                  for (var col = 0; col < 7; col++)
+                  for (var col = 0; col < _cols; col++)
                     Expanded(
                       child: Padding(
                         padding: EdgeInsets.only(left: col == 0 ? 0 : 3),
-                        child: _cell(context, row * 7 + col, row),
+                        child: _cell(context, (row, col)),
                       ),
                     ),
                 ],
@@ -205,42 +221,51 @@ class AppBrandMark extends StatelessWidget {
     );
   }
 
-  Widget _cell(BuildContext context, int index, int row) {
+  Widget _cell(BuildContext context, (int, int) p) {
     final tokens = context.tokens;
-    final isBlank = index < _blankLeading ||
-        index >= _rows * 7 - _blankTrailing;
-    if (isBlank) return const AspectRatio(aspectRatio: 1, child: SizedBox());
-
-    // Weeks alternate between the two carers — the rhythm a rotation has.
-    final carer = tokens.slot(1).tone.solid;
-    final other = tokens.swapped.tone.solid;
-    final base = row.isEven ? carer : other;
-
-    final isSwapA = index == _swapA;
-    final isSwapB = index == _swapB;
-    if ((!isSwapA && !isSwapB) || swap == null) {
-      return _square(context, base, ringed: index == _today);
+    // A door: the card shows through, a vacant day at the threshold.
+    if (_doors.contains(p)) {
+      return const AspectRatio(aspectRatio: 1, child: SizedBox());
     }
 
-    return AnimatedBuilder(
-      animation: swap!,
-      builder: (context, _) {
-        // The second half of the loop shows the traded colour; the flip itself
-        // is the cell collapsing to a line and opening again on the new one.
-        final t = still ? 1.0 : swap!.value;
-        final traded = t >= 0.48 && t < 0.94;
-        final flipping =
-            !still && ((t >= 0.38 && t < 0.58) || (t >= 0.86 && t < 1.0));
-        final colour = traded
-            ? (isSwapA ? other : carer)
-            : (isSwapA ? carer : other);
-        return Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.identity()..scaleByDouble(1.0, flipping ? 0.08 : 1.0, 1.0, 1.0),
-          child: _square(context, colour, ringed: index == _today),
-        );
-      },
-    );
+    final blue = tokens.slot(1).tone.solid;
+    final amber = tokens.swapped.tone.solid;
+    final rose = tokens.slot(2).tone.solid;
+
+    final isSwapA = p == _swapA;
+    final isSwapB = p == _swapB;
+    if ((isSwapA || isSwapB) && swap != null) {
+      return AnimatedBuilder(
+        animation: swap!,
+        builder: (context, _) {
+          // The second half of the loop shows the traded colour; the flip
+          // itself is the cell collapsing to a line and opening again on the
+          // new one — a day moving between the two houses.
+          final t = still ? 1.0 : swap!.value;
+          final traded = t >= 0.48 && t < 0.94;
+          final flipping =
+              !still && ((t >= 0.38 && t < 0.58) || (t >= 0.86 && t < 1.0));
+          final colour = traded
+              ? (isSwapA ? amber : blue)
+              : (isSwapA ? blue : amber);
+          return Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..scaleByDouble(1.0, flipping ? 0.08 : 1.0, 1.0, 1.0),
+            child: _square(context, colour),
+          );
+        },
+      );
+    }
+
+    if (_shared.contains(p)) {
+      return _square(context, rose, ringed: p == _today);
+    }
+    if (_left.contains(p)) return _square(context, blue);
+    if (_right.contains(p)) return _square(context, amber);
+    // A day outside both houses — present, so the mark still reads as a
+    // month, but quiet (the icon's "vacant day" tone).
+    return _square(context, tokens.outline.withValues(alpha: 0.55));
   }
 
   Widget _square(BuildContext context, Color colour, {bool ringed = false}) =>

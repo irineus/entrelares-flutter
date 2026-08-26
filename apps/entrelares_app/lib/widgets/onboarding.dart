@@ -238,8 +238,10 @@ Future<void> showHowSwapsWork(BuildContext context) =>
 
 /// The 4-stop tour. The card is PINNED near the bottom rather than anchored to
 /// the target: at 344px wide there is often no side of a highlighted element
-/// with room for a balloon, and a card that never moves is also a card that
-/// never covers what it is describing.
+/// with room for a balloon. The one exception is a target that lives at the
+/// bottom itself — step 4 spotlights the notifications tab in the bottom
+/// navigation — where the card flips to the top instead of covering the very
+/// thing it is describing (U-29, owner-reported, round 3).
 Future<void> showGuidedTour({
   required BuildContext context,
   required TourKeys keys,
@@ -285,6 +287,14 @@ class _GuidedTourState extends State<_GuidedTour> {
     final theme = Theme.of(context);
     final isLast = _index == TourSteps.count - 1;
 
+    // A target in the lower band of the screen would sit under the
+    // bottom-pinned card — flip the card to the top for that stop. The
+    // overlay ignores the safe area (see [showGuidedTour]), so the status
+    // bar inset is added back by hand.
+    final screen = MediaQuery.sizeOf(context);
+    final flipToTop =
+        target != null && target.center.dy > screen.height * 0.62;
+
     return Semantics(
       label: l[K.tourAriaLabel],
       child: Stack(
@@ -299,7 +309,8 @@ class _GuidedTourState extends State<_GuidedTour> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 24,
+            top: flipToTop ? MediaQuery.paddingOf(context).top + 16 : null,
+            bottom: flipToTop ? null : 24,
             child: Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),

@@ -347,6 +347,24 @@ draws `@mipmap/ic_launcher`). **Deliberately out (owner decision 26/08/2026):**
 whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own —
 `store/README.md` §2 records both.
 
+**Round 4 — device QA of the round-3 build (owner-reported, 26/08/2026).** Three returns:
+
+- **F25 — The login/splash mark now IS the icon's figure.** `AppBrandMark` still drew the old
+  weeks-alternating month, so the icon and the first screen disagreed the moment F24 shipped.
+  The widget now mirrors `store/brand-icons.py` cell for cell (8×6 month, the two interlocked
+  houses, rose interlace, doors, today ring on a shared day — every colour a token), with a
+  doc comment binding the two sources. The splash keeps its trade animation: one wall of each
+  house exchanges colours — a day moving between the two homes.
+- **F26 — Tour step 4 covered its own target.** The card is pinned near the bottom, and step
+  4's target IS the bottom (the notifications tab) — the card sat on top of the very thing it
+  was describing. A target in the lower band now flips the card to the top.
+- **F27 — "Rever os primeiros passos" was still non-deterministic.** Round 2 fixed the
+  dismissal, but the REOPEN itself relied on a background reload coinciding: the flag was
+  raised and the stored dismissal cleared, yet nothing told the living calendar State ("only
+  navigates and does nothing; sometimes the banner opens"). `reopenChecklist()` now notifies
+  — the same mechanism as the tour replay — and the calendar reloads its signals on the ping,
+  so the banner returns at once.
+
 **Files affected**
 - Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`
   (F2, F3, F7) · `family_screen.dart` (F2, F4, F6) · `policy_update_screen.dart` (F4) ·
@@ -360,5 +378,7 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
 - Round 3 (F24): `store/brand-icons.py` (rewritten) · `store/brand-calendario.svg` (new) ·
   `store/README.md` §2 · `apps/entrelares_app/pubspec.yaml` (launcher-icons block) · the
   regenerated brand/web/mipmap assets, adaptive XML (+monochrome) and `values/colors.xml`
+- Round 4: `widgets/app_splash.dart` (F25) · `widgets/onboarding.dart` (F26) ·
+  `services/onboarding_service.dart` + `calendar_screen.dart` (F27)
 - Widget tests updated/added in the same delivery; the two source gates
   (`no_color_literal_test`, `no_literal_snack_test`) stay green.

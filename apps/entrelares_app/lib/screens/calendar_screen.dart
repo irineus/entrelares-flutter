@@ -174,9 +174,10 @@ class _CalendarScreenState extends State<CalendarScreen>
     _pageController = PageController(initialPage: _basePage);
     WidgetsBinding.instance.addObserver(this);
     widget.adminMode.addListener(_onAdminModeChanged);
-    // U-29: the profile's "Ver o tour de novo" pings this — the State lives
-    // on in the tab stack, so nothing else runs when the user lands back.
-    widget.onboarding?.addListener(_onTourReplayRequested);
+    // U-29: the profile's "Ver o tour de novo" and "Rever os primeiros
+    // passos" ping this — the State lives on in the tab stack, so nothing
+    // else runs when the user lands back.
+    widget.onboarding?.addListener(_onOnboardingPing);
     _load();
     _loadHorizonInputs();
     _watch();
@@ -260,7 +261,7 @@ class _CalendarScreenState extends State<CalendarScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.adminMode.removeListener(_onAdminModeChanged);
-    widget.onboarding?.removeListener(_onTourReplayRequested);
+    widget.onboarding?.removeListener(_onOnboardingPing);
     _unwatch?.call();
     _unwatchWorkflow?.call();
     _pollTimer?.cancel();
@@ -361,6 +362,30 @@ class _CalendarScreenState extends State<CalendarScreen>
       await onboarding.markTourSeen();
       if (mounted && _showChecklist) await _openChecklist();
     }
+  }
+
+  /// One listener, two requests — each guarded by its own flag, so a ping for
+  /// one never runs the other by accident.
+  void _onOnboardingPing() {
+    unawaited(_onTourReplayRequested());
+    unawaited(_onChecklistReopenRequested());
+  }
+
+  /// U-29 (owner-reported, round 3) — the deterministic reopen path. The
+  /// profile's "Rever os primeiros passos" raised the session flag and
+  /// cleared the stored dismissal, but nothing told this State — alive in
+  /// the shell's IndexedStack — to look again, so the banner only appeared
+  /// when a background reload happened to coincide. The service notifies
+  /// now, and this reloads the signals so [_showChecklist] flips at once.
+  Future<void> _onChecklistReopenRequested() async {
+    final onboarding = widget.onboarding;
+    final me = _ownProfile;
+    if (onboarding == null || me == null || !onboarding.checklistReopened) {
+      return;
+    }
+    final signals = await onboarding.loadSignals(me: me, members: _members);
+    if (!mounted) return;
+    setState(() => _onboardingSignals = signals);
   }
 
   /// U-29 — the deterministic replay path. Before, the flag was only read
