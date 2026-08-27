@@ -316,16 +316,16 @@ someone wondering why the repo names a brand that no longer exists.
 
 ---
 
-### T-57 — Re-shoot the product screenshots (Play listing + landing)
+### T-57 — Bring the whole product listing to the current app (icon, art, screenshots, copy — PT-BR + en-US)
 
 | Field | Value |
 |---|---|
 | **Status** | `pending` |
-| **Priority** | `medium` — nothing is broken; what is wrong is that the only picture of the product a stranger sees is of a product that no longer exists |
-| **Complexity** | `medium` — the capture itself is one sitting; the cost is the seeded family, the two languages and the two publishing surfaces |
-| **Impact** | `medium` — it is the store listing's and the landing's whole visual argument |
+| **Priority** | `high` — raised from `medium` on 26/08/2026. It opened as "nothing is broken, the pictures are merely old"; the sweep below found the listing **claiming a feature the product does not have** (offline) and the Console apparently serving a pre-masking screenshot upload. A listing is a claim about the system, so a stale one is not merely unflattering |
+| **Complexity** | `medium` — the capture is one sitting; the cost is the seeded family, the two languages, the three publishing surfaces, and the fact that the mark, the art, the frames and the copy have to land TOGETHER |
+| **Impact** | `high` — it is the store listing's and the landing's whole visual argument, and it is also where the product makes its public promises |
 | **Roadmap** | Group 5 (polish), taking the slot L-21 vacates |
-| **Repo** | `flutter` — the app being photographed lives here; the FILES land in `entrelares-site` |
+| **Repo** | `flutter` (the app being photographed, `store/`, and the mark's generator) **and** `entrelares-site` (the landing's own art and frames). Plus the Play Console uploads, which live in no repo at all |
 
 > **Absorbs [L-21](https://github.com/irineus/entrelares-site/blob/preview/ROADMAP.md)
 > ("English screenshots for `/en/`"), 24/08/2026, owner decision.** L-21 was written on
@@ -372,6 +372,99 @@ PT-BR set for `pt-BR` and the English one for `en-US`, uploaded in the Console.
 If **L-17** (the landing's animated demo of the immutable history) is scheduled anywhere near
 this, do them in the same sitting: the recording and the stills come from the same running
 app, and standing that app up is the expensive part.
+
+---
+
+## The item grew to the WHOLE listing (26/08/2026, owner decision)
+
+It opened as "re-shoot the eight frames". Two things happened after it was written: **U-29
+replaced the mark** (26/08 — the calendar card whose day cells draw the two interlocked houses)
+and a sweep of the live listing found that the frames were the least of it. The owner's call:
+the item now covers **every surface a stranger sees, in both languages**, and they publish
+**together**.
+
+**Why together, and not one fix at a time.** U-29 deliberately did NOT move the store icon —
+[`store/README.md`](../store/README.md) §2 records the reason: *"the Play listing stays on the
+clay emblem until the listing art is updated as a whole — screenshots, feature graphic and icon
+together (coordinate with T-57)"*. Shipping the icon alone gives the store one mark and eight
+photographs of another; shipping the frames alone does the mirror image. **This item is the
+release condition of that decision**, and it is not met surface by surface.
+
+### A · The mark — three places, none of them the bundle
+
+The launcher icon travels in the `.aab` and U-29 already regenerated it, which is why the
+INSTALLED app shows the new mark while the store shows the old one. The listing icon is a
+different artifact with a different delivery path, and nothing in any build touches it.
+
+| Where | What |
+|---|---|
+| [`store/store_icon.png`](../store/store_icon.png) | 512², still the retired F-54 clay emblem. `brand-icons.py` does **not** write it — a deliberate 13/08 removal so a routine re-run could not silently regress the framing, reaffirmed by U-29. First decision of this section: teach the script to write it, or hand-frame it again. Play crops it, and the old file was hand-supplied precisely because it survived that crop better |
+| Play Console → *Grow users → Store presence → Main store listing → **App icon*** | The upload itself |
+| `entrelares-site/public/` | `favicon.png`, `icon-192.png`, `icon-512.png`, `og-cover.png`, `og-cover-en.png` — **five** files, all on the clay mark. `store/README.md` §2 calls moving them "a follow-up of its own"; this is that follow-up |
+
+### B · Feature graphic (1024×500, required by Play)
+
+[`store/feature-graphic.png`](../store/feature-graphic.png) is still the clay art, rendered from
+`feature-graphic.html` with headless Chrome. Re-render against the new mark and **re-upload** —
+§3's warning applies: *Play serves its own copy and nothing updates it automatically*.
+
+The English side is a known hole, not an oversight: `feature-graphic-english.png` is
+**2950×1440** — Play's 2.048∶1 ratio, but the form takes 1024×500 — and there is no
+`feature-graphic-english.html` that reproduces it. An en-US listing either downscales that file
+or gains a generator. Decide which; do not leave the EN listing showing the PT graphic.
+
+### C · The eight frames — with a finding attached
+
+The frames and their file names are as described above, unchanged. What is new is this:
+
+> **The Console's screenshots look like an upload OLDER than the repo's files (26/08/2026).** On
+> the live Play page, both calendar frames carry an orange **DEV** pill at the bottom right. The
+> versioned files — `entrelares-site/public/img/screenshots/today-calendar-meu-dia.png` and
+> `calendario-tres-cuidadores.png` — were opened and **do not have it**: the `[Dev]` masking was
+> done, in the repo. So the two consumers that `store/README.md` §1 calls "one set" have drifted,
+> and the store is the one that drifted. **Confirm at full size in the Console before acting on
+> it**; if it holds, the listing has been telling every visitor since 13/08 that they are looking
+> at a development build. It also kills the assumption that a re-upload is optional whenever the
+> files already exist in the repo.
+
+### D · The copy — where this stops being cosmetic
+
+[`store/listing-pt-BR.txt`](../store/listing-pt-BR.txt) and
+[`listing-en-US.txt`](../store/listing-en-US.txt) were last touched when they MOVED repositories
+(#70, 24/08); their content predates the cutover. **Re-verify every sentence against the code
+before re-publishing — the S-15 rule, applied to marketing.** The sweep already found one:
+
+> **"Funciona também offline (os dados sincronizam ao reconectar)" is not true of this product.**
+> **T-18** — *"Offline-first data strategy (read cache + offline indicator)"* — is `pending` in
+> this very file. If offline worked, that item would not exist. The sentence was written for the
+> **Blazor PWA**, whose service worker cached the shell; what answers at that URL today is the
+> **tombstone** worker, which deletes caches by design (T-53 stage 4). The claim did not rot
+> through neglect — the cutover falsified it, and nobody re-read the listing.
+
+Two more to check, stated as questions rather than verdicts:
+
+- **"Notificações em tempo real […] chegam na hora para todos os responsáveis."** In-app Realtime
+  exists (plus the F-23 poll), but **F-09, push notifications, is `pending`** — with the app
+  closed, nothing arrives. Decide whether the sentence survives as written.
+- The store shows the app as **"Entrelares (acesso antecipado)"**. That is Play's own
+  early-access tag from the closed test, not our copy — recorded so the next reader does not go
+  hunting for it in `listing-pt-BR.txt`.
+
+The **en-US listing** gets the same treatment, and it is not a translation exercise: it is the
+same verification performed in the other language, against the same code. Console path —
+*Main store listing → Manage translations → English (United States)*; the default language stays
+pt-BR.
+
+### E · The publish, in one sitting
+
+Nothing here is delivered by a merge. The repo half is `store/` plus `entrelares-site`; the store
+half is **manual uploads in the Console** — icon, feature graphic, eight screenshots per
+language, and both listing texts. Do them as one pass, in both languages, and only then is the
+U-29 decision discharged.
+
+**Acceptance:** open the Play page and the landing as a stranger would, in each language, and
+find nothing left of the previous product — no clay mark, no Blazor screenshot, no DEV pill, and
+no sentence the code cannot back.
 
 **Four things that will bite, all knowable in advance**
 
