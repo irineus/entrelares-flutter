@@ -273,32 +273,30 @@ class GateFixture {
       .firstWhere((r) => r.roleName.toLowerCase() == roleName.toLowerCase())
       .id;
 
-  /// F-57: a user created the way an OAUTH (Google) sign-up creates one —
-  /// the provider stamped in `raw_app_meta_data`, and NO founder/invite
-  /// metadata, which is exactly the condition that makes `handle_new_user`
-  /// DEFER the profile. The password is kept on purpose: it lets the suite
-  /// sign this user in and exercise the authenticated RPCs with the same JWT
-  /// shape the real OAuth session would carry.
+  /// F-57: a user created the way an OAUTH (Google) sign-up creates one, in
+  /// the respect that matters — NO founder/invite metadata in
+  /// `raw_user_meta_data`, which is the condition `handle_new_user` defers
+  /// the profile on. (The provider itself cannot be simulated: the Admin API
+  /// refuses to forge `provider: google`, which is why the deferred branch is
+  /// keyed on the metadata's absence and not on the provider.) The password is
+  /// kept on purpose: it lets the suite sign this user in and exercise the
+  /// authenticated RPCs with the same JWT shape the real OAuth session would
+  /// carry.
   Future<String> createOauthUser(String tag) async {
     final email = testEmail(tag);
     _userIds.add(await _admin.createConfirmedUser(
       email,
       password,
       {'full_name': 'E2E OAuth $tag'},
-      appMetadata: {
-        'provider': 'google',
-        'providers': ['google'],
-      },
     ));
     return email;
   }
 
-  /// F-57 regression probe: a PASSWORD user (provider "email") created with no
-  /// metadata at all. The founder branch must still refuse this — the register
-  /// form always sends the metadata, so an empty creation only ever happens by
-  /// mistake, and the deferred-profile branch must not have widened into it.
-  /// If the guard regressed and the creation succeeds, the user is tracked so
-  /// teardown still removes it.
+  /// F-57: a user with NO metadata at all — the shape a password sign-up
+  /// straight at the GoTrue API (never our forms) produces. Since the
+  /// deferred branch keys on the metadata's absence, this defers exactly like
+  /// an OAuth sign-up; the suite pins that down as documented behaviour. The
+  /// id is tracked so teardown removes it.
   Future<void> createBareUser(String email) async {
     _userIds.add(await _admin.createConfirmedUser(email, password, const {}));
   }

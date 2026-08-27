@@ -25,19 +25,25 @@ void oauthOnboardingTests(GateFixture fx) {
       final rows =
           await fx.service.from('profiles').select().eq('email', email);
       expect(rows, isEmpty,
-          reason: 'handle_new_user must defer the profile for provider ≠ email');
+          reason: 'handle_new_user must defer the profile when a sign-up '
+              'carries none of our metadata');
     });
 
-    test('a password sign-up without role metadata is still refused', () async {
-      // Regression guard on the deferred branch's condition: the password path
-      // (provider "email") keeps the founder-metadata requirement — the
-      // register form always sends it, so an empty-metadata creation failing
-      // loudly is the trigger still doing its job.
+    test('a metadata-less password sign-up defers too — documented behaviour',
+        () async {
+      // The deferred branch keys on the ABSENCE of our metadata (the Admin
+      // API cannot forge provider=google, and a rule this gate cannot
+      // exercise would rot silently), so a password sign-up straight at the
+      // GoTrue API — never possible through our forms, which always send the
+      // metadata — now defers to onboarding instead of aborting the INSERT.
+      // Nothing leans on the old refusal: a profile-less account is granted
+      // nothing by RLS, and the onboarding RPCs are its only ways forward.
       final email = fx.testEmail('oau-pwd-norole');
-      await expectRejected(() => fx.createBareUser(email));
+      await fx.createBareUser(email);
       final rows =
           await fx.service.from('profiles').select().eq('email', email);
-      expect(rows, isEmpty);
+      expect(rows, isEmpty,
+          reason: 'no profile until onboarding, same as an OAuth sign-up');
     });
 
     test('complete_oauth_onboarding creates family + admin profile, consent '

@@ -30,17 +30,16 @@ class AdminApi {
 
   /// Returns the new user's id.
   ///
-  /// [appMetadata] reproduces what GoTrue itself stamps on
-  /// `raw_app_meta_data` — the F-57 suites pass
-  /// `{'provider': 'google', 'providers': ['google']}` to simulate an OAuth
-  /// sign-up (with a password kept, so the test can still sign the user in and
-  /// exercise the authenticated RPCs the way the real session would).
+  /// There is deliberately no `app_metadata` parameter: GoTrue does not let
+  /// the Admin API forge `provider`/`providers` (its own defaults win), which
+  /// is exactly why the F-57 deferred branch keys on the ABSENCE of our
+  /// user_metadata instead of on the provider — a provider-based rule would be
+  /// one this gate can never exercise.
   Future<String> createConfirmedUser(
     String email,
     String password,
-    Map<String, dynamic> metadata, {
-    Map<String, dynamic>? appMetadata,
-  }) async {
+    Map<String, dynamic> metadata,
+  ) async {
     final response = await _http.post(
       _uri('/auth/v1/admin/users'),
       headers: _headers,
@@ -49,7 +48,6 @@ class AdminApi {
         'password': password,
         'email_confirm': true,
         'user_metadata': metadata,
-        'app_metadata': ?appMetadata,
       }),
     );
     if (response.statusCode >= 300) {
