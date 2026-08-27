@@ -104,9 +104,12 @@ serve(async (req: Request) => {
 
       console.error(`[claim-invitation] rpc failed: ${msg}`);
       // RPC-raised messages (seat cap, invalid invite, stale policy) are
-      // already PT-BR user text.
+      // already PT-BR user text, and PostgREST hands the RAISE message over
+      // BARE — no prefix to strip. (register-invitee's prefix-strip is for
+      // GoTrue Admin API errors, and here it would eat everything up to the
+      // first colon INSIDE the message, e.g. "…(enviada: ".)
       const dbMessage = /[a-zçãéíõê]/i.test(msg) && /família|convite|respons|política|conta|sessão/i.test(msg)
-        ? msg.replace(/^.*?:\s*/, "")
+        ? msg
         : "Não foi possível entrar na família. Tente novamente.";
       return jsonResponse({ error: dbMessage }, 400);
     }
