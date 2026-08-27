@@ -40,7 +40,12 @@ String _readTsConstant(String name) {
   return match!.group(1)!;
 }
 
-/// Every `.dart` file under the app's `lib/`, by repo-relative path.
+/// Every `.dart` file under the app's `lib/`, by `lib/`-relative path.
+///
+/// Keys are always slash-separated: `Directory.listSync` hands back the
+/// platform's own separator, so on Windows the same file would arrive as
+/// `services\custody.dart` and miss every assertion written against the paths
+/// Linux CI produces.
 Map<String, String> _appSources() {
   final root = '${repoRoot().path}/apps/entrelares_app/lib';
   final dir = Directory(root);
@@ -51,7 +56,8 @@ Map<String, String> _appSources() {
         .listSync(recursive: true)
         .whereType<File>()
         .where((f) => f.path.endsWith('.dart')))
-      f.path.substring(root.length + 1): f.readAsStringSync(),
+      f.path.replaceAll(r'\', '/').substring(root.length + 1):
+          f.readAsStringSync(),
   };
 }
 
