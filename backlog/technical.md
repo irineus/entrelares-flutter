@@ -373,9 +373,7 @@ If **L-17** (the landing's animated demo of the immutable history) is scheduled 
 this, do them in the same sitting: the recording and the stills come from the same running
 app, and standing that app up is the expensive part.
 
----
-
-## The item grew to the WHOLE listing (26/08/2026, owner decision)
+**The item grew to the WHOLE listing (26/08/2026, owner decision)**
 
 It opened as "re-shoot the eight frames". Two things happened after it was written: **U-29
 replaced the mark** (26/08 — the calendar card whose day cells draw the two interlocked houses)
@@ -390,7 +388,7 @@ together (coordinate with T-57)"*. Shipping the icon alone gives the store one m
 photographs of another; shipping the frames alone does the mirror image. **This item is the
 release condition of that decision**, and it is not met surface by surface.
 
-### A · The mark — three places, none of them the bundle
+**A · The mark — three places, none of them the bundle**
 
 The launcher icon travels in the `.aab` and U-29 already regenerated it, which is why the
 INSTALLED app shows the new mark while the store shows the old one. The listing icon is a
@@ -402,7 +400,7 @@ different artifact with a different delivery path, and nothing in any build touc
 | Play Console → *Grow users → Store presence → Main store listing → **App icon*** | The upload itself |
 | `entrelares-site/public/` | `favicon.png`, `icon-192.png`, `icon-512.png`, `og-cover.png`, `og-cover-en.png` — **five** files, all on the clay mark. `store/README.md` §2 calls moving them "a follow-up of its own"; this is that follow-up |
 
-### B · Feature graphic (1024×500, required by Play)
+**B · Feature graphic (1024×500, required by Play)**
 
 [`store/feature-graphic.png`](../store/feature-graphic.png) is still the clay art, rendered from
 `feature-graphic.html` with headless Chrome. Re-render against the new mark and **re-upload** —
@@ -413,7 +411,7 @@ The English side is a known hole, not an oversight: `feature-graphic-english.png
 `feature-graphic-english.html` that reproduces it. An en-US listing either downscales that file
 or gains a generator. Decide which; do not leave the EN listing showing the PT graphic.
 
-### C · The eight frames — with a finding attached
+**C · The eight frames — with a finding attached**
 
 The frames and their file names are as described above, unchanged. What is new is this:
 
@@ -427,7 +425,7 @@ The frames and their file names are as described above, unchanged. What is new i
 > at a development build. It also kills the assumption that a re-upload is optional whenever the
 > files already exist in the repo.
 
-### D · The copy — where this stops being cosmetic
+**D · The copy — where this stops being cosmetic**
 
 [`store/listing-pt-BR.txt`](../store/listing-pt-BR.txt) and
 [`listing-en-US.txt`](../store/listing-en-US.txt) were last touched when they MOVED repositories
@@ -455,7 +453,7 @@ same verification performed in the other language, against the same code. Consol
 *Main store listing → Manage translations → English (United States)*; the default language stays
 pt-BR.
 
-### E · The publish, in one sitting
+**E · The publish, in one sitting**
 
 Nothing here is delivered by a merge. The repo half is `store/` plus `entrelares-site`; the store
 half is **manual uploads in the Console** — icon, feature graphic, eight screenshots per
