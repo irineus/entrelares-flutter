@@ -202,7 +202,7 @@ that spent what U-27 built: `AppCard` was used ONCE in the whole app before it._
 
 | Field | Value |
 |---|---|
-| **Status** | `in-progress` |
+| **Status** | `done` (`2.0.0`, PR #90, 27/08/2026) |
 | **Priority** | `medium` |
 | **Complexity** | `medium` |
 | **Impact** | `high` — every finding is on a shipping surface; the fixes close drift the U-27/U-28 system was built to prevent |
