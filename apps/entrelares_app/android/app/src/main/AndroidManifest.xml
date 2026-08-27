@@ -55,6 +55,23 @@
                       android:host="web.entrelares.app"
                       android:path="/register"/>
             </intent-filter>
+            <!-- F-57: the OAuth redirect's way back. A custom scheme, per
+                 FLAVOR — the scheme IS the applicationId, via the built-in
+                 placeholder, so a device carrying both flavors never opens a
+                 chooser (and never hands dev's PKCE code to prod). An https
+                 App Link would depend on the custom tab's redirect handoff,
+                 which is the flaky half of Android deep linking; a scheme
+                 filter has no verification step to lose. The matching
+                 DeepLinkUrls.oauthCallback builds the same value from
+                 Env.androidPackage, and each Supabase project's Redirect URLs
+                 allowlist carries its flavor's (runbook §9-ter). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="${applicationId}"
+                      android:host="login-callback"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

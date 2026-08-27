@@ -181,6 +181,51 @@ void main() {
       );
     });
 
+    // F-57 — the onboarding confinement: a validated session with no profile
+    // lives on /onboarding and nowhere else, the way the S-11 leaving
+    // confinement closes the app at the other end of the account's life.
+    test('the onboarding phase confines to /onboarding', () {
+      for (final location in ['/', '/family', RouteRules.login, '/reports']) {
+        expect(
+          RouteRules.redirect(
+              phase: AuthPhase.onboarding, location: location),
+          RouteRules.onboarding,
+          reason: 'a profile-less session has nothing to see at $location',
+        );
+      }
+      expect(
+        RouteRules.redirect(
+            phase: AuthPhase.onboarding, location: RouteRules.onboarding),
+        isNull,
+      );
+    });
+
+    test('a pending destination is NOT honoured while onboarding', () {
+      expect(
+        RouteRules.redirect(
+          phase: AuthPhase.onboarding,
+          location: '/',
+          pendingLocation: '/family',
+        ),
+        RouteRules.onboarding,
+        reason: 'there is no profile to show the remembered screen to yet',
+      );
+    });
+
+    test('an ONBOARDED visitor has no business on /onboarding', () {
+      expect(
+        RouteRules.redirect(
+            phase: AuthPhase.authed, location: RouteRules.onboarding),
+        RouteRules.home,
+      );
+      expect(
+        RouteRules.redirect(
+            phase: AuthPhase.anon, location: RouteRules.onboarding),
+        RouteRules.login,
+        reason: 'not public: an anonymous visitor cannot onboard',
+      );
+    });
+
     test('the ANONYMOUS half is untouched: still public destinations only', () {
       // The guard that keeps a deep link from handing a guarded screen to a
       // visitor with no session (S-02).

@@ -461,6 +461,58 @@ class FakeCustodyDataSource implements CustodyDataSource {
     return inviteeResult;
   }
 
+  // ── F-57: social-login onboarding ──
+  /// Refuses [completeOauthOnboarding] with this server text when set.
+  String? onboardingRefusalMessage;
+
+  /// What [claimInvitation] answers; defaults to success.
+  InviteeResult claimResult = const InviteeRegistered();
+
+  /// What [authProviders] reports — password-only by default.
+  List<String> providers = const ['email'];
+
+  /// What [sessionDisplayName] prefills.
+  String? displayName;
+
+  final List<Map<String, Object?>> onboardings = [];
+  final List<Map<String, Object?>> claims = [];
+
+  @override
+  Future<void> completeOauthOnboarding({
+    required String fullName,
+    required String role,
+    required String familyName,
+  }) async {
+    onboardings.add({
+      'fullName': fullName,
+      'role': role,
+      'familyName': familyName,
+    });
+    if (onboardingRefusalMessage != null) {
+      throw OnboardingRefused(onboardingRefusalMessage);
+    }
+  }
+
+  @override
+  Future<InviteeResult> claimInvitation({
+    required String token,
+    required String fullName,
+    bool confirmMigration = false,
+  }) async {
+    claims.add({
+      'token': token,
+      'fullName': fullName,
+      'confirmMigration': confirmMigration,
+    });
+    return claimResult;
+  }
+
+  @override
+  List<String> authProviders() => providers;
+
+  @override
+  String? sessionDisplayName() => displayName;
+
   // ── Lote 4: family page, invitations and custom roles ──
   List<Role> roles = const [];
   List<FamilyInvitation> invitations = const [];

@@ -600,7 +600,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ));
 
-  Widget _passwordSection(Localization l, Member target) => AppCard(
+  /// F-57 (the U-21 slice this item requires): a session whose identity
+  /// providers do not include `email` has NO password — offering "alterar
+  /// senha" to it would submit against nothing, and "esqueci a atual" would
+  /// e-mail a reset for a credential that does not exist. Such a session sees
+  /// its sign-in METHOD instead.
+  Widget _passwordSection(Localization l, Member target) {
+    final providers = widget.dataSource.authProviders();
+    final passwordless =
+        providers.isNotEmpty && !providers.contains('email');
+    if (passwordless) {
+      return AppCard(
+        title: l[KApp.profLoginMethod],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.account_circle_outlined, size: 20),
+                const SizedBox(width: 8),
+                Text(l[KApp.profLoginMethodGoogle],
+                    style: Theme.of(context).textTheme.titleSmall),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(l[KApp.profLoginMethodNote],
+                style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      );
+    }
+    return AppCard(
         title: l[K.profSectionPassword],
         child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -651,6 +681,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ));
+  }
 
   Widget _lgpdSection(Localization l) => AppCard(
         title: l[K.profSectionLgpd],

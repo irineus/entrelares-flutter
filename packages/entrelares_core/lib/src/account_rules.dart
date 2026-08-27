@@ -93,6 +93,32 @@ abstract final class RegisterRules {
       hasUser && identityCount == 0;
 }
 
+/// F-57 — the onboarding form of a deferred (social-login) sign-up: the
+/// founder half of [RegisterRules.validationErrorKey] without the fields the
+/// OAuth session already settled (e-mail belongs to the provider account,
+/// password does not exist). Same keys, same order, so the two forms refuse
+/// with the same sentences.
+abstract final class OauthOnboardingRules {
+  /// The form's first violation, as a catalog KEY, or null when the input may
+  /// be submitted. On the invited branch only name and consent apply — the
+  /// invitation carries family and role.
+  static String? validationErrorKey({
+    required String fullName,
+    required String? familyName,
+    required String? role,
+    required bool acceptedTerms,
+    required bool isInvited,
+  }) {
+    if (fullName.trim().isEmpty) return K.registerErrorNameRequired;
+    if (!isInvited && (familyName ?? '').trim().isEmpty) {
+      return K.registerErrorFamilyRequired;
+    }
+    if (!isInvited && role == null) return K.registerErrorRoleRequired;
+    if (!acceptedTerms) return K.registerErrorConsentRequired;
+    return null;
+  }
+}
+
 abstract final class InviteFormRules {
   /// The invite form's first violation, as a catalog KEY, or null when it may
   /// be sent. The e-mail test is deliberately the web's shallow one (non-blank

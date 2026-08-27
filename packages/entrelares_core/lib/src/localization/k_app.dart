@@ -105,6 +105,21 @@ abstract final class KApp {
   static const String storeErrPurchase = 'app.store.errPurchase';
   static const String storeToastActive = 'app.store.toastActive';
 
+  // ── F-57 social login — strings born in this client: the web app never had
+  //    an OAuth button, an onboarding screen or a password-less profile ──
+  static const String authGoogle = 'app.auth.google';
+  static const String authGoogleErr = 'app.auth.googleErr';
+  static const String onbFounderTitle = 'app.onb.founderTitle';
+  static const String onbFounderSubtitle = 'app.onb.founderSubtitle';
+  static const String onbFounderCta = 'app.onb.founderCta';
+  static const String onbClaimCta = 'app.onb.claimCta';
+  static const String onbSubmitting = 'app.onb.submitting';
+  static const String onbSwitchAccount = 'app.onb.switchAccount';
+  static const String onbErrGeneric = 'app.onb.errGeneric';
+  static const String profLoginMethod = 'app.prof.loginMethod';
+  static const String profLoginMethodGoogle = 'app.prof.loginMethodGoogle';
+  static const String profLoginMethodNote = 'app.prof.loginMethodNote';
+
   /// See `K.allKeys`.
   static const List<String> allKeys = [
     sessionRestoredExpired,
@@ -148,6 +163,18 @@ abstract final class KApp {
     storePending,
     storeErrPurchase,
     storeToastActive,
+    authGoogle,
+    authGoogleErr,
+    onbFounderTitle,
+    onbFounderSubtitle,
+    onbFounderCta,
+    onbClaimCta,
+    onbSubmitting,
+    onbSwitchAccount,
+    onbErrGeneric,
+    profLoginMethod,
+    profLoginMethodGoogle,
+    profLoginMethodNote,
   ];
 }
 
@@ -211,6 +238,22 @@ abstract final class StringsAppPtBr {
         'Não foi possível concluir a compra. Nada foi cobrado sem confirmação '
             'do Google.',
     KApp.storeToastActive: 'Premium ativo!',
+    KApp.authGoogle: 'Continuar com Google',
+    KApp.authGoogleErr:
+        'Não foi possível abrir o login do Google. Tente novamente.',
+    KApp.onbFounderTitle: 'Complete seu cadastro',
+    KApp.onbFounderSubtitle:
+        'Sua conta Google está pronta. Agora conte quem você é para criar a '
+            'sua família.',
+    KApp.onbFounderCta: 'Criar minha família',
+    KApp.onbClaimCta: 'Entrar na família',
+    KApp.onbSubmitting: 'Enviando...',
+    KApp.onbSwitchAccount: 'Entrar com outra conta',
+    KApp.onbErrGeneric: 'Não foi possível concluir o cadastro. Tente novamente.',
+    KApp.profLoginMethod: 'Método de login',
+    KApp.profLoginMethodGoogle: 'Conta Google',
+    KApp.profLoginMethodNote:
+        'Você entra com sua conta Google — não há senha para alterar aqui.',
   };
 }
 
@@ -273,5 +316,21 @@ abstract final class StringsAppEn {
         'Could not complete the purchase. Nothing is charged without Google '
             'confirming it.',
     KApp.storeToastActive: 'Premium active!',
+    KApp.authGoogle: 'Continue with Google',
+    KApp.authGoogleErr: 'Could not open Google sign-in. Try again.',
+    KApp.onbFounderTitle: 'Complete your sign-up',
+    KApp.onbFounderSubtitle:
+        'Your Google account is ready. Now tell us who you are to create '
+            'your family.',
+    KApp.onbFounderCta: 'Create my family',
+    KApp.onbClaimCta: 'Join the family',
+    KApp.onbSubmitting: 'Sending...',
+    KApp.onbSwitchAccount: 'Sign in with another account',
+    KApp.onbErrGeneric: 'Could not finish the sign-up. Try again.',
+    KApp.profLoginMethod: 'Sign-in method',
+    KApp.profLoginMethodGoogle: 'Google account',
+    KApp.profLoginMethodNote:
+        'You sign in with your Google account — there is no password to '
+            'change here.',
   };
 }
