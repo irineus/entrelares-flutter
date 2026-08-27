@@ -122,23 +122,39 @@ void main() {
               'everything below the button is the secondary path');
     });
 
-    testWidgets('onboarding: the escape hatch sits right under the name',
+    testWidgets('onboarding: account identity and the way out, under the name',
         (tester) async {
       final ds = FakeCustodyDataSource(members: const [], days: const [])
-        ..displayName = 'Conta Errada';
+        ..displayName = 'Conta Errada'
+        ..sessionEmailValue = 'a.errada@gmail.com';
       final prefs = await prefsWith({});
       await pumpOnboarding(tester, ds, prefs);
 
       final name = dyOf(
           tester, find.widgetWithText(TextField, pt[K.registerFullName]));
+      final signedInAs = dyOf(
+          tester, find.text(pt.format(KApp.onbSignedInAs, ['a.errada@gmail.com'])));
       final switchAccount = dyOf(tester, find.text(pt[KApp.onbSwitchAccount]));
       final cta =
           dyOf(tester, find.widgetWithText(FilledButton, pt[KApp.onbFounderCta]));
 
-      expect(switchAccount, greaterThan(name));
+      // The address is the recognition, so it comes with the escape hatch and
+      // both come before any of the form is worth filling.
+      expect(signedInAs, greaterThan(name));
+      expect(switchAccount, greaterThan(signedInAs));
       expect(switchAccount, lessThan(cta),
-          reason: 'the prefilled name is what reveals the wrong account — '
-              'leaving must be possible before the form is filled');
+          reason: 'leaving must be possible before the form is filled');
+    });
+
+    testWidgets('onboarding: no session e-mail renders no line at all',
+        (tester) async {
+      final ds = FakeCustodyDataSource(members: const [], days: const []);
+      final prefs = await prefsWith({});
+      await pumpOnboarding(tester, ds, prefs);
+
+      expect(find.textContaining('Conectado como'), findsNothing);
+      // The way out survives its absence — it never depended on the address.
+      expect(find.text(pt[KApp.onbSwitchAccount]), findsOneWidget);
     });
   });
 

@@ -7,6 +7,7 @@ import '../deep_link_urls.dart';
 import 'package:entrelares_db_contracts/models/invite_info.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
+import '../theme/tokens.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/ui/ui.dart';
 
@@ -80,9 +81,14 @@ class _OauthOnboardingScreenState extends State<OauthOnboardingScreen> {
 
   bool get _isInvited => _invite != null;
 
+  /// Read once: the session cannot change while this screen is up (the only
+  /// way out of it is signing out, which unmounts the screen).
+  String? _sessionEmail;
+
   @override
   void initState() {
     super.initState();
+    _sessionEmail = widget.dataSource.sessionEmail();
     _fullName.text = widget.dataSource.sessionDisplayName() ?? '';
     final token =
         widget.prefs.getString(OauthOnboardingScreen.pendingInviteTokenKey);
@@ -329,11 +335,24 @@ class _OauthOnboardingScreenState extends State<OauthOnboardingScreen> {
           textCapitalization: TextCapitalization.words,
           autofillHints: const [AutofillHints.name],
         ),
-        // F-57: the escape hatch sits HERE, right under the prefilled name,
-        // because the name is what reveals WHICH Google account was picked —
-        // so the moment someone can notice they chose the wrong one is the
-        // moment they must be able to leave. At the bottom of the form it
-        // arrived after they had already filled everything in.
+        // F-57: which account this is, and the way out of it — together, right
+        // under the prefilled name, because this is where someone realises
+        // they picked the wrong Google account. The ADDRESS carries that
+        // recognition, not the name: two accounts of the same person routinely
+        // share a display name, and only the address always differs. At the
+        // bottom of the form the escape hatch arrived after everything had
+        // already been filled in.
+        if (_sessionEmail != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              l.format(KApp.onbSignedInAs, [_sessionEmail]),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: context.tokens.textMuted),
+            ),
+          ),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton(

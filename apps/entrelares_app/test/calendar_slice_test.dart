@@ -474,6 +474,10 @@ class FakeCustodyDataSource implements CustodyDataSource {
   /// What [sessionDisplayName] prefills.
   String? displayName;
 
+  /// What [sessionEmail] reports — the address the onboarding screen shows so
+  /// a wrong Google account is identifiable.
+  String? sessionEmailValue;
+
   final List<Map<String, Object?>> onboardings = [];
   final List<Map<String, Object?>> claims = [];
 
@@ -512,6 +516,9 @@ class FakeCustodyDataSource implements CustodyDataSource {
 
   @override
   String? sessionDisplayName() => displayName;
+
+  @override
+  String? sessionEmail() => sessionEmailValue;
 
   // ── Lote 4: family page, invitations and custom roles ──
   List<Role> roles = const [];
