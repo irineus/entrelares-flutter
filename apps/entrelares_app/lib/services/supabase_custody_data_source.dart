@@ -1091,6 +1091,12 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   }
 
   @override
+  String? sessionEmail() {
+    final email = _client.auth.currentUser?.email?.trim();
+    return (email == null || email.isEmpty) ? null : email;
+  }
+
+  @override
   String? sessionDisplayName() {
     final meta = _client.auth.currentUser?.userMetadata;
     // Google sends `full_name` AND `name`; our own sign-ups set `full_name`.

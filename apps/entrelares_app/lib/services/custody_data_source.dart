@@ -294,6 +294,12 @@ abstract class CustodyDataSource {
   /// prefilling the onboarding form. Null when absent or blank.
   String? sessionDisplayName();
 
+  /// The e-mail of the CURRENT session — what the onboarding screen shows so
+  /// "wrong Google account" is identifiable. The display name is not enough:
+  /// two accounts of the same person routinely carry the same name, and the
+  /// address is the only thing that always differs.
+  String? sessionEmail();
+
   // ── Lote 4: family page, invitations and custom roles (F-41) ──────────────
 
   /// Every role this family may use: the 21 built-ins plus its own custom

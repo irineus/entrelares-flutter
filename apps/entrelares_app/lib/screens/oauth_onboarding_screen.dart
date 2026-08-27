@@ -7,6 +7,7 @@ import '../deep_link_urls.dart';
 import 'package:entrelares_db_contracts/models/invite_info.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
+import '../theme/tokens.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/ui/ui.dart';
 
@@ -80,9 +81,14 @@ class _OauthOnboardingScreenState extends State<OauthOnboardingScreen> {
 
   bool get _isInvited => _invite != null;
 
+  /// Read once: the session cannot change while this screen is up (the only
+  /// way out of it is signing out, which unmounts the screen).
+  String? _sessionEmail;
+
   @override
   void initState() {
     super.initState();
+    _sessionEmail = widget.dataSource.sessionEmail();
     _fullName.text = widget.dataSource.sessionDisplayName() ?? '';
     final token =
         widget.prefs.getString(OauthOnboardingScreen.pendingInviteTokenKey);
@@ -329,6 +335,31 @@ class _OauthOnboardingScreenState extends State<OauthOnboardingScreen> {
           textCapitalization: TextCapitalization.words,
           autofillHints: const [AutofillHints.name],
         ),
+        // F-57: which account this is, and the way out of it — together, right
+        // under the prefilled name, because this is where someone realises
+        // they picked the wrong Google account. The ADDRESS carries that
+        // recognition, not the name: two accounts of the same person routinely
+        // share a display name, and only the address always differs. At the
+        // bottom of the form the escape hatch arrived after everything had
+        // already been filled in.
+        if (_sessionEmail != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              l.format(KApp.onbSignedInAs, [_sessionEmail]),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: context.tokens.textMuted),
+            ),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: _busy ? null : widget.onSignOut,
+            child: Text(l[KApp.onbSwitchAccount]),
+          ),
+        ),
         if (invite == null) ...[
           const SizedBox(height: 12),
           AppTextField(
@@ -378,10 +409,6 @@ class _OauthOnboardingScreenState extends State<OauthOnboardingScreen> {
           ),
         ],
         const SizedBox(height: 8),
-        TextButton(
-          onPressed: _busy ? null : widget.onSignOut,
-          child: Text(l[KApp.onbSwitchAccount]),
-        ),
         const LanguagePickerRow(),
       ],
     );

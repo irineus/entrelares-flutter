@@ -115,6 +115,7 @@ abstract final class KApp {
   static const String onbClaimCta = 'app.onb.claimCta';
   static const String onbSubmitting = 'app.onb.submitting';
   static const String onbSwitchAccount = 'app.onb.switchAccount';
+  static const String onbSignedInAs = 'app.onb.signedInAs';
   static const String onbErrGeneric = 'app.onb.errGeneric';
   static const String profLoginMethod = 'app.prof.loginMethod';
   static const String profLoginMethodGoogle = 'app.prof.loginMethodGoogle';
@@ -171,6 +172,7 @@ abstract final class KApp {
     onbClaimCta,
     onbSubmitting,
     onbSwitchAccount,
+    onbSignedInAs,
     onbErrGeneric,
     profLoginMethod,
     profLoginMethodGoogle,
@@ -249,6 +251,7 @@ abstract final class StringsAppPtBr {
     KApp.onbClaimCta: 'Entrar na família',
     KApp.onbSubmitting: 'Enviando...',
     KApp.onbSwitchAccount: 'Entrar com outra conta',
+    KApp.onbSignedInAs: 'Conectado como {0}',
     KApp.onbErrGeneric: 'Não foi possível concluir o cadastro. Tente novamente.',
     KApp.profLoginMethod: 'Método de login',
     KApp.profLoginMethodGoogle: 'Conta Google',
@@ -326,6 +329,7 @@ abstract final class StringsAppEn {
     KApp.onbClaimCta: 'Join the family',
     KApp.onbSubmitting: 'Sending...',
     KApp.onbSwitchAccount: 'Sign in with another account',
+    KApp.onbSignedInAs: 'Signed in as {0}',
     KApp.onbErrGeneric: 'Could not finish the sign-up. Try again.',
     KApp.profLoginMethod: 'Sign-in method',
     KApp.profLoginMethodGoogle: 'Google account',
