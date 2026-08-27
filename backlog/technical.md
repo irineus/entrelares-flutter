@@ -566,3 +566,40 @@ the board a place to record the date the product became publicly available.
 
 **Files affected**
 - Mostly none (Play Console + Supabase dashboard ops); small PRs may fall out of S-18/T-57
+
+### T-60 — Flutter upgrade package: SDK pin + share_plus/KGP + dependency refresh
+
+| Field | Value |
+|---|---|
+| **Status** | `pending` |
+| **Priority** | `low` |
+| **Complexity** | `medium` |
+| **Impact** | `medium` |
+| **Roadmap** | Roadmap group 7 (future / low priority) — fires only on the owner's explicit decision to move the Flutter pin (locked decision: the version changes by board-recorded owner decision only) |
+
+**Description**
+Created 27/08/2026 from the owner's 2.0.0 release build: the build log carries a warning with
+a real deadline — `share_plus` still applies the Kotlin Gradle Plugin, and **future Flutter
+versions will refuse to build** apps whose plugins do (Flutter's built-in Kotlin migration).
+Today it is noise; the day the SDK pin moves, it is a build failure. This item packages the
+three things that must travel TOGETHER so none becomes a surprise:
+
+1. **Flutter SDK pin** (`.fvmrc`, currently 3.44.7) — owner decision, recorded on the board;
+   CI and every dev machine follow FVM, so the pin move is one commit plus a full gate run.
+2. **`share_plus` major bump** to a release that supports built-in Kotlin (13.x already
+   exists), plus whatever its platform-interface drags along.
+3. **General dependency refresh** — `flutter pub outdated` lists ~18 majors held back by
+   constraints (`go_router` 18, `intl`, `archive`, …). Bump deliberately, one suite run per
+   cluster, never as a side effect of a release build.
+
+**Also as a package on purpose:** upgrading the SDK re-baselines the Gradle/AGP/Kotlin
+toolchain, which is what silences the `java.lang.System::load` native-access warnings the
+release build prints today (they come from Gradle 9 on a modern JDK, not from our code).
+
+**Out of scope**
+- Any behaviour change riding along "while we're at it" — the gates (485+ widget tests,
+  806 core, db-gate) are the acceptance, unchanged.
+
+**Files affected**
+- `.fvmrc` · `apps/entrelares_app/pubspec.yaml` + lockfiles across the workspace ·
+  possibly `android/settings.gradle`/AGP versions if the SDK bump asks for them
