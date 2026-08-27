@@ -14,6 +14,7 @@ import 'package:entrelares_db_contracts/models/role.dart';
 import 'package:entrelares_app/screens/login_screen.dart';
 import 'package:entrelares_app/screens/oauth_onboarding_screen.dart';
 import 'package:entrelares_app/screens/profile_screen.dart';
+import 'package:entrelares_app/screens/register_screen.dart';
 import 'package:entrelares_app/services/custody_data_source.dart';
 import 'package:entrelares_app/services/sudo_service.dart';
 import 'package:entrelares_app/widgets/app_l10n.dart';
@@ -83,6 +84,61 @@ void main() {
         (tester) async {
       await pumpLogin(tester);
       expect(find.text(pt[KApp.authGoogle]), findsNothing);
+    });
+  });
+
+  // The ORDER is the feature, not decoration: the Google button exists so
+  // nobody has to invent a password, and the escape hatch exists so a wrong
+  // account is caught before the form is filled. Both lose their point if they
+  // drift back down the column, and nothing else in the tree would notice.
+  group('F-57 placement (owner, 27/08/2026)', () {
+    double dyOf(WidgetTester tester, Finder f) =>
+        tester.getTopLeft(f).dy;
+
+    testWidgets('register: Google sits ABOVE the password fields',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final ds = FakeCustodyDataSource(members: const [], days: const []);
+      await tester.pumpWidget(wrap(RegisterScreen(
+        dataSource: ds,
+        onSignIn: (_, _) async {},
+        onBackToLogin: () {},
+        googleEnabled: Future.value(true),
+        onSignInWithGoogle: ({String? inviteToken}) async {},
+      )));
+      await tester.pumpAndSettle();
+
+      final google = dyOf(tester, find.text(pt[KApp.authGoogle]));
+      final email = dyOf(
+          tester, find.widgetWithText(TextField, pt[K.commonEmail]));
+      final password = dyOf(
+          tester, find.widgetWithText(TextField, pt[K.commonPassword]));
+
+      expect(google, greaterThan(email),
+          reason: 'the button follows the e-mail field');
+      expect(google, lessThan(password),
+          reason: 'a password offered first is a password already invented — '
+              'everything below the button is the secondary path');
+    });
+
+    testWidgets('onboarding: the escape hatch sits right under the name',
+        (tester) async {
+      final ds = FakeCustodyDataSource(members: const [], days: const [])
+        ..displayName = 'Conta Errada';
+      final prefs = await prefsWith({});
+      await pumpOnboarding(tester, ds, prefs);
+
+      final name = dyOf(
+          tester, find.widgetWithText(TextField, pt[K.registerFullName]));
+      final switchAccount = dyOf(tester, find.text(pt[KApp.onbSwitchAccount]));
+      final cta =
+          dyOf(tester, find.widgetWithText(FilledButton, pt[KApp.onbFounderCta]));
+
+      expect(switchAccount, greaterThan(name));
+      expect(switchAccount, lessThan(cta),
+          reason: 'the prefilled name is what reveals the wrong account — '
+              'leaving must be possible before the form is filled');
     });
   });
 

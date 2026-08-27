@@ -329,6 +329,18 @@ class _OauthOnboardingScreenState extends State<OauthOnboardingScreen> {
           textCapitalization: TextCapitalization.words,
           autofillHints: const [AutofillHints.name],
         ),
+        // F-57: the escape hatch sits HERE, right under the prefilled name,
+        // because the name is what reveals WHICH Google account was picked —
+        // so the moment someone can notice they chose the wrong one is the
+        // moment they must be able to leave. At the bottom of the form it
+        // arrived after they had already filled everything in.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: _busy ? null : widget.onSignOut,
+            child: Text(l[KApp.onbSwitchAccount]),
+          ),
+        ),
         if (invite == null) ...[
           const SizedBox(height: 12),
           AppTextField(
@@ -378,10 +390,6 @@ class _OauthOnboardingScreenState extends State<OauthOnboardingScreen> {
           ),
         ],
         const SizedBox(height: 8),
-        TextButton(
-          onPressed: _busy ? null : widget.onSignOut,
-          child: Text(l[KApp.onbSwitchAccount]),
-        ),
         const LanguagePickerRow(),
       ],
     );

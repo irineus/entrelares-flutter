@@ -409,6 +409,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
           keyboardType: TextInputType.emailAddress,
           autofillHints: const [AutofillHints.email],
         ),
+        // F-57: ABOVE the password fields, deliberately. This button exists so
+        // the person never has to invent a password, so offering it after the
+        // form has already been filled defeats it — by then the cost it saves
+        // is already paid. Everything below is the secondary path: what you
+        // fill in only if you would rather not use Google. Same reason it sits
+        // above the founder's family/role fields, which the OAuth path
+        // re-collects on the onboarding screen anyway.
+        if (widget.googleEnabled != null && widget.onSignInWithGoogle != null)
+          GoogleSignInButton(
+            enabled: widget.googleEnabled!,
+            onPressed: () =>
+                widget.onSignInWithGoogle!(inviteToken: widget.inviteToken),
+          ),
         if (invite == null) ...[
           const SizedBox(height: 12),
           AppTextField(
@@ -476,15 +489,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
-        // F-57: the Google door. Deliberately BELOW the form and OUTSIDE the
-        // consent gate — this path collects its consent on the onboarding
-        // screen, where its profile is created.
-        if (widget.googleEnabled != null && widget.onSignInWithGoogle != null)
-          GoogleSignInButton(
-            enabled: widget.googleEnabled!,
-            onPressed: () =>
-                widget.onSignInWithGoogle!(inviteToken: widget.inviteToken),
-          ),
         const SizedBox(height: 8),
         TextButton(
           onPressed: widget.onBackToLogin,
