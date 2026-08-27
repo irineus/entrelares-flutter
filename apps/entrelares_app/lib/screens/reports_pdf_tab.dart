@@ -440,7 +440,10 @@ class _ReportsPdfTabState extends State<ReportsPdfTab> {
             const SizedBox(height: 12),
             FilledButton.icon(
               onPressed: _share,
-              icon: const Icon(Icons.ios_share),
+              // U-29: the Material share glyph — `Icons.ios_share` was the one
+              // iOS-styled icon in an Android-first app, and the família
+              // screen already shares with this one.
+              icon: const Icon(Icons.share_outlined),
               label: Text(l[KApp.commonShare]),
             ),
             const SizedBox(height: 8),

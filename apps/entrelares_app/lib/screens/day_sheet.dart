@@ -462,28 +462,21 @@ class _DaySheetState extends State<_DaySheet> {
         slot: slot,
         radius: 14,
       ),
+      // U-29: the check REPLACED the avatar on the selected chip — the one
+      // chip whose identity matters most lost its initial and colour. The
+      // fill already says "selected" (the same reason AppSegmented turned
+      // its icon off).
+      showCheckmark: false,
       label: Text(label),
       selected: selected,
       onSelected: onSelected == null ? null : (_) => onSelected(id),
     );
   }
 
-  Widget _banner(String text, {ToneColors? tone}) {
-    final t = tone ?? context.tokens.warning;
-    final (bg, border, fg) = (t.container, t.border, t.onContainer);
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: bg,
-        border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(text,
-          textAlign: TextAlign.center, style: TextStyle(fontSize: 13, color: fg)),
-    );
-  }
+  /// U-29: the shared [AppBanner] — this sheet carried a private copy of it,
+  /// which is exactly the drift U-27 argued a component exists to prevent.
+  Widget _banner(String text, {ToneColors? tone}) =>
+      AppBanner(tone: tone ?? context.tokens.warning, message: text);
 
   @override
   Widget build(BuildContext context) {
@@ -645,8 +638,12 @@ class _DaySheetState extends State<_DaySheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+      // U-29: the "(Planejado)" explainer left the label for the ⓘ, as the
+      // English catalog had already done. The S-09 lock hint outranks it.
       AppFieldLabel(l[K.editorScheduledParent],
-          info: _scheduledLocked ? l[K.editorLockedHint] : null),
+          info: _scheduledLocked
+              ? l[K.editorLockedHint]
+              : l[K.editorScheduledParentHint]),
       Wrap(
         spacing: 8,
         children: [
@@ -680,6 +677,7 @@ class _DaySheetState extends State<_DaySheet> {
       // sentence was — so it rides here, on the label of the field that owns it.
       AppFieldLabel(
         l[K.editorActualParent],
+        info: l[K.editorActualParentHint],
         trailing: isSwapped(_assignment)
             ? AppBadge(
                 text: l[K.calSwapped], tone: context.tokens.swapped.tone)

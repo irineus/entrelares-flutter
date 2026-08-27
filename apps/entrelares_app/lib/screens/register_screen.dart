@@ -436,6 +436,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           obscureText: _obscured,
           autofillHints: const [AutofillHints.newPassword],
           suffixIcon: IconButton(
+            tooltip:
+                l[_obscured ? K.commonShowPassword : K.commonHidePassword],
             icon: Icon(_obscured ? Icons.visibility : Icons.visibility_off),
             onPressed: () => setState(() => _obscured = !_obscured),
           ),

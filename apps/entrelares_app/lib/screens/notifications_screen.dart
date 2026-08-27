@@ -214,12 +214,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               },
               child: _loading
                   ? AppSkeletonList(rows: 3, semanticsLabel: l[K.famLoading])
+                  // U-29: same recovery shape as the calendar and the reports
+                  // tabs — a danger banner plus a visible retry.
                   : _loadError != null
                       ? ListView(children: [
                           Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(_loadError!,
-                                textAlign: TextAlign.center),
+                            padding: const EdgeInsets.all(Spacing.lg),
+                            child: Column(children: [
+                              AppBanner(
+                                  tone: context.tokens.danger,
+                                  leading: '⚠️',
+                                  message: _loadError!),
+                              const SizedBox(height: Spacing.sm),
+                              OutlinedButton(
+                                  onPressed: _loadAll,
+                                  child: Text(l[K.layoutErrorReload])),
+                            ]),
                           )
                         ])
                       : switch (_tab) {

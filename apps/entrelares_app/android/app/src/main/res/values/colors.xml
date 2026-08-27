@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#F5F1E8</color>
+    <color name="ic_launcher_background">#4F46E5</color>
     <!-- U-28: the token `surface`. The window the OS paints before the Flutter
          engine draws was pure white (and pure black at night), so every cold
          start flashed a colour the app does not own. -->

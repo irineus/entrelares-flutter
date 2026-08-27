@@ -89,9 +89,12 @@ void main() {
       // "2 dias" three times: Ana's actual, and Bruno's planned (18,21) and
       // actual (the 17th he received, plus the 18th).
       expect(find.text(l.format(K.sumDaysMany, [2])), findsNWidgets(3));
-      // U-07 split, given · received.
-      expect(find.text(l.format(K.sumSwapSplit, [1, 0])), findsOne);
-      expect(find.text(l.format(K.sumSwapSplit, [0, 1])), findsOne);
+      // U-07 split — given and received are their own paired stats now
+      // (U-29 F29). Ana gave the 17th; Bruno received it.
+      expect(find.text(l[K.sumGiven]), findsNWidgets(2));
+      expect(find.text(l[K.sumReceived]), findsNWidgets(2));
+      expect(find.text(l.format(K.sumDaysOne, [1])), findsNWidgets(2));
+      expect(find.text(l.format(K.sumDaysMany, [0])), findsNWidgets(2));
     });
 
     testWidgets('the projected row appears only with the U-20 toggle on',
@@ -119,8 +122,9 @@ void main() {
       await tester.tap(find.byType(SwitchListTile));
       await tester.pumpAndSettle();
 
-      // Bruno gave the 21st away, Ana received it — on top of the 17th.
-      expect(find.text(l.format(K.sumSwapSplit, [1, 1])), findsNWidgets(2));
+      // Bruno gave the 21st away, Ana received it — on top of the 17th:
+      // all four give/receive stats now read one day each.
+      expect(find.text(l.format(K.sumDaysOne, [1])), findsNWidgets(4));
     });
   });
 

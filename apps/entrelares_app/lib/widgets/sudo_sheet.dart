@@ -127,6 +127,8 @@ class _SudoSheetState extends State<_SudoSheet> {
               enabled: !_busy && !cooling,
               errorText: _error,
               suffixIcon: IconButton(
+                tooltip: l[
+                    _obscured ? K.commonShowPassword : K.commonHidePassword],
                 icon:
                     Icon(_obscured ? Icons.visibility : Icons.visibility_off),
                 onPressed: () => setState(() => _obscured = !_obscured),

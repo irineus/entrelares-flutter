@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
+import '../widgets/ui/ui.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
@@ -123,12 +124,11 @@ class _PolicyUpdateScreenState extends State<PolicyUpdateScreen> {
                 const SizedBox(height: 8),
                 // LGPD art. 9: nobody is asked to accept a diff they cannot
                 // see, and the English reader gets the courtesy rendering.
-                for (final change
-                    in PolicyVersions.changeSummaryFor(english: l.isEnglish))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Text('• $change', style: theme.textTheme.bodySmall),
-                  ),
+                // U-29: AppBulletList, so a wrapping change keeps its second
+                // line under the text instead of under the bullet.
+                AppBulletList(
+                  items: PolicyVersions.changeSummaryFor(english: l.isEnglish),
+                ),
                 const SizedBox(height: 12),
                 Text(l[K.policyReadInFull], style: theme.textTheme.bodySmall),
                 Wrap(

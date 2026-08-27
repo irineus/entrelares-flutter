@@ -195,3 +195,222 @@ the system, so what is left there is only the user-facing switch._
 _**U-28** (screen-by-screen visual harmonization — the U-27 adoption pass) was completed in
 Phase 7 on 20/08/2026 — record in [`archive/phase-7.md`](archive/phase-7.md). It is the item
 that spent what U-27 built: `AppCard` was used ONCE in the whole app before it._
+
+---
+
+### U-29 — Senior UI/UX design review: full-app audit and consistency fixes
+
+| Field | Value |
+|---|---|
+| **Status** | `in-progress` |
+| **Priority** | `medium` |
+| **Complexity** | `medium` |
+| **Impact** | `high` — every finding is on a shipping surface; the fixes close drift the U-27/U-28 system was built to prevent |
+| **Roadmap** | Group 4, Ordem 0 (owner decision 26/08/2026: first of the current queue) |
+
+> **Created 26/08/2026 (owner request):** a full review of the app's UI/UX — every screen,
+> icon and the navigation experience — acting as a senior product designer, with the findings
+> registered here and the fixes that fit delivered in the same item. The review was performed
+> over the code (all 23 screens/sheets, the `widgets/ui/` component set, `theme/`, the shell
+> and router), cross-checked against owner-supplied screenshots.
+
+**Overall verdict**
+The U-27 token architecture and the U-28 harmonization hold up very well: one colour source,
+hand-written light/dark themes, a real component vocabulary (cards, banners, badges, sheets,
+skeletons, timeline, danger zone), loading states with shape, and a navigation model (4-tab
+shell + bottom sheets) that is coherent and phone-first. The findings below are **drift and
+stragglers**, not architecture: places the conventions did not reach, plus one accessibility
+gap on the calendar grid.
+
+**Findings (F# = fixed in this delivery · R# = registered, not fixed here)**
+
+- **F1 — The bulk sheet missed the U-28 QA pass.** It still uses bare underline
+  `DropdownButton`s, loose `Text` labels and no card grouping — exactly what the day sheet
+  and the wizard were converted away from (their comments document the convention). Aligned:
+  `DropdownButtonFormField` with integrated labels, `AppFieldLabel` (+ the "Limpar"
+  checkboxes as label trailing), the same `AppCard` question blocks, Spacing tokens.
+- **F2 — Destructive confirmations wore the brand colour.** The final "Confirmar" of
+  leaving the family / deleting the account (profile), of opening a family-deletion request
+  and of "Excluir agora" (família) rendered as default `FilledButton` — indigo, the same as
+  "Salvar". The design system already states a destructive primary takes the danger tone
+  (`AppActionPair.destructive`, `AppDangerZone`); these three now do.
+- **F3 — U-19 parity regression: the password eye toggle survived only on register and
+  sudo.** Login, the profile's change-password pair and `/update-password` had obscured
+  fields with no show/hide — U-19 delivered that toggle product-wide in Phase 6. Restored on
+  all three (one toggle drives a pair, as register already does).
+- **F4 — Hand-glued `•` bullets** in the família deletion-pending panel and the
+  policy-update change list — the exact defect `AppBulletList` exists to fix (a wrapping
+  line restarts under its bullet). Both now use the component.
+- **F5 — `day_sheet` carried a private `_banner` duplicating `AppBanner`** — the "one
+  implementation cannot drift from itself" argument in reverse. Replaced with `AppBanner`.
+- **F6 — Invitation status as plain text.** "Enviado"/"Expirado" on the invitation card were
+  bare `bodySmall` runs while every other row state in the app is an `AppBadge`. Now badges
+  (info / warning).
+- **F7 — The profile password fields were raw `TextField`s**, the only two in the app
+  outside `AppTextField` — converted (which is also what F3 needed).
+- **F8 — iOS share glyph on the Android-first app.** The PDF tab's share button used
+  `Icons.ios_share` while the família screen shares with `Icons.share_outlined`. Unified on
+  the Material glyph.
+- **F9 — Load-error states were three different things.** Reports tabs: `AppBanner` (danger)
+  with title; família: plain text + reload button; calendar and notifications: a bare
+  centred sentence with no retry affordance at all (pull-to-refresh exists but is
+  undiscoverable as recovery). Unified: screen-level load errors render `AppBanner` (danger)
+  + a "Recarregar" button, keeping pull-to-refresh.
+- **F10 — The calendar grid was mute to screen readers.** A day cell announced only its
+  number (plus the frozen mark); who is responsible, the swap state and the handoff time —
+  the entire content of the grid — were visual-only, undermining the "colour is never the
+  only vector" principle for blind users. Each cell now carries a composed semantics label
+  ("12, Fernanda, trocado, troca 18:00") with the inner paint excluded.
+- **F11 — Custom-role delete confirm was a neutral `TextButton`** ("Sim") — now wears the
+  danger colour, consistent with every other destructive confirm.
+- **F12 — Stale doc comment on the calendar `_Legend`** said "scrolls sideways" while the
+  QA version wraps — fixed with the code it describes.
+
+**Registered, not fixed here**
+- **R1 — Profile page over-exposure** is already **U-21** (read-only groups + pencil
+  sheets); the review confirms it as the right next profile move. No new item.
+- **R2 — Day-sheet decluttering** is already **U-25**; confirmed, no new item.
+- **R3 — Dark-mode user switch** is **U-12**; confirmed.
+- **R4 — PDF tab's initial load uses a spinner** though the shape (filter card) is known —
+  a skeleton would follow the U-27 rule. Cosmetic; left for a future polish pass.
+- **R5 — Form-level errors as red text** under the submit button (login/register/update
+  password) are a consistent app-wide pattern and were deliberately kept — only
+  screen-level load errors moved to banners (F9).
+
+**Round 2 — findings from the owner's device screenshots (26/08/2026).** The owner supplied
+~30 screenshots across seven batches; cross-checking them against the code produced eleven
+more findings, three of them behavioural bugs the code review alone had not caught:
+
+- **F13 — The selection ✓ covered the member chip's avatar** (day sheet): the one chip whose
+  identity matters most lost its initial and colour when chosen. `showCheckmark: false` —
+  the fill already says "selected", the same reason `AppSegmented` turned its icon off.
+- **F14/F16/F18 — Material icon + legacy emoji, side by side (systemic).** U-28 gave buttons
+  the app's own icons but the Blazor-era emoji stayed in the catalog strings: "+ + Adicionar
+  bloco" (wizard), two wastebaskets on "Limpar dia", two envelopes on "Enviar redefinição de
+  senha", doubled glyphs on "Alterar senha", "Exportar meus dados", "Ativar modo
+  administrador" and all five Premium benefit rows. Swept: the emoji left every string whose
+  render site carries a Material icon; it stays where it is the only glyph ("✉️ Enviar
+  convite", "✏️ Editar (N)"). "Tornar admin" gained the shield icon its sibling already had.
+- **F15 — The PT labels still carried the parentheses U-28 moved to the ⓘ** — "Responsável
+  Agendado (Planejado)" / "Responsável Real (Em caso de troca)"; the English catalog had
+  already dropped them. Both now read "Responsável agendado/real" with the explainer in an
+  `AppInfoTip` (new keys `editorScheduledParentHint`/`editorActualParentHint`), in the day
+  sheet AND the bulk sheet; "Gerar Plano" lost its stray Title Case.
+- **F17 — "Observação do dia" appeared twice in the bulk sheet** (loose section label + the
+  field's own integrated label, a pre-existing defect F1 had inherited): the clear checkbox
+  now rides beside the field, the way the day sheet parks its ⓘ.
+- **F19 — "👪 Família" was the one app-bar title with an emoji** among the four tabs.
+- **F20 — BUG (owner-reported): the "Primeiros passos" banner could not be dismissed** after
+  "Rever os primeiros passos": the session `checklistReopened` flag is what keeps a reopened
+  checklist visible past `allDone`, and nothing ever cleared it — the ✕ stamped the DB and
+  the banner returned every rebuild until sign-out. Dismissing now clears the flag.
+- **F21 — BUG cluster (owner-reported): the guided tour.** (a) The spotlight painted every
+  hole one status bar too low: target rects are global, but `showDialog`'s default
+  `useSafeArea: true` inset the overlay below the status bar → `useSafeArea: false`.
+  (b) The first stop measured its target before the launcher banner shifted the layout →
+  the tour now waits for `endOfFrame`. (c) "Ver o tour de novo" only worked by accident:
+  the replay flag was read only inside `_load`, which does not run on navigation (the
+  calendar State lives in the shell's IndexedStack), and a second replay was blocked by
+  `_tourShown` — `OnboardingService` is a `ChangeNotifier` now and the calendar replays
+  deterministically on the ping; the replay also no longer reopens the checklist banner as
+  a side effect.
+- **F22 — The Resumo tab kept the raw `SegmentedButton`**, the only place still drawing the
+  ✓ inside the selected segment — replaced with `AppSegmented`.
+- **F23 — "Sistema/Trigger" leaked developer jargon** into the audit timeline (and the
+  near-evidentiary PDF): the catalog string now reads "Sistema (automático)" / "System
+  (automatic)".
+- **R6 — Launcher icon vs. in-app brand → delivered as F24 (round 3).** The Android icon and
+  native splash were a clay-style green/terracotta illustration; everything inside the app is
+  the flat neutral-plus-indigo system with the blue/amber calendar mark. The opening sequence
+  read as two products, and the icon's colours existed in no token.
+- **R7 — "Avisos" vs "Notificações":** the tab and its page title use different words for the
+  same place. Defensible (short tab label), but one word would be firmer — owner's call.
+
+**Round 3 — the new brand mark (F24, owner's concept, 26/08/2026).** R6 was taken in-item.
+The owner supplied the creative direction live: *a calendar whose day cells draw the two
+interlocked houses*, in the calendar's own day colours. Three background candidates and five
+mark variants were rendered and reviewed; the owner picked **indigo background** (option A)
+and **V1** — filled houses, blue + amber, **rose `#E11D48` on the interlaced cells**, a
+card-coloured "door" in each house, the today ring on a shared day. Every colour is a token
+(`tokens.dart`), so the icon is the calendar screen abstracted — the opening sequence
+(icon → splash → calendar) now speaks one visual language.
+
+Delivery: `store/brand-icons.py` fully rewritten — the geometry is data in the script (pure
+Pillow, supersampled 4×), which replaced the AI clay masters as THE source and also writes
+`store/brand-calendario.svg` as the vector artifact. It regenerates the web icons
+(favicon, 192/512, maskable) and the three `assets/brand/` files `flutter_launcher_icons`
+reads; the adaptive icon gained the indigo background and the **Android 13 monochrome layer**
+(new), with `adaptive_icon_foreground_inset: 0` because the script already composes the 66%
+safe zone. The native splash inherits the new mark automatically (`launch_background.xml`
+draws `@mipmap/ic_launcher`). **Deliberately out (owner decision 26/08/2026):**
+`store/store_icon.png` stays on the clay emblem until the Play listing art is refreshed as a
+whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own —
+`store/README.md` §2 records both.
+
+**Round 4 — device QA of the round-3 build (owner-reported, 26/08/2026).** Three returns:
+
+- **F25 — The login/splash mark now IS the icon's figure.** `AppBrandMark` still drew the old
+  weeks-alternating month, so the icon and the first screen disagreed the moment F24 shipped.
+  The widget now mirrors `store/brand-icons.py` cell for cell (8×6 month, the two interlocked
+  houses, rose interlace, doors, today ring on a shared day — every colour a token), with a
+  doc comment binding the two sources. The splash keeps its trade animation: one wall of each
+  house exchanges colours — a day moving between the two homes.
+- **F26 — Tour step 4 covered its own target.** The card is pinned near the bottom, and step
+  4's target IS the bottom (the notifications tab) — the card sat on top of the very thing it
+  was describing. A target in the lower band now flips the card to the top.
+- **F27 — "Rever os primeiros passos" was still non-deterministic.** Round 2 fixed the
+  dismissal, but the REOPEN itself relied on a background reload coinciding: the flag was
+  raised and the stored dismissal cleared, yet nothing told the living calendar State ("only
+  navigates and does nothing; sometimes the banner opens"). `reopenChecklist()` now notifies
+  — the same mechanism as the tour replay — and the calendar reloads its signals on the ping,
+  so the banner returns at once.
+- **F28 — Breathing room in the day cell.** The handoff time sat glued to the carer's initial;
+  it now gets the same 2 px the date already had above the avatar (gated, so badge-less cells
+  stay centred).
+- **F29 — The Resumo stat cards wrapped at random.** Label and value shared one line via a
+  side-by-side `Wrap`, so each row broke wherever the carer's numbers met the reader's font
+  scale ("cedeu 23 ·" / "recebeu 9") and neighbouring cards wrapped differently — disorder in
+  the one tab built for comparing carers. Final form (the owner's own sketch, second
+  iteration): two bands of PAIRED stats, each value under its own label — Programado beside
+  Realizado, and under a hairline rule Cedeu beside Recebeu (the single `sumSwapSplit` string
+  split into two labelled stats, in days); Previsto joins full-width when the U-20 toggle is
+  on. Every card shares the same grid at any font scale. The labels lost their trailing
+  colons in both catalogs, and the PT "Programado" became **"Agendado"** — the domain already
+  calls the planned responsible "agendado" (F15's "Responsável agendado"). Renaming alone did
+  not close it: at the owner's font scale even the eight-letter word still broke ("Agendad /
+  o" — its round glyphs are as wide as "Realizado"'s nine, which include thin i/l/z), so each
+  stat line now renders through a `FittedBox.scaleDown`: EXACTLY one line, shrinking a
+  fraction only when it would otherwise wrap — at ordinary scales nothing changes.
+- **F30 — "Rever os primeiros passos" now opens the checklist itself.** With F27 the button
+  worked as designed — and the design was the friction: it brought back only the launcher
+  strip, which the user still had to know to tap ("goes to the calendar and shows this",
+  owner, second QA pass). The button promises the first steps, so the reopen ping now lands
+  with the checklist SHEET open; the strip stays behind as the way back in. The open request
+  is a one-shot flag consumed by the calendar, so a later ping (a tour replay) never reopens
+  the sheet as a side effect.
+
+**Version graduation (owner decision, 27/08/2026).** Delivered in the same branch: the app
+version left the spike's `0.2.x` line — which never graduated at the T-53 cutover, so the
+public number read as the product moving BACKWARDS from the Blazor client's retired `1.8.15`
+— and opened the Flutter generation at **`2.0.0+54`**. The bump policy (MINOR per delivered
+backlog item, PATCH for fixes, MAJOR by owner decision, `+N` on every merge) is written where
+it operates: the comment above `version:` in the pubspec, echoed in `store/README.md` §6.
+
+**Files affected**
+- Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`
+  (F2, F3, F7) · `family_screen.dart` (F2, F4, F6) · `policy_update_screen.dart` (F4) ·
+  `day_sheet.dart` (F5) · `reports_pdf_tab.dart` (F8) · `calendar_screen.dart` (F9, F10,
+  F12) · `notifications_screen.dart` (F9) · `login_screen.dart` (F3) ·
+  `update_password_screen.dart` (F3) · `custom_roles_screen.dart` (F11)
+- Round 2: the two localization catalogs in `entrelares_core` (F14–F19, F23) ·
+  `day_sheet.dart` + `bulk_sheet.dart` (F13, F15, F17) · `profile_screen.dart` (F18) ·
+  `calendar_screen.dart` + `services/onboarding_service.dart` + `widgets/onboarding.dart` +
+  `main.dart` (F20, F21) · `reports_summary_tab.dart` (F22)
+- Round 3 (F24): `store/brand-icons.py` (rewritten) · `store/brand-calendario.svg` (new) ·
+  `store/README.md` §2 · `apps/entrelares_app/pubspec.yaml` (launcher-icons block) · the
+  regenerated brand/web/mipmap assets, adaptive XML (+monochrome) and `values/colors.xml`
+- Round 4: `widgets/app_splash.dart` (F25) · `widgets/onboarding.dart` (F26) ·
+  `services/onboarding_service.dart` + `calendar_screen.dart` (F27, F28, F30) ·
+  `reports_summary_tab.dart` + the two catalogs (F29)
+- Widget tests updated/added in the same delivery; the two source gates
+  (`no_color_literal_test`, `no_literal_snack_test`) stay green.

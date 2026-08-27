@@ -89,6 +89,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _passwordError;
   bool _passwordLinkSent = false;
 
+  /// U-29 — U-19's eye toggle; one control drives the pair, as register does.
+  bool _passwordObscured = true;
+
   bool _exporting = false;
 
   // S-11 — leaving the family
@@ -545,9 +548,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(target.isAdmin ? l[K.profIsAdmin] : l[K.profIsNotAdmin],
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
-          OutlinedButton(
+          // U-29: the shield moved from an emoji in the string to the app's
+          // own icon, pairing with the mail button below.
+          OutlinedButton.icon(
             onPressed: () => _toggleAdmin(l),
-            child: Text(
+            icon: const Icon(Icons.shield_outlined),
+            label: Text(
                 target.isAdmin ? l[K.profRemoveAdmin] : l[K.profMakeAdmin]),
           ),
           const SizedBox(height: 8),
@@ -599,23 +605,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
+          // U-29: the only two fields in the app that were raw `TextField`s —
+          // now the shared component, which also brings U-19's eye toggle back.
+          AppTextField(
+            label: l[K.updatePwdNewPassword],
+            hint: l[K.profNewPasswordPlaceholder],
             controller: _newPassword,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: l[K.updatePwdNewPassword],
-              hintText: l[K.profNewPasswordPlaceholder],
-              errorText: _passwordError,
+            obscureText: _passwordObscured,
+            errorText: _passwordError,
+            suffixIcon: IconButton(
+              tooltip: l[_passwordObscured
+                  ? K.commonShowPassword
+                  : K.commonHidePassword],
+              icon: Icon(_passwordObscured
+                  ? Icons.visibility
+                  : Icons.visibility_off),
+              onPressed: () =>
+                  setState(() => _passwordObscured = !_passwordObscured),
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
+          AppTextField(
+            label: l[K.profConfirmNewPassword],
+            hint: l[K.profConfirmNewPasswordPlaceholder],
             controller: _confirmPassword,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: l[K.profConfirmNewPassword],
-              hintText: l[K.profConfirmNewPasswordPlaceholder],
-            ),
+            obscureText: _passwordObscured,
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
@@ -779,10 +793,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             successorPicker,
           ],
           const SizedBox(height: 8),
+          // U-29: the destructive confirm wears the danger tone, never the
+          // brand indigo — same rule AppDangerZone and AppActionPair encode.
           FilledButton(
             onPressed: _leaving || (_needsSuccessor && _successorId == null)
                 ? null
                 : () => _leaveFamily(l),
+            style: FilledButton.styleFrom(
+                backgroundColor: context.tokens.danger.solid,
+                foregroundColor: context.tokens.danger.onSolid),
             child:
                 Text(l[last ? K.profLeaveConfirmLast : K.profLeaveConfirm]),
           ),

@@ -174,6 +174,10 @@ class _CalendarScreenState extends State<CalendarScreen>
     _pageController = PageController(initialPage: _basePage);
     WidgetsBinding.instance.addObserver(this);
     widget.adminMode.addListener(_onAdminModeChanged);
+    // U-29: the profile's "Ver o tour de novo" and "Rever os primeiros
+    // passos" ping this — the State lives on in the tab stack, so nothing
+    // else runs when the user lands back.
+    widget.onboarding?.addListener(_onOnboardingPing);
     _load();
     _loadHorizonInputs();
     _watch();
@@ -257,6 +261,7 @@ class _CalendarScreenState extends State<CalendarScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     widget.adminMode.removeListener(_onAdminModeChanged);
+    widget.onboarding?.removeListener(_onOnboardingPing);
     _unwatch?.call();
     _unwatchWorkflow?.call();
     _pollTimer?.cancel();
@@ -343,16 +348,75 @@ class _CalendarScreenState extends State<CalendarScreen>
 
     // The tour runs ONCE, on the first authenticated session, and hands over
     // to the checklist when it ends — the web's FinishTour does the same.
-    final replay = onboarding.tourReplayRequested;
+    // (Explicit replays arrive through [_onTourReplayRequested] now.)
     if (!_tourShown &&
         widget.tourKeys != null &&
-        (replay || me.onboardingTourSeenAt == null)) {
+        me.onboardingTourSeenAt == null) {
       _tourShown = true;
-      onboarding.tourReplayRequested = false;
+      // U-29: the launcher banner the setState above may have inserted shifts
+      // the whole column AFTER the spotlight would measure its targets — let
+      // the frame settle first, or the holes light where things WERE.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
       await showGuidedTour(context: context, keys: widget.tourKeys!);
       await onboarding.markTourSeen();
-      if (mounted && !replay && _showChecklist) await _openChecklist();
+      if (mounted && _showChecklist) await _openChecklist();
     }
+  }
+
+  /// One listener, two requests — each guarded by its own flag, so a ping for
+  /// one never runs the other by accident.
+  void _onOnboardingPing() {
+    unawaited(_onTourReplayRequested());
+    unawaited(_onChecklistReopenRequested());
+  }
+
+  /// U-29 (owner-reported, round 3) — the deterministic reopen path. The
+  /// profile's "Rever os primeiros passos" raised the session flag and
+  /// cleared the stored dismissal, but nothing told this State — alive in
+  /// the shell's IndexedStack — to look again, so the banner only appeared
+  /// when a background reload happened to coincide. The service notifies
+  /// now, and this reloads the signals so [_showChecklist] flips at once.
+  Future<void> _onChecklistReopenRequested() async {
+    final onboarding = widget.onboarding;
+    final me = _ownProfile;
+    if (onboarding == null || me == null || !onboarding.checklistReopened) {
+      return;
+    }
+    // Consumed up front: a second ping mid-flight must not open two sheets.
+    final openSheet = onboarding.checklistOpenRequested;
+    onboarding.checklistOpenRequested = false;
+    final signals = await onboarding.loadSignals(me: me, members: _members);
+    if (!mounted) return;
+    setState(() => _onboardingSignals = signals);
+    if (!openSheet) return;
+    // U-29 round 5 (owner): the profile button promises the first steps, not
+    // a launcher to tap — land with the checklist sheet OPEN; the banner
+    // stays behind as the way back in.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await _openChecklist();
+  }
+
+  /// U-29 — the deterministic replay path. Before, the flag was only read
+  /// inside `_load`, which does not run when the user navigates back from the
+  /// profile (this State stays alive in the shell's IndexedStack), so "Ver o
+  /// tour de novo" waited for a background refresh — and a second replay in
+  /// the same session was blocked by `_tourShown` outright.
+  Future<void> _onTourReplayRequested() async {
+    final onboarding = widget.onboarding;
+    if (onboarding == null ||
+        !onboarding.tourReplayRequested ||
+        widget.tourKeys == null) {
+      return;
+    }
+    onboarding.tourReplayRequested = false;
+    _tourShown = true;
+    // Let the navigation back to this tab land before measuring targets.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await showGuidedTour(context: context, keys: widget.tourKeys!);
+    await onboarding.markTourSeen();
   }
 
   Future<void> _openChecklist() async {
@@ -385,6 +449,11 @@ class _CalendarScreenState extends State<CalendarScreen>
   }
 
   Future<void> _dismissChecklist() async {
+    // U-29 (owner-reported bug): the reopen flag is what keeps a reopened
+    // checklist visible past `allDone`, and nothing ever cleared it — so the
+    // ✕ stamped the dismissal and the banner came straight back, for the
+    // rest of the session. Dismissing answers the reopen too.
+    widget.onboarding?.checklistReopened = false;
     await widget.onboarding?.markChecklistDismissed();
     if (!mounted) return;
     setState(() => _onboardingSignals =
@@ -953,12 +1022,23 @@ class _CalendarScreenState extends State<CalendarScreen>
                 return LayoutBuilder(builder: (context, box) {
                   return RefreshIndicator(
                   onRefresh: _load,
+                  // U-29: the load error as the same danger banner the reports
+                  // tabs use, WITH a visible way to retry — pull-to-refresh
+                  // still works, but it is not a discoverable recovery.
                   child: _loadError != null && isVisible
                       ? ListView(children: [
                           Padding(
-                            padding: const EdgeInsets.all(24),
-                            child:
-                                Text(_loadError!, textAlign: TextAlign.center),
+                            padding: const EdgeInsets.all(Spacing.lg),
+                            child: Column(children: [
+                              AppBanner(
+                                  tone: context.tokens.danger,
+                                  leading: '⚠️',
+                                  message: _loadError!),
+                              const SizedBox(height: Spacing.sm),
+                              OutlinedButton(
+                                  onPressed: _load,
+                                  child: Text(l[K.layoutErrorReload])),
+                            ]),
                           )
                         ])
                       : _MonthGrid(
@@ -1092,29 +1172,21 @@ class _LegendSkeleton extends StatelessWidget {
       );
 }
 
-/// U-28 — the legend, scrolling sideways instead of wrapping.
+/// U-28 — the legend: compact pill keys that WRAP when the family grows.
 ///
-/// Three problems, one shape. The chips wrapped onto a second row and pushed
-/// the grid down (on a four-carer family the calendar lost a whole week of
-/// height to a legend); every carer but the first wore a hatch, which the
-/// owner's review read as "these people are marked for something"; and the
-/// names had lost the ROLE, so the legend was a row of colours with first names
-/// and no explanation of who anyone is.
+/// (U-29 doc fix: this comment used to carry the two superseded versions —
+/// "scrolls sideways" and "one line only" — alongside the shipped one; the
+/// build method below is the authority and this now says what it does.)
 ///
-/// It is one line that scrolls now: the calendar keeps its height no matter how
-/// many carers a family has.
-/// U-28 — the legend: one compact line that a four-carer family still fits on.
-///
-/// The QA round found two problems with the first version. `Chip` carries a
-/// border, a 32 dp minimum height and generous padding, so four carers plus
-/// "Trocado" ran off the right edge of a phone; and "Trocado" was drawn on every
-/// month, including the ones with no swap in them — which is the web's **U-18**,
-/// delivered there and never ported. Both cost the grid height it did not have.
-///
-/// So: no `Chip` chrome, `labelSmall` type, and the swap key only when the month
-/// actually contains a swapped day. Four carers plus the key now measure about
-/// 330 dp against a 360 dp phone; past that it still scrolls sideways rather
-/// than wrapping, because a second legend row costs a week of calendar.
+/// The QA rounds settled three things. Every carer's key carries the NAME AND
+/// ROLE in the carer's own colour (the port had reduced it to unexplained
+/// swatches); no `Chip` chrome — a bordered 32 dp chip row cost the grid
+/// height it did not have, so the key is a bare `labelSmall` pill; and the
+/// "Trocado" key appears only on a month that actually contains a swapped day
+/// (the web's **U-18**). A four-carer family wraps onto a second row — the
+/// rows appear only when the family has grown enough to need them, and a
+/// horizontal scroll would hide the fourth carer behind a gesture nobody
+/// knows is there.
 class _Legend extends StatelessWidget {
   final List<Member> members;
   final List<MemberView> views;
@@ -1416,7 +1488,44 @@ class _DayCell extends StatelessWidget {
 
     final primary = Theme.of(context).colorScheme.primary;
     final tokens = context.tokens;
-    return InkWell(
+    final l = AppL10n.of(context).l;
+
+    // U-29 — the cell says to a screen reader what it paints for everyone
+    // else. Colour was never the only vector VISUALLY (texture, initial), but
+    // the grid was mute: a blind reader heard bare day numbers, and who is
+    // responsible, the swap and the handoff time are the whole calendar.
+    String? responsibleName;
+    final effectiveId = assignment?.effectiveParentId;
+    if (effectiveId != null) {
+      for (final v in views) {
+        if (v.id == effectiveId) {
+          responsibleName = v.fullName;
+          break;
+        }
+      }
+    }
+    final semanticsLabel = [
+      '${date.day}',
+      if (isToday) l[K.calToday],
+      ?responsibleName,
+      if (isSwapped) l[K.calSwapped],
+      if (frozenMark != null)
+        frozenMark!.label
+      else if (day?.handoffTime != null)
+        '${l[K.editorHandoffTime]} '
+            '${l.formatTimeString(day!.handoffTime!)}',
+    ].join(', ');
+
+    return Semantics(
+      button: true,
+      selected: isSelected,
+      label: semanticsLabel,
+      // One node per cell: the inner texts (number, initial, time) would read
+      // as loose fragments, and the composed label already carries them all.
+      excludeSemantics: true,
+      onTap: () => onTap(date),
+      onLongPress: () => onLongPress(date),
+      child: InkWell(
       onTap: () => onTap(date),
       // U-11: the mobile entry point to bulk selection (web: 500 ms press).
       onLongPress: () => onLongPress(date),
@@ -1468,23 +1577,26 @@ class _DayCell extends StatelessWidget {
                                 ? slot.tone.onSolid
                                 : Theme.of(context).hintColor)),
                   ),
+                  // U-29 round 4 (owner): the same breath the date already
+                  // gets above the avatar — without it the time sat glued to
+                  // the initial. Gated, so a badge-less cell stays centred.
+                  if (frozenMark != null || day?.handoffTime != null)
+                    const SizedBox(height: 2),
                   // Web parity: the frozen badge REPLACES the handoff badge.
+                  // (U-29: its label rides the CELL's semantics node now.)
                   if (frozenMark != null)
-                    Semantics(
-                      label: frozenMark!.label,
-                      child: Container(
-                        padding: frozenMark!.overdue
-                            ? const EdgeInsets.symmetric(horizontal: 3)
-                            : EdgeInsets.zero,
-                        decoration: frozenMark!.overdue
-                            ? BoxDecoration(
-                                color: tokens.danger.container,
-                                borderRadius: BorderRadius.circular(6),
-                              )
-                            : null,
-                        child: Text(frozenMark!.badge,
-                            style: const TextStyle(fontSize: 9)),
-                      ),
+                    Container(
+                      padding: frozenMark!.overdue
+                          ? const EdgeInsets.symmetric(horizontal: 3)
+                          : EdgeInsets.zero,
+                      decoration: frozenMark!.overdue
+                          ? BoxDecoration(
+                              color: tokens.danger.container,
+                              borderRadius: BorderRadius.circular(6),
+                            )
+                          : null,
+                      child: Text(frozenMark!.badge,
+                          style: const TextStyle(fontSize: 9)),
                     )
                   else if (day?.handoffTime != null)
                     // U-28: the TIME, not an anonymous swap arrow. The web
@@ -1527,6 +1639,7 @@ class _DayCell extends StatelessWidget {
                       color: primary)),
             ),
         ],
+      ),
       ),
     );
   }

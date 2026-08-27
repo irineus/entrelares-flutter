@@ -199,21 +199,21 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Semantics(
-              label: l[K.repPeriodAria],
-              child: SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment(value: false, label: Text(l[K.repByYear])),
-                  ButtonSegment(value: true, label: Text(l[K.repByMonth])),
-                ],
-                selected: {_byMonth},
-                onSelectionChanged: _loading
-                    ? null
-                    : (s) {
-                        setState(() => _byMonth = s.first);
-                        _load();
-                      },
-              ),
+            // U-29: the shared segmented control — this tab had kept the raw
+            // one, the only place in the app still drawing the ✓ inside the
+            // selected segment (the fill already says which one is chosen).
+            AppSegmented<bool>(
+              semantics: l[K.repPeriodAria],
+              options: [
+                (value: false, label: l[K.repByYear]),
+                (value: true, label: l[K.repByMonth]),
+              ],
+              selected: _byMonth,
+              enabled: !_loading,
+              onChanged: (v) {
+                setState(() => _byMonth = v);
+                _load();
+              },
             ),
             const SizedBox(height: 8),
             Row(
@@ -311,18 +311,28 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: Spacing.sm),
-            _statRow(l[K.sumPlanned], _daysLabel(stat.plannedDays, l),
-                tone: slot.tone),
-            _statRow(l[K.sumActual], _daysLabel(stat.actualDays, l),
-                highlight: true, tone: slot.tone),
-            if (_includeFutureSwaps)
-              _statRow(l[K.sumProjected], _daysLabel(stat.projectedDays, l),
-                  highlight: true, tone: slot.tone),
+            // U-29 round 4 (owner's sketch): two bands of PAIRED stats, each
+            // value under its own label — planned beside actual, given beside
+            // received. Every card shares the same grid, whatever the
+            // reader's font scale does inside a column.
+            _statPair(
+              l[K.sumPlanned], _daysLabel(stat.plannedDays, l),
+              l[K.sumActual], _daysLabel(stat.actualDays, l),
+              tone: slot.tone,
+            ),
+            if (_includeFutureSwaps) ...[
+              const SizedBox(height: Spacing.sm),
+              _stat(l[K.sumProjected], _daysLabel(stat.projectedDays, l),
+                  tone: slot.tone),
+            ],
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+              child: Container(height: 1, color: slot.tone.border),
+            ),
             // U-07: who gave days away and who received them.
-            _statRow(
-              l[K.sumSwaps],
-              l.format(
-                  K.sumSwapSplit, [stat.swapsGiven, stat.swapsReceived]),
+            _statPair(
+              l[K.sumGiven], _daysLabel(stat.swapsGiven, l),
+              l[K.sumReceived], _daysLabel(stat.swapsReceived, l),
               tone: slot.tone,
             ),
           ],
@@ -336,35 +346,44 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
   String _daysLabel(int count, Localization l) =>
       l.format(count == 1 ? K.sumDaysOne : K.sumDaysMany, [count]);
 
-  /// U-28: a `Wrap`, not a `Row`. At half the screen width "Programado" and
-  /// "161 dias" no longer fit on one line for every language, and a `Row` would
-  /// have overflowed rather than moved the value down.
-  Widget _statRow(String label, String value,
-          {bool highlight = false, ToneColors? tone}) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: Spacing.sm,
-          children: [
-            Text(label,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: tone?.onContainer)),
-            Text(
-              value,
+  /// One stat: label above, value under it — each on EXACTLY one line. A
+  /// half-column is narrow enough that at large font scales a whole word
+  /// stops fitting ("Agendad / o", owner's device), and a mid-word break is
+  /// worse than a fractionally smaller word: the [FittedBox] shrinks the
+  /// line only when it would otherwise wrap, so at ordinary scales nothing
+  /// changes at all.
+  Widget _stat(String label, String value, {required ToneColors tone}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _oneLine(Text(label,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: tone.onContainer))),
+          _oneLine(Text(value,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: highlight
-                    ? (tone?.onContainer ??
-                        Theme.of(context).colorScheme.primary)
-                    : tone?.onContainer,
-              ),
-            ),
-          ],
-        ),
+                  fontWeight: FontWeight.bold, color: tone.onContainer))),
+        ],
+      );
+
+  Widget _oneLine(Widget text) => FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: AlignmentDirectional.centerStart,
+        child: text,
+      );
+
+  /// Two stats side by side in equal columns — the owner's sketch:
+  /// Agendado | Realizado over their values, Cedeu | Recebeu under the rule.
+  Widget _statPair(String leftLabel, String leftValue, String rightLabel,
+          String rightValue, {required ToneColors tone}) =>
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _stat(leftLabel, leftValue, tone: tone)),
+          const SizedBox(width: Spacing.sm),
+          Expanded(child: _stat(rightLabel, rightValue, tone: tone)),
+        ],
       );
 
   Widget _emptyState(Localization l) => AppEmptyState(

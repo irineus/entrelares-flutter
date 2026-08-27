@@ -669,11 +669,16 @@ class _FamilyScreenState extends State<FamilyScreen> {
             Row(
               children: [
                 Expanded(child: Text(invitation.email)),
-                Text(
-                    expired
-                        ? l[K.famInviteExpiredBadge]
-                        : l[K.famInviteSentBadge],
-                    style: theme.textTheme.bodySmall),
+                // U-29: a row's state is an AppBadge everywhere else in the
+                // app — this was the one place it was still a grey text run.
+                AppBadge(
+                  text: expired
+                      ? l[K.famInviteExpiredBadge]
+                      : l[K.famInviteSentBadge],
+                  tone: expired
+                      ? context.tokens.warning
+                      : context.tokens.info,
+                ),
               ],
             ),
             const SizedBox(height: 4),
@@ -898,7 +903,12 @@ class _FamilyScreenState extends State<FamilyScreen> {
         ...[
           Text(l[K.famDelReqConfirmText]),
           const SizedBox(height: 8),
+          // U-29: a destructive confirm wears the danger tone, never the brand
+          // indigo — the AppDangerZone that opened this question already does.
           FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: context.tokens.danger.solid,
+                foregroundColor: context.tokens.danger.onSolid),
             onPressed: _deletionBusy
                 ? null
                 : () => _runDeletionAction(
@@ -953,17 +963,18 @@ class _FamilyScreenState extends State<FamilyScreen> {
             l.formatDate(request.scheduledFor.toLocal()),
           ])),
         const SizedBox(height: 12),
-        for (final consequence in [
-          K.famDelConsequenceSilence,
-          K.famDelConsequenceUnanimity,
-          K.famDelConsequenceBlocked,
-          K.famDelConsequenceExport,
-        ])
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text('• ${l[consequence]}',
-                style: theme.textTheme.bodySmall),
-          ),
+        // U-29: AppBulletList instead of hand-glued `•` — a wrapping notice
+        // keeps its second line under the text, which is why the component
+        // exists (the danger zones already learned this).
+        AppBulletList(items: [
+          for (final consequence in [
+            K.famDelConsequenceSilence,
+            K.famDelConsequenceUnanimity,
+            K.famDelConsequenceBlocked,
+            K.famDelConsequenceExport,
+          ])
+            l[consequence],
+        ]),
         const SizedBox(height: 12),
         // Who said what — an absent row reads "aguardando", never "concordou".
         for (final voter in FamilyLifecycleRules.voters(
@@ -1057,7 +1068,12 @@ class _FamilyScreenState extends State<FamilyScreen> {
             Text(l[K.famDelExecuteConfirmText],
                 style: TextStyle(color: theme.colorScheme.error)),
             const SizedBox(height: 8),
+            // U-29: "Excluir agora" is the most destructive tap in the app —
+            // it takes the danger tone, not the brand one.
             FilledButton(
+              style: FilledButton.styleFrom(
+                  backgroundColor: context.tokens.danger.solid,
+                  foregroundColor: context.tokens.danger.onSolid),
               onPressed: _deletionBusy ? null : () => _executeNow(l),
               child: Text(l[K.famDelExecuteNow]),
             ),

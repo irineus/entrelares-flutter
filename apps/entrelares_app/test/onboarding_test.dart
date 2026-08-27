@@ -348,4 +348,144 @@ void main() {
     expect(find.text(Localization(AppLanguage.en)[K.onbChecklistTitle]),
         findsOne);
   });
+
+  group('U-29 regressions (owner-reported)', () {
+    testWidgets('dismissing a REOPENED checklist removes it — the session '
+        'reopen flag is cleared, not just the stamp', (tester) async {
+      // All steps done and previously dismissed: only the reopen flag keeps
+      // the launcher visible, which is exactly the state the ✕ could not
+      // escape before.
+      final ds = source(members: [
+        seenTour(
+            dismissed: DateTime.utc(2026, 8, 2),
+            explained: DateTime.utc(2026, 8, 1)),
+      ]);
+      final onboarding = OnboardingService(ds)..checklistReopened = true;
+      await pumpCalendar(tester, ds, onboarding: onboarding);
+
+      expect(find.text(l[K.onbChecklistTitle]), findsOne);
+
+      await tester.tap(find.byTooltip(l[K.onbChecklistDismissAria]));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l[K.onbChecklistTitle]), findsNothing);
+      expect(onboarding.checklistReopened, isFalse);
+    });
+
+    testWidgets('an explicit tour replay pings the LIVING calendar — no '
+        'reload in between, and a second replay still works', (tester) async {
+      final keys = TourKeys();
+      final ds = source(members: [seenTour()]);
+      final onboarding = OnboardingService(ds);
+      await pumpCalendar(tester, ds, onboarding: onboarding, tourKeys: keys);
+
+      // Already seen: the tour must not auto-run.
+      expect(find.text(l.format(K.tourProgress, [1, 4])), findsNothing);
+
+      onboarding.tourReplayRequested = true;
+      await tester.pumpAndSettle();
+      expect(find.text(l.format(K.tourProgress, [1, 4])), findsOne);
+      await tester.tap(find.text(l[K.tourSkip]));
+      await tester.pumpAndSettle();
+
+      // The old `_tourShown` gate blocked any second replay in a session.
+      onboarding.tourReplayRequested = true;
+      await tester.pumpAndSettle();
+      expect(find.text(l.format(K.tourProgress, [1, 4])), findsOne);
+      await tester.tap(find.text(l[K.tourSkip]));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('"Rever os primeiros passos" pings the LIVING calendar — the '
+        'banner returns with no reload in between (round 3)', (tester) async {
+      // Previously dismissed: the banner starts hidden, and the State stays
+      // alive in the tab stack, so no reload runs when the user lands back
+      // from the profile. The reopen used to rely on exactly that reload.
+      final ds = source(members: [
+        seenTour(
+            dismissed: DateTime.utc(2026, 8, 2),
+            explained: DateTime.utc(2026, 8, 1)),
+      ]);
+      final onboarding = OnboardingService(ds);
+      await pumpCalendar(tester, ds, onboarding: onboarding);
+
+      expect(find.text(l[K.onbChecklistTitle]), findsNothing);
+
+      // The profile button's exact call: the service notifies, the calendar
+      // reloads its signals AND opens the checklist sheet — the button
+      // promises the first steps, not a launcher to tap (round 5).
+      await onboarding.reopenChecklist();
+      await tester.pumpAndSettle();
+
+      expect(find.text(l[K.onbChecklistIntro]), findsOne,
+          reason: 'the sheet itself must open on landing');
+      // Banner behind + sheet title.
+      expect(find.text(l[K.onbChecklistTitle]), findsNWidgets(2));
+
+      // Closing the sheet leaves the banner as the way back in.
+      await tester.tap(find.text(l[K.commonClose]));
+      await tester.pumpAndSettle();
+      expect(find.text(l[K.onbChecklistTitle]), findsOne);
+      expect(find.text(l[K.onbChecklistIntro]), findsNothing);
+
+      // A later ping (a tour replay, say) must NOT reopen the sheet: the
+      // open request is one-shot. (No tourKeys here, so the replay itself
+      // degrades to nothing — only the notify matters.)
+      onboarding.tourReplayRequested = true;
+      await tester.pumpAndSettle();
+      expect(find.text(l[K.onbChecklistIntro]), findsNothing);
+    });
+
+    testWidgets('the tour card flips to the top when the target lives at the '
+        'bottom — step 4 spotlights the notifications tab (round 3)',
+        (tester) async {
+      final keys = TourKeys();
+      await tester.pumpWidget(AppL10n(
+        l: Localization(AppLanguage.ptBr),
+        setLanguage: (_) async {},
+        child: MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Column(
+                children: [
+                  FilledButton(
+                    onPressed: () =>
+                        showGuidedTour(context: context, keys: keys),
+                    child: const Text('go'),
+                  ),
+                  const Spacer(),
+                  // Stands in for the bottom navigation's notifications tab.
+                  Container(
+                    key: keys.keyFor(TourTarget.notificationsTab),
+                    height: 56,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+
+      final screen = tester.getSize(find.byType(MaterialApp));
+      Rect card() => tester.getRect(find.byType(Card));
+
+      // Steps 1–3: their targets are not mounted here, so the card keeps its
+      // bottom berth.
+      expect(card().center.dy, greaterThan(screen.height / 2));
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.text(l[K.tourNext]));
+        await tester.pumpAndSettle();
+      }
+
+      // Step 4: the target IS the bottom — the card must sit at the top,
+      // fully clear of what it is describing.
+      expect(card().center.dy, lessThan(screen.height / 2));
+      final target = tester
+          .getRect(find.byKey(keys.keyFor(TourTarget.notificationsTab)));
+      expect(card().bottom, lessThan(target.top),
+          reason: 'the card covered the very tab the stop spotlights');
+    });
+  });
 }

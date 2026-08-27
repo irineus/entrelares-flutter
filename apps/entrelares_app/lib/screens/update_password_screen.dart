@@ -36,6 +36,9 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
   bool _busy = false;
   bool _done = false;
 
+  /// U-29 — U-19's eye toggle; one control drives the pair, as register does.
+  bool _obscured = true;
+
   /// Catalog key of a local validation error (mirror), or null.
   String? _errorKey;
 
@@ -116,14 +119,24 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen> {
                         AppTextField(
                           label: l[K.updatePwdNewPassword],
                           controller: _password,
-                          obscureText: true,
+                          obscureText: _obscured,
                           autofillHints: const [AutofillHints.newPassword],
+                          suffixIcon: IconButton(
+                            tooltip: l[_obscured
+                                ? K.commonShowPassword
+                                : K.commonHidePassword],
+                            icon: Icon(_obscured
+                                ? Icons.visibility
+                                : Icons.visibility_off),
+                            onPressed: () =>
+                                setState(() => _obscured = !_obscured),
+                          ),
                         ),
                         const SizedBox(height: 12),
                         AppTextField(
                           label: l[K.commonConfirmPassword],
                           controller: _confirm,
-                          obscureText: true,
+                          obscureText: _obscured,
                           autofillHints: const [AutofillHints.newPassword],
                           onSubmitted: (_) => _submit(),
                         ),
