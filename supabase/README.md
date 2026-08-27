@@ -1198,23 +1198,48 @@ and each project (dev / prod) arms itself independently. Until you finish this
 section on a project, that project's builds simply have no Google button.
 
 **9-ter.0 GCP — one OAuth client, once.** In a Google Cloud project owned by
-the product account:
+the product account (ours is `entrelares-506400`). Google reorganised this
+console in 2026: what used to be *APIs & Services → OAuth consent screen* is
+now its own product, **Google Auth Platform** (`console.cloud.google.com/auth`),
+split into Branding / Audience / Clients / Data Access. The old
+*APIs & Services → Credentials* page still exists and still LISTS the client
+afterwards — it just no longer creates it.
 
-1. *APIs & Services → OAuth consent screen*: External, app name **Entrelares**,
-   support e-mail, the `entrelares.app` domain, publish it (the "testing" state
-   caps sign-ins and expires refresh tokens after 7 days).
-2. *Credentials → Create credentials → OAuth client ID → Web application*
-   (WEB, even for Android: GoTrue does the exchange server-side). Authorized
-   redirect URIs — BOTH projects' GoTrue callbacks:
+1. *Google Auth Platform → **Branding***: app name **Entrelares**, support
+   e-mail, the `entrelares.app` authorized domain.
+2. *Google Auth Platform → **Audience***: **External**, and **publish it** —
+   the "Testing" state caps sign-ins to a listed set of accounts and expires
+   refresh tokens after 7 days. Left in Testing, this surfaces as users being
+   silently signed out a week later, which reads like an app bug and is not.
+3. *Google Auth Platform → **Clients** → Create OAuth client → Application
+   type: **Web application*** (WEB, even for Android: the device never talks to
+   Google directly — GoTrue does the code exchange server-side). Name it for
+   the console's own benefit (`Entrelares — Supabase GoTrue`). Leave
+   *Authorized JavaScript origins* EMPTY — this is a redirect flow, not a
+   browser-implicit one. Under **Authorized redirect URIs**, BOTH projects'
+   GoTrue callbacks:
    - `https://buroanotfjcgvbfmacuh.supabase.co/auth/v1/callback` (dev)
    - `https://jptqbwfziyzlhlmoekzu.supabase.co/auth/v1/callback` (prod)
-3. Keep the **Client ID** and **Client secret** — the next step wants them.
+
+   The create screen warns that settings take **5 minutes to a few hours** to
+   take effect. Believe it: a `redirect_uri_mismatch` in the first minutes
+   after saving is propagation, not a typo — re-check the URI once, then wait
+   rather than "fixing" a correct value.
+4. Keep the **Client ID** and **Client secret** — the next step wants them.
    One client for both projects is fine; the secret lives only in the Supabase
    consoles (never in this repo — Rule 1).
 
-**9-ter.1 Supabase — per project, DEV first.** *Authentication → Providers →
-Google*: enable, paste Client ID + secret, save. Then *Authentication → URL
-Configuration → Redirect URLs*, add the app's return addresses:
+**9-ter.1 Supabase — per project, DEV first.** *Authentication → **Sign In /
+Providers*** (the entry called plain "Providers" until 2026) → **Google**:
+enable, paste Client ID + secret, save.
+
+> Do NOT confuse it with its two neighbours, which read like the right thing
+> and are its mirror image: **OAuth Apps** (under MANAGE) and **OAuth Server
+> (BETA)** are Supabase acting AS an OAuth provider for third parties. What
+> this section configures is Supabase CONSUMING Google.
+
+Then *Authentication → URL Configuration → Redirect URLs*, add the app's
+return addresses:
 
 | Project | Add to Redirect URLs |
 |---|---|
@@ -1225,6 +1250,29 @@ The custom schemes match the manifest's `${applicationId}` intent filter and
 `DeepLinkUrls.oauthCallback` — per flavor so a device carrying both apps never
 opens a chooser. Nothing here requires a redeploy: the S-16 ordering trap does
 not apply because no Edge Function reads this config.
+
+> **Do NOT test the invitation half from the e-mail on dev — it cannot work,
+> and the way it fails is a trap.** `send-swap-email` builds the invite link
+> from the `APP_URL` secret, and **dev has had no web target since T-56**: the
+> Blazor QA deployment died with the cutover. The secret still said
+> `qa.entrelares.app`, a host that did not stop resolving — it became a GHOST,
+> answering with a stale build, so the link opened a real-looking page with no
+> Google button and nothing about it said "wrong app" (measured 27/08/2026).
+> Set dev's `APP_URL` to `https://web.entrelares.app`, the same value prod
+> carries: the ghost is strictly worse than pointing at a live host, because a
+> stale build that answers is the failure mode that lies quietly.
+>
+> Know what that costs, though: a DEV invite e-mail then points at the
+> PRODUCTION web app, whose database has no such token, so it answers
+> "convite inválido". That is honest and harmless — a dev token can do nothing
+> in prod — but it means **dev invite testing happens inside the app**, never
+> from the inbox: use "Copiar link" on the Família screen, or push the link
+> straight in with
+> `adb shell am start -a android.intent.action.VIEW -d "https://web.entrelares.app/register?invite=<token>" com.entrelares.flutter`.
+> A debug build never verifies App Links (per-machine certificate), so the
+> e-mail link would land in the browser regardless of the secret's value.
+> Giving dev a web deployment again is the only real fix, and it is its own
+> scope.
 
 **9-ter.2 Verify on DEV before touching prod.** A dev-flavor build
 (`workflow_dispatch → build-apk`) on a real device: the button appears on
