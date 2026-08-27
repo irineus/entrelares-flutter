@@ -381,6 +381,13 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
   o" — its round glyphs are as wide as "Realizado"'s nine, which include thin i/l/z), so each
   stat line now renders through a `FittedBox.scaleDown`: EXACTLY one line, shrinking a
   fraction only when it would otherwise wrap — at ordinary scales nothing changes.
+- **F30 — "Rever os primeiros passos" now opens the checklist itself.** With F27 the button
+  worked as designed — and the design was the friction: it brought back only the launcher
+  strip, which the user still had to know to tap ("goes to the calendar and shows this",
+  owner, second QA pass). The button promises the first steps, so the reopen ping now lands
+  with the checklist SHEET open; the strip stays behind as the way back in. The open request
+  is a one-shot flag consumed by the calendar, so a later ping (a tour replay) never reopens
+  the sheet as a side effect.
 
 **Files affected**
 - Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`
@@ -396,7 +403,7 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
   `store/README.md` §2 · `apps/entrelares_app/pubspec.yaml` (launcher-icons block) · the
   regenerated brand/web/mipmap assets, adaptive XML (+monochrome) and `values/colors.xml`
 - Round 4: `widgets/app_splash.dart` (F25) · `widgets/onboarding.dart` (F26) ·
-  `services/onboarding_service.dart` + `calendar_screen.dart` (F27, F28) ·
+  `services/onboarding_service.dart` + `calendar_screen.dart` (F27, F28, F30) ·
   `reports_summary_tab.dart` + the two catalogs (F29)
 - Widget tests updated/added in the same delivery; the two source gates
   (`no_color_literal_test`, `no_literal_snack_test`) stay green.

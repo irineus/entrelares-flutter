@@ -383,9 +383,19 @@ class _CalendarScreenState extends State<CalendarScreen>
     if (onboarding == null || me == null || !onboarding.checklistReopened) {
       return;
     }
+    // Consumed up front: a second ping mid-flight must not open two sheets.
+    final openSheet = onboarding.checklistOpenRequested;
+    onboarding.checklistOpenRequested = false;
     final signals = await onboarding.loadSignals(me: me, members: _members);
     if (!mounted) return;
     setState(() => _onboardingSignals = signals);
+    if (!openSheet) return;
+    // U-29 round 5 (owner): the profile button promises the first steps, not
+    // a launcher to tap — land with the checklist sheet OPEN; the banner
+    // stays behind as the way back in.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await _openChecklist();
   }
 
   /// U-29 — the deterministic replay path. Before, the flag was only read

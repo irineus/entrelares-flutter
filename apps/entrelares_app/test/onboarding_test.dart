@@ -412,11 +412,28 @@ void main() {
       expect(find.text(l[K.onbChecklistTitle]), findsNothing);
 
       // The profile button's exact call: the service notifies, the calendar
-      // reloads its signals, the banner is back — deterministically.
+      // reloads its signals AND opens the checklist sheet — the button
+      // promises the first steps, not a launcher to tap (round 5).
       await onboarding.reopenChecklist();
       await tester.pumpAndSettle();
 
+      expect(find.text(l[K.onbChecklistIntro]), findsOne,
+          reason: 'the sheet itself must open on landing');
+      // Banner behind + sheet title.
+      expect(find.text(l[K.onbChecklistTitle]), findsNWidgets(2));
+
+      // Closing the sheet leaves the banner as the way back in.
+      await tester.tap(find.text(l[K.commonClose]));
+      await tester.pumpAndSettle();
       expect(find.text(l[K.onbChecklistTitle]), findsOne);
+      expect(find.text(l[K.onbChecklistIntro]), findsNothing);
+
+      // A later ping (a tour replay, say) must NOT reopen the sheet: the
+      // open request is one-shot. (No tourKeys here, so the replay itself
+      // degrades to nothing — only the notify matters.)
+      onboarding.tourReplayRequested = true;
+      await tester.pumpAndSettle();
+      expect(find.text(l[K.onbChecklistIntro]), findsNothing);
     });
 
     testWidgets('the tour card flips to the top when the target lives at the '
