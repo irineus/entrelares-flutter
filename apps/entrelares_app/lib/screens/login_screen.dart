@@ -11,6 +11,7 @@ import '../env.dart';
 import '../theme/tokens.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_splash.dart';
+import '../widgets/google_sign_in_button.dart';
 
 /// Why the visitor was sent back here, so the banner reads the right message
 /// (the web's `session_expired` sessionStorage flag).
@@ -48,12 +49,21 @@ class LoginScreen extends StatefulWidget {
   /// prefs here so a process restart does not reset the clock.
   final SharedPreferences prefs;
 
+  /// F-57 — whether the Google provider exists (GoTrue's settings endpoint,
+  /// fail-closed) and what pressing the button does. Null keeps the screen
+  /// exactly as it was before F-57 — tests and callers that predate the
+  /// feature never see the button.
+  final Future<bool>? googleEnabled;
+  final Future<void> Function()? onSignInWithGoogle;
+
   const LoginScreen(
       {super.key,
       required this.onSignIn,
       required this.onForgotPassword,
       required this.onSignUp,
       required this.prefs,
+      this.googleEnabled,
+      this.onSignInWithGoogle,
       this.expiredReason = SessionExpiredReason.none});
 
   @override
@@ -250,6 +260,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: widget.onForgotPassword,
                   child: Text(l[K.loginForgot]),
                 ),
+                // F-57: below the password flow, above the U-28 rule — still
+                // "signing in", just another door. Renders nothing while the
+                // provider is not enabled on this environment's project.
+                if (widget.googleEnabled != null &&
+                    widget.onSignInWithGoogle != null)
+                  GoogleSignInButton(
+                    enabled: widget.googleEnabled!,
+                    onPressed: widget.onSignInWithGoogle!,
+                  ),
                 // U-28: the rule the web draws here. Everything above it is
                 // signing in; everything below is about the app. Without it the
                 // screen was one undifferentiated stack of links.

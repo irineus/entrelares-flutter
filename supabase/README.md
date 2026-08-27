@@ -1188,6 +1188,73 @@ verification.
 > single-account tester list is what keeps this a test.
 
 
+## 9-ter. Google login go-live (F-57) — enabling the provider, per project
+
+The code shipped dormant on purpose: **the switch IS the provider config.**
+The app asks GoTrue's public settings endpoint (`/auth/v1/settings`) whether
+`google` is enabled and only then renders the button — so there is no
+`app_settings` flag to flip, nothing that can disagree with the real config,
+and each project (dev / prod) arms itself independently. Until you finish this
+section on a project, that project's builds simply have no Google button.
+
+**9-ter.0 GCP — one OAuth client, once.** In a Google Cloud project owned by
+the product account:
+
+1. *APIs & Services → OAuth consent screen*: External, app name **Entrelares**,
+   support e-mail, the `entrelares.app` domain, publish it (the "testing" state
+   caps sign-ins and expires refresh tokens after 7 days).
+2. *Credentials → Create credentials → OAuth client ID → Web application*
+   (WEB, even for Android: GoTrue does the exchange server-side). Authorized
+   redirect URIs — BOTH projects' GoTrue callbacks:
+   - `https://buroanotfjcgvbfmacuh.supabase.co/auth/v1/callback` (dev)
+   - `https://jptqbwfziyzlhlmoekzu.supabase.co/auth/v1/callback` (prod)
+3. Keep the **Client ID** and **Client secret** — the next step wants them.
+   One client for both projects is fine; the secret lives only in the Supabase
+   consoles (never in this repo — Rule 1).
+
+**9-ter.1 Supabase — per project, DEV first.** *Authentication → Providers →
+Google*: enable, paste Client ID + secret, save. Then *Authentication → URL
+Configuration → Redirect URLs*, add the app's return addresses:
+
+| Project | Add to Redirect URLs |
+|---|---|
+| dev | `com.entrelares.flutter://login-callback` (Android dev flavor) — plus `http://localhost:*` patterns if web QA runs locally |
+| prod | `com.entrelares.app://login-callback` (Android prod) and `https://web.entrelares.app` (web channel return) |
+
+The custom schemes match the manifest's `${applicationId}` intent filter and
+`DeepLinkUrls.oauthCallback` — per flavor so a device carrying both apps never
+opens a chooser. Nothing here requires a redeploy: the S-16 ordering trap does
+not apply because no Edge Function reads this config.
+
+**9-ter.2 Verify on DEV before touching prod.** A dev-flavor build
+(`workflow_dispatch → build-apk`) on a real device: the button appears on
+`/login` (it was absent before — that is the fail-closed switch working), a
+NEW Google account lands on `/onboarding`, completes the form and reaches the
+calendar; an invited e-mail tapping "continuar com Google" from the register
+screen lands on the claim variant. On the dev project, confirm the profile
+row carries `consent_policy_version` = current and `joined_via_invite`
+matching the path taken.
+
+**9-ter.3 Prod.** Repeat 9-ter.1 on the prod project. The button reaches real
+users on the WEB immediately; on Android it waits for the next Play promotion
+(the manifest's scheme filter ships with `2.1.0+55`+). **Order matters on
+Android:** enabling the provider on prod BEFORE the store carries a build with
+the scheme filter is harmless for web but leaves an Android user who taps the
+button stranded in the browser — enable prod only after the F-57 build is the
+one being served, or accept that window.
+
+**Account linking posture (decided 27/08/2026):** GoTrue's automatic linking
+stays ON — Google e-mails arrive verified, so a Google sign-in with an
+existing password account's e-mail lands on the SAME user (one profile, one
+family). The gate pins the consequences: `oauth_onboarding` /
+`claim_invitation` suites.
+
+**Rolling back:** disable the provider on the project — the button vanishes on
+the next app boot, password sign-in never depended on any of this. Sessions
+already created by Google keep working (they are ordinary GoTrue sessions);
+disabling only closes the door for NEW sign-ins.
+
+
 ## 10. S-16 — migração das chaves de API e da assinatura JWT
 
 Duas migrações **independentes**, nesta ordem: primeiro as chaves de API

@@ -263,4 +263,42 @@ void main() {
           isNull);
     });
   });
+
+  // F-57 — the onboarding form of a deferred OAuth sign-up: the founder half
+  // of RegisterRules without e-mail/password, refusing with the SAME keys in
+  // the SAME order so the two forms speak identically.
+  group('OauthOnboardingRules', () {
+    String? validate({
+      String fullName = 'Ana',
+      String? familyName = 'Família Ana',
+      String? role = 'mother',
+      bool acceptedTerms = true,
+      bool isInvited = false,
+    }) =>
+        OauthOnboardingRules.validationErrorKey(
+          fullName: fullName,
+          familyName: familyName,
+          role: role,
+          acceptedTerms: acceptedTerms,
+          isInvited: isInvited,
+        );
+
+    test('a complete founder form passes', () {
+      expect(validate(), isNull);
+    });
+
+    test('refusals come in the register form order, with its keys', () {
+      expect(validate(fullName: '  '), K.registerErrorNameRequired);
+      expect(validate(familyName: ''), K.registerErrorFamilyRequired);
+      expect(validate(role: null), K.registerErrorRoleRequired);
+      expect(validate(acceptedTerms: false), K.registerErrorConsentRequired);
+    });
+
+    test('the invited branch skips family and role — the invitation carries '
+        'both', () {
+      expect(validate(isInvited: true, familyName: null, role: null), isNull);
+      expect(validate(isInvited: true, familyName: null, role: null, acceptedTerms: false),
+          K.registerErrorConsentRequired);
+    });
+  });
 }

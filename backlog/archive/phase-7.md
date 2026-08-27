@@ -3170,3 +3170,62 @@ has a source.
 verdict (`continue-on-error: true` on any future upload step), and if the `web-e2e`/emulator
 lanes ever start recording heavy diagnostics, a **new item with real scope** replaces this
 one — the R2 bucket + credential pattern from T-19 remains the named lever.
+
+---
+
+### F-57 — Social login (Google now, Apple with the iOS wrapper) — DELIVERED (the Google half; Apple rides T-40)
+
+| Field | Value |
+|---|---|
+| **Status** | `done` (27/08/2026, `2.1.0+55`, PRs #92 + #93) — **phase 1 (Google) only, by the item's own design**: the Apple half was always coupled to T-40 (the App Store requires Sign in with Apple once ANY third-party login exists) and moves with it |
+| **Priority** | `high` — owner 12/08/2026: *"creio que possa ser implementado o quanto antes"* |
+| **Complexity** | `medium` — accurate, but not where the record guessed: GoTrue did the heavy lifting, and the real work was a trigger invariant nobody had listed |
+| **Impact** | `high` (kills the confirmation-e-mail failure mode — the whole 07/08 QA round — for Google sign-ups) |
+| **Depends on / relates** | S-13/S-15 (consent moved into the deferred onboarding), U-21 (the profile shows the sign-in method for password-less sessions), T-40 (Apple half), F-15/F-28 (invite claim via OAuth, delivered) |
+
+> **Created 12/08/2026 from closed-alpha feedback; delivered 27/08/2026 in two PRs.**
+
+**What shipped (decisions locked with the owner, 27/08/2026)**
+
+- **The central finding, absent from the record's edge list:** `handle_new_user` RAISES for a
+  sign-up without founder metadata, and as an `AFTER INSERT ON auth.users` trigger that abort
+  kills the auth user itself — a Google account simply never came into existence. The fix is
+  the **deferred profile**: a sign-up carrying neither `invite_token` nor `role` creates the
+  auth user with NO profile, and the app confines that session to a new `/onboarding` screen
+  (`AuthPhase.onboarding` in the route rules — the S-11 leaving confinement's shape at the
+  other end of the account's life).
+- **Deliberately NOT keyed on the OAuth provider:** the first gate run proved the Admin API
+  cannot forge `provider: google`, so a provider-based branch would be a production rule the
+  db gate can never exercise. The absence of OUR metadata is the true discriminator (both
+  legitimate flows always send it); a bare password sign-up straight at the GoTrue API now
+  defers to the same onboarding — documented behaviour, pinned by the suite.
+- **Two doors create the profile:** `complete_oauth_onboarding` (RPC, founder: role + family
+  name + S-13 consent validated against `policy.current_version` — the S-15 posture) and
+  `claim-invitation` (JWT-verified Edge Function + service_role SQL twin, invitee), with the
+  S-11 cross-family migration adapted to **automatic account linking**: a departed member
+  signing in with Google lands on their EXISTING auth user, so the old frozen profile is
+  DETACHED (`user_id → NULL`, tombstone kept) and the caller's session survives the
+  migration — the register-invitee flow deletes and recreates instead, because there the user
+  is new.
+- **The fail-closed switch is GoTrue's own settings endpoint** (`/auth/v1/settings`): the
+  button renders only where the project says the provider exists, so config and UI cannot
+  disagree, each environment arms itself, and the owner's flip is the provider toggle in the
+  console (runbook `supabase/README.md` §9-ter). No `app_settings` flag — the login screen is
+  anonymous and reads no table anyway.
+- **Android returns by per-flavor custom scheme** (`<applicationId>://login-callback`, the
+  manifest's `${applicationId}` placeholder): an https App Link on a custom-tab redirect is
+  the flaky half of Android deep linking, and one shared scheme would open a chooser on the
+  owner's two-flavor device. Web round-trips to its own origin.
+- **U-21 slice:** a session whose providers exclude `email` sees its sign-in method in place
+  of the password card — offering "alterar senha" to a password-less account would submit
+  against nothing.
+- Coverage: `oauth_onboarding` + `claim_invitation` gate suites (deferred trigger, founder
+  RPC, claim, thief token, stale policy, S-11 migration with surviving session); 11 widget
+  tests (fail-closed button, both onboarding branches, migration dialog, profile swap);
+  route-rules and onboarding-validation cases in core.
+
+**What the next reader should know.** The `_isRestoring`/`_isSigningUp` guards the record
+pointed at were the BLAZOR AuthService's — dead with the archiving; the Flutter equivalents
+(`_userSignOut`, `SessionGate`) needed no change. What DID need change was
+`_syncProfileLanguage`'s fetch-and-swallow, which silently let a profile-less session into
+the shell: phase resolution now happens before the shell renders (`_resolveAuthedPhase`).

@@ -261,6 +261,39 @@ abstract class CustodyDataSource {
     bool confirmMigration = false,
   });
 
+  // ── F-57: social-login onboarding (deferred profile) ──────────────────────
+
+  /// The FOUNDER half of the deferred onboarding: `complete_oauth_onboarding`
+  /// creates family + admin profile for a session whose profile
+  /// `handle_new_user` deferred, stamping the S-13 consent after validating
+  /// the policy version server-side (S-15 posture). Throws with the server's
+  /// PT-BR message on refusal.
+  Future<void> completeOauthOnboarding({
+    required String fullName,
+    required String role,
+    required String familyName,
+  });
+
+  /// The INVITEE half: the `claim-invitation` Edge Function attaches the
+  /// CURRENT session to the invitation's family. Same result vocabulary as
+  /// [registerInvitee] — including the S-11 migration question, which the
+  /// onboarding screen answers with the same dialog the register form uses.
+  Future<InviteeResult> claimInvitation({
+    required String token,
+    required String fullName,
+    bool confirmMigration = false,
+  });
+
+  /// The identity providers of the current session (`email`, `google`, …) —
+  /// what the profile screen reads to decide between the password card and
+  /// the sign-in-method row (the U-21 slice F-57 requires). Empty when there
+  /// is no session.
+  List<String> authProviders();
+
+  /// The display name the OAuth provider sent with the session, for
+  /// prefilling the onboarding form. Null when absent or blank.
+  String? sessionDisplayName();
+
   // ── Lote 4: family page, invitations and custom roles (F-41) ──────────────
 
   /// Every role this family may use: the 21 built-ins plus its own custom
@@ -524,6 +557,19 @@ class InviteeFailed extends InviteeResult {
   final String? message;
 
   const InviteeFailed(this.message);
+}
+
+/// F-57: the server refused `complete_oauth_onboarding`. [message] is the
+/// RPC's own PT-BR text (stale policy version, invalid role, account already
+/// attached) when one arrived — null means unreachable, and the screen shows
+/// its generic sentence instead.
+class OnboardingRefused implements Exception {
+  final String? message;
+
+  const OnboardingRefused(this.message);
+
+  @override
+  String toString() => 'OnboardingRefused($message)';
 }
 
 /// Why the `elevate` Edge Function refused.

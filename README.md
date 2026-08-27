@@ -22,7 +22,7 @@ apps/entrelares_app/tool/     # subset_inter.py — regenera a fonte embarcada (
 packages/entrelares_core/     # Dart puro: espelhos-cliente das regras do servidor, testáveis com `dart test`
 packages/entrelares_core/test/mirrors/   # T-56: os espelhos Dart↔Deno (i18n.ts, migrations)
 packages/entrelares_db_contracts/        # T-56 PR 6: as formas de linha do PostgREST, lidas pelo app E pelo gate
-packages/entrelares_db_gate/  # T-56 PRs 6-16: o gate de banco (225 testes), Dart puro
+packages/entrelares_db_gate/  # T-56 PRs 6-16 + F-57: o gate de banco (237 testes), Dart puro
 supabase/                     # T-56 PR 3: migrations, Edge Functions e o runbook de deploy
 backlog/                      # T-56 PR 4a: a memória escrita do produto (registros + archive/)
 store/                        # T-56 PR 4c: listagens da Play, masters de marca e seus geradores
@@ -47,7 +47,7 @@ cd apps/entrelares_app && fvm flutter run -d web-server --web-port 8080
 # E2E (lote 3): app real em emulador contra o projeto dev — exige a service_role key
 cd apps/entrelares_app && fvm flutter test integration_test/swap_workflow_test.dart \
   --flavor dev --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
-# Gate de banco: 225 testes de RLS/RPC/trigger contra o projeto dev, com família
+# Gate de banco: 237 testes de RLS/RPC/trigger contra o projeto dev, com família
 # descartável. Exige a service_role do DEV (nunca a de produção); sem ela a suíte
 # aborta com instruções em vez de rodar pela metade.
 cd packages/entrelares_db_gate && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> fvm dart test
@@ -83,7 +83,7 @@ da suíte web (`E2E-<runId>`, e-mails `@resend.dev`, teardown sempre via
 
 ## Gate de banco (`packages/entrelares_db_gate/`)
 
-**225 testes** sobre RLS, RPCs `SECURITY DEFINER`, triggers e o ledger de cobrança,
+**237 testes** sobre RLS, RPCs `SECURITY DEFINER`, triggers e o ledger de cobrança,
 rodando contra o projeto **dev** real com família descartável. É a camada que prova o
 invariante do produto — *o cliente ESPELHA, o banco IMPÕE* — e veio do `entrelares-app`,
 que está sendo arquivado (ver [`docs/arquivamento-app.md`](docs/arquivamento-app.md)).
@@ -190,7 +190,9 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
 - **Navegação:** `go_router` com `StatefulShellRoute` — os mesmos 4 destinos do NavMenu
   web (Calendário, Família, Avisos, Relatórios); cada lote trocou um placeholder pelo
   miolo real, e com Relatórios (lote 6) não sobrou nenhum. Guard estilo S-02 no `redirect`: tudo é
-  protegido exceto `/login`, `/reset-password` e `/update-password`.
+  protegido exceto `/login`, `/reset-password` e `/update-password`. Desde o F-57 há uma
+  quarta fase de auth: sessão validada SEM perfil (cadastro Google diferido) fica confinada
+  em `/onboarding` até fundar a família ou reivindicar o convite.
 - **Deep links (App Links):** host `web.entrelares.app` (a origem do PWA — o apex é a
   landing), path `/update-password`, `autoVerify`. O `assetlinks.json` de produção já
   listava o prod (`com.entrelares.app`, F-54); o statement do dev
@@ -204,6 +206,14 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
   `https://web.entrelares.app/update-password` no allowlist de redirect de auth.
 - **S-01 throttling:** espelho `LoginThrottle` (≥3 falhas → falhas×5 s; ≥5 → 60 s),
   estado em prefs locais (o análogo do sessionStorage web) — sobrevive a restart.
+- **Login com Google (F-57, 27/08/2026):** botão fail-closed nas telas de auth — só
+  aparece quando o `/auth/v1/settings` do projeto diz que o provider existe, então a
+  config do console É o interruptor. Cadastro novo tem o perfil DIFERIDO pelo trigger e
+  completa em `/onboarding` (papel + família + consentimento S-13, ou claim do convite
+  via Edge Function `claim-invitation`, com a migração S-11 preservando a sessão). No
+  Android o retorno é por scheme próprio por flavor (`<applicationId>://login-callback`);
+  runbook do owner em `supabase/README.md` §9-ter. Sessão sem senha vê o método de login
+  no perfil no lugar do cartão de senha.
 - **S-04 inatividade:** espelho `InactivityPolicy` (30 min, poll de 30 s) — pointer-down
   em qualquer lugar reseta; o resume do lifecycle reavalia na hora (tempo em background
   conta, como a aba escondida no web). Expirou → signOut local + banner no login.

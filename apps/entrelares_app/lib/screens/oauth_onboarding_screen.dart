@@ -1,6 +1,6 @@
 import 'package:entrelares_core/entrelares_core.dart';
 import 'package:flutter/material.dart';
-import '../widgets/ui/ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../deep_link_urls.dart';
@@ -8,92 +8,73 @@ import 'package:entrelares_db_contracts/models/invite_info.dart';
 import '../services/analytics_service.dart';
 import '../services/custody_data_source.dart';
 import '../widgets/app_l10n.dart';
-import '../widgets/google_sign_in_button.dart';
+import '../widgets/ui/ui.dart';
 
-/// `/register` — port of `Register.razor`.
+/// `/onboarding` (F-57) — where a deferred (social-login) session becomes a
+/// member.
 ///
-/// One screen, two branches, and the branch is decided by ONE thing: whether
-/// the URL carried an `invite` token.
+/// The register screen's two branches, minus what the OAuth session already
+/// settled: the e-mail belongs to the provider account and there is no
+/// password. The branch is decided the same way — by an invitation — except
+/// the token arrives through [SharedPreferences] instead of the URL: it was
+/// stashed by the register screen right before the OAuth redirect, because a
+/// browser round-trip keeps no widget state.
 ///
-/// * **Founder** — names the family, picks a role, and ends on "confirm your
-///   e-mail": GoTrue will not let them in until the link is clicked. The family
-///   and the profile are created by the `handle_new_user` trigger in a single
-///   transaction, so there is no half-created account to clean up.
-/// * **Invitee** (U-17) — auto-confirmed by the `register-invitee` Edge
-///   Function, so the screen signs them in and lands them on the calendar. The
-///   e-mail is read-only (the invitation names it, and the trigger refuses a
-///   mismatch), and there is no family/role to choose: the invitation carries
-///   both.
-///
-/// The S-15 consent is ONE checkbox covering policy, terms and the
-/// path-specific declaration (A-1.1 decided the form) — and the declaration
-/// text differs per branch, which is exactly why [ConsentDeclarations] is
-/// shared with the re-consent gate.
-class RegisterScreen extends StatefulWidget {
-  /// The token from `/register?invite=…`, when this visitor arrived through an
-  /// invitation (App Link or a pasted link).
-  final String? inviteToken;
+/// S-13 moved here for this path: the consent the register form collects at
+/// sign-up is collected on this screen instead, and the server stamps it only
+/// after validating the policy version (S-15 posture) — so the deferred
+/// account cannot slip past the declaration the form path signs.
+class OauthOnboardingScreen extends StatefulWidget {
+  /// Where the register screen parks the invite token across the OAuth
+  /// redirect, and the only reader of it.
+  static const String pendingInviteTokenKey = 'pending_invite_token';
 
   final CustodyDataSource dataSource;
-
-  /// T-37 — optional: the sign-up funnel is instrumentation, never a step.
   final AnalyticsService? analytics;
+  final SharedPreferences prefs;
 
-  /// Signs the freshly created invitee in — the founder never reaches it.
-  final Future<void> Function(String email, String password) onSignIn;
+  /// "Entrar com outra conta" — this session is confined here, so signing out
+  /// is the only other door.
+  final Future<void> Function() onSignOut;
 
-  final VoidCallback onBackToLogin;
+  /// The profile now exists — `main.dart` re-resolves the phase and routes.
+  final Future<void> Function() onCompleted;
 
-  /// F-57 — the Google door on BOTH branches. Consent is NOT collected here
-  /// for that path: the redirect leaves this form behind, and the onboarding
-  /// screen collects it where the profile is actually created (S-13). The
-  /// invite branch hands its token over so `main.dart` can stash it across
-  /// the browser round-trip. Null keeps the screen pre-F-57.
-  final Future<bool>? googleEnabled;
-  final Future<void> Function({String? inviteToken})? onSignInWithGoogle;
-
-  const RegisterScreen({
-    this.analytics,
+  const OauthOnboardingScreen({
     super.key,
     required this.dataSource,
-    required this.onSignIn,
-    required this.onBackToLogin,
-    this.googleEnabled,
-    this.onSignInWithGoogle,
-    this.inviteToken,
+    this.analytics,
+    required this.prefs,
+    required this.onSignOut,
+    required this.onCompleted,
   });
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<OauthOnboardingScreen> createState() => _OauthOnboardingScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _OauthOnboardingScreenState extends State<OauthOnboardingScreen> {
   final _fullName = TextEditingController();
-  final _email = TextEditingController();
   final _familyName = TextEditingController();
-  final _password = TextEditingController();
-  final _confirmPassword = TextEditingController();
 
   String? _role;
   bool _acceptedTerms = false;
-  bool _obscured = true;
 
   bool _loadingInvite = false;
   bool _inviteInvalid = false;
+  String? _inviteToken;
   InviteInfo? _invite;
 
   bool _busy = false;
-  bool _signUpDone = false;
 
   /// The catalog KEY of the current error, so a language switch re-renders it.
   String? _errorKey;
 
-  /// A message the SERVER wrote (the Edge Function's PT-BR text) — shown
-  /// verbatim instead of a key, never collapsed into a generic sentence.
+  /// A message the SERVER wrote (PT-BR) — shown verbatim, never collapsed.
   String? _errorText;
 
   /// S-11: set while the visitor is being asked to confirm leaving another
-  /// family behind.
+  /// family behind — same dialog the register screen shows.
   bool _migrationWarning = false;
   String? _migrationFamilyName;
 
@@ -102,8 +83,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    final token = widget.inviteToken;
+    _fullName.text = widget.dataSource.sessionDisplayName() ?? '';
+    final token =
+        widget.prefs.getString(OauthOnboardingScreen.pendingInviteTokenKey);
     if (token != null && token.trim().isNotEmpty) {
+      _inviteToken = token.trim();
       _loadingInvite = true;
       _resolveInvite(token.trim());
     }
@@ -112,10 +96,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   void dispose() {
     _fullName.dispose();
-    _email.dispose();
     _familyName.dispose();
-    _password.dispose();
-    _confirmPassword.dispose();
     super.dispose();
   }
 
@@ -125,26 +106,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       _loadingInvite = false;
       if (info == null) {
+        // The stash outlived the invitation (expired, revoked, already used).
+        // The founder form stays available below — being locked out of the
+        // whole product over a dead token would be worse.
         _inviteInvalid = true;
         return;
       }
       _invite = info;
-      // The invitation names the address; the trigger refuses any other.
-      _email.text = info.invitedEmail;
     });
+  }
+
+  Future<void> _clearPendingToken() async {
+    try {
+      await widget.prefs
+          .remove(OauthOnboardingScreen.pendingInviteTokenKey);
+    } catch (_) {
+      // Best-effort: a stale token resolves to the invalid state next boot.
+    }
   }
 
   Future<void> _submit() async {
     if (_busy) return;
-    final l = AppL10n.of(context).l;
 
-    final errorKey = RegisterRules.validationErrorKey(
+    final errorKey = OauthOnboardingRules.validationErrorKey(
       fullName: _fullName.text,
-      email: _email.text,
       familyName: _familyName.text,
       role: _role,
-      password: _password.text,
-      confirmPassword: _confirmPassword.text,
       acceptedTerms: _acceptedTerms,
       isInvited: _isInvited,
     );
@@ -162,51 +149,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _errorText = null;
     });
 
-    // T-37: funnel entry — the sign-up TYPE and nothing else.
-    widget.analytics?.trackEvent('signup_started',
-        props: {'type': _isInvited ? 'invitee' : 'founder'});
-
     if (_isInvited) {
-      await _submitInvite(confirmMigration: false, l: l);
+      await _submitClaim(confirmMigration: false);
     } else {
-      await _submitFounder(l);
+      await _submitFounder();
     }
   }
 
-  Future<void> _submitFounder(Localization l) async {
+  Future<void> _submitFounder() async {
     try {
-      await widget.dataSource.signUpFounder(
-        email: _email.text.trim(),
-        password: _password.text,
+      await widget.dataSource.completeOauthOnboarding(
         fullName: _fullName.text.trim(),
         role: _role!,
         familyName: _familyName.text.trim(),
-        languageCode: l.current.code,
       );
       if (!mounted) return;
-      // T-37: a founder created a new family (activation funnel).
+      // T-37: same funnel event the register form emits — the channel is in
+      // the pageview, never a person.
       widget.analytics?.trackEvent('family_created');
-      // The account exists but is unusable until the e-mail is confirmed —
-      // this screen is the end of the founder's flow, not a step in it.
-      setState(() {
-        _busy = false;
-        _signUpDone = true;
-      });
-    } on SignUpFailure catch (e) {
+      await _clearPendingToken();
+      await widget.onCompleted();
+    } on OnboardingRefused catch (e) {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _errorKey = e.errorKey;
+        _errorText = e.message;
+        _errorKey = e.message == null ? KApp.onbErrGeneric : null;
       });
     }
   }
 
-  Future<void> _submitInvite(
-      {required bool confirmMigration, required Localization l}) async {
-    final result = await widget.dataSource.registerInvitee(
-      token: widget.inviteToken!.trim(),
+  Future<void> _submitClaim({required bool confirmMigration}) async {
+    final result = await widget.dataSource.claimInvitation(
+      token: _inviteToken!,
       fullName: _fullName.text.trim(),
-      password: _password.text,
       confirmMigration: confirmMigration,
     );
     if (!mounted) return;
@@ -215,14 +191,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       case InviteeRegistered():
         // T-37: viral loop closed — an invited caregiver joined a family.
         widget.analytics?.trackEvent('invitee_joined');
-        // U-17: already confirmed — sign in and let the router land them.
-        try {
-          await widget.onSignIn(_email.text.trim(), _password.text);
-        } catch (_) {
-          // The account exists; only the automatic sign-in failed. Send them
-          // to the login screen rather than leaving them on a dead form.
-          if (mounted) widget.onBackToLogin();
-        }
+        await _clearPendingToken();
+        await widget.onCompleted();
       case InviteeNeedsMigration(:final previousFamilyName):
         setState(() {
           _busy = false;
@@ -235,7 +205,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         setState(() {
           _busy = false;
           _errorText = message;
-          _errorKey = message == null ? K.authErrSignUpFailed : null;
+          _errorKey = message == null ? KApp.onbErrGeneric : null;
         });
     }
   }
@@ -263,14 +233,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _body(Localization l) {
-    if (_loadingInvite) return _loadingInviteState(l);
-    if (_inviteInvalid) return _inviteInvalidState(l);
-    if (_signUpDone) return _confirmEmailState(l);
-    if (_migrationWarning) return _migrationState(l);
-    return _form(l);
-  }
-
-  Widget _loadingInviteState(Localization l) => Column(
+    if (_loadingInvite) {
+      return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           const CircularProgressIndicator(),
@@ -278,52 +242,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           Text(l[K.registerCheckingInvite], textAlign: TextAlign.center),
         ],
       );
+    }
+    if (_migrationWarning) return _migrationState(l);
+    return _form(l);
+  }
 
-  Widget _inviteInvalidState(Localization l) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(l[K.registerInviteInvalidTitle],
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 12),
-          Text(l[K.registerInviteInvalidBody], textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: widget.onBackToLogin,
-            child: Text(l[K.registerBackToLogin]),
-          ),
-        ],
-      );
-
-  Widget _confirmEmailState(Localization l) => Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(l[K.registerConfirmEmailTitle],
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 12),
-          // The catalog sentence ends before the address on purpose (the web
-          // emphasises it separately) — it carries no placeholder.
-          Text(l[K.registerConfirmEmailSentTo], textAlign: TextAlign.center),
-          const SizedBox(height: 4),
-          Text(_email.text.trim(),
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: 8),
-          Text(l[K.registerConfirmEmailBody], textAlign: TextAlign.center),
-          const SizedBox(height: 24),
-          FilledButton(
-            onPressed: widget.onBackToLogin,
-            child: Text(l[K.registerGoToLogin]),
-          ),
-        ],
-      );
-
-  /// S-11 — one e-mail belongs to one family. Joining this one hard-deletes the
-  /// previous registration, so it is a question with a named consequence, not
-  /// an error banner.
+  /// S-11 — same question, same named consequence as the register screen's.
   Widget _migrationState(Localization l) => Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -341,7 +265,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ? null
                 : () {
                     setState(() => _busy = true);
-                    _submitInvite(confirmMigration: true, l: l);
+                    _submitClaim(confirmMigration: true);
                   },
             child: Text(_busy
                 ? l[K.registerMigrationConfirming]
@@ -382,13 +306,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
             textAlign: TextAlign.center,
           ),
         ] else ...[
-          Text(l[K.registerCreateTitle],
+          Text(l[KApp.onbFounderTitle],
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 4),
-          Text(l[K.registerCreateSubtitle],
+          Text(l[KApp.onbFounderSubtitle],
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall),
+          if (_inviteInvalid) ...[
+            const SizedBox(height: 12),
+            Text(l[K.registerInviteInvalidBody],
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
         ],
         const SizedBox(height: 24),
         AppTextField(
@@ -398,16 +328,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           maxLength: RegisterRules.maxNameLength,
           textCapitalization: TextCapitalization.words,
           autofillHints: const [AutofillHints.name],
-        ),
-        const SizedBox(height: 12),
-        AppTextField(
-          label: l[K.commonEmail],
-          hint: l[K.commonEmailPlaceholder],
-          controller: _email,
-          // The invitation names the address — the trigger refuses any other.
-          readOnly: invite != null,
-          keyboardType: TextInputType.emailAddress,
-          autofillHints: const [AutofillHints.email],
         ),
         if (invite == null) ...[
           const SizedBox(height: 12),
@@ -439,34 +359,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         ],
-        const SizedBox(height: 16),
-        AppTextField(
-          label: l[K.commonPassword],
-          hint: l[K.registerPasswordPlaceholder],
-          controller: _password,
-          obscureText: _obscured,
-          autofillHints: const [AutofillHints.newPassword],
-          suffixIcon: IconButton(
-            tooltip:
-                l[_obscured ? K.commonShowPassword : K.commonHidePassword],
-            icon: Icon(_obscured ? Icons.visibility : Icons.visibility_off),
-            onPressed: () => setState(() => _obscured = !_obscured),
-          ),
-        ),
-        const SizedBox(height: 12),
-        AppTextField(
-          label: l[K.commonConfirmPassword],
-          hint: l[K.registerConfirmPasswordPlaceholder],
-          controller: _confirmPassword,
-          obscureText: _obscured,
-        ),
         const SizedBox(height: 20),
         _consentBlock(l, isInvited: invite != null),
         const SizedBox(height: 20),
         FilledButton(
           // F-18: the gate is the checkbox, not a validation message.
           onPressed: _busy || !_acceptedTerms ? null : _submit,
-          child: Text(_busy ? l[K.registerSubmitting] : l[K.registerSubmit]),
+          child: Text(_busy
+              ? l[KApp.onbSubmitting]
+              : l[invite != null ? KApp.onbClaimCta : KApp.onbFounderCta]),
         ),
         if (_errorKey != null || _errorText != null) ...[
           const SizedBox(height: 12),
@@ -476,29 +377,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
             style: TextStyle(color: Theme.of(context).colorScheme.error),
           ),
         ],
-        // F-57: the Google door. Deliberately BELOW the form and OUTSIDE the
-        // consent gate — this path collects its consent on the onboarding
-        // screen, where its profile is created.
-        if (widget.googleEnabled != null && widget.onSignInWithGoogle != null)
-          GoogleSignInButton(
-            enabled: widget.googleEnabled!,
-            onPressed: () =>
-                widget.onSignInWithGoogle!(inviteToken: widget.inviteToken),
-          ),
         const SizedBox(height: 8),
         TextButton(
-          onPressed: widget.onBackToLogin,
-          child: Text(l[K.registerHaveAccount]),
+          onPressed: _busy ? null : widget.onSignOut,
+          child: Text(l[KApp.onbSwitchAccount]),
         ),
         const LanguagePickerRow(),
       ],
     );
   }
 
-  /// A-1.1 decided the FORM as much as the text: ONE checkbox covers the
-  /// policy, the terms and the path declaration — there is no second art. 14
-  /// §1 consent, because the app collects no structured child data to consent
-  /// about.
+  /// The register screen's consent block, verbatim in structure: ONE checkbox
+  /// covering policy, terms and the path declaration (A-1.1), with the
+  /// declaration text branching on how this person joins.
   Widget _consentBlock(Localization l, {required bool isInvited}) {
     final theme = Theme.of(context);
     final bindingNotice = l[K.registerConsentBindingNotice];

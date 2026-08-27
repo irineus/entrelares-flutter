@@ -1026,6 +1026,80 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
     }
   }
 
+  // ── F-57: social-login onboarding (deferred profile) ─────────────────────
+
+  @override
+  Future<void> completeOauthOnboarding({
+    required String fullName,
+    required String role,
+    required String familyName,
+  }) async {
+    try {
+      await _client.rpc<void>('complete_oauth_onboarding', params: {
+        'p_full_name': fullName,
+        'p_role': role,
+        'p_family_name': familyName,
+        // S-13/S-15: the version the consent checkbox referred to — the RPC
+        // refuses a mismatch, so a stale client can never stamp a consent it
+        // did not display.
+        'p_policy_version': PolicyVersions.current,
+      });
+    } on PostgrestException catch (e) {
+      // The RPC's refusals are PT-BR user text by design — propagate the
+      // server's own words (pilot lesson 4), never collapse them.
+      throw OnboardingRefused(e.message);
+    } catch (_) {
+      throw const OnboardingRefused(null);
+    }
+  }
+
+  @override
+  Future<InviteeResult> claimInvitation({
+    required String token,
+    required String fullName,
+    bool confirmMigration = false,
+  }) async {
+    try {
+      await _client.functions.invoke('claim-invitation', body: {
+        'token': token,
+        'fullName': fullName,
+        'confirmMigration': confirmMigration,
+        'policyVersion': PolicyVersions.current,
+      });
+      return const InviteeRegistered();
+    } on FunctionException catch (e) {
+      final details = e.details;
+      if (details is Map) {
+        // S-11: not a failure — a question the visitor must answer.
+        if (details['needsMigration'] == true) {
+          return InviteeNeedsMigration(
+              details['previousFamilyName'] as String?);
+        }
+      }
+      return InviteeFailed(_functionErrorText(e));
+    } catch (_) {
+      return const InviteeFailed(null);
+    }
+  }
+
+  @override
+  List<String> authProviders() {
+    final providers = _client.auth.currentUser?.appMetadata['providers'];
+    return providers is List
+        ? providers.whereType<String>().toList()
+        : const [];
+  }
+
+  @override
+  String? sessionDisplayName() {
+    final meta = _client.auth.currentUser?.userMetadata;
+    // Google sends `full_name` AND `name`; our own sign-ups set `full_name`.
+    final name = (meta?['full_name'] ?? meta?['name']);
+    if (name is! String) return null;
+    final trimmed = name.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
   // ── Lote 4: family page, invitations and custom roles (F-41) ─────────────
 
   @override

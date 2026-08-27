@@ -23,7 +23,7 @@ delivered in another**:
 | **Code** of a landing item (`L-`) | `entrelares-site`, branch **`preview`** |
 | Backlog **records** + `archive/phase-*.md` | **here**, in `backlog/` — the mirror reads them from this repo since 24/08/2026 |
 | **Migrations + Edge Functions** | **here**, in `supabase/`. A PR applies them to the **dev** project before the gate runs; a merge to `main` applies them to **production** (job `db-prod`) before the web channel publishes |
-| **The DB gate** (225 tests over RLS/RPCs/triggers) | **here**, in `packages/entrelares_db_gate/` — job `db-gate` of `verify.yml`. Pure Dart since T-56 PR 16 (24/08/2026), and the only copy: the app repo's C# suites went with the emptying |
+| **The DB gate** (237 tests over RLS/RPCs/triggers) | **here**, in `packages/entrelares_db_gate/` — job `db-gate` of `verify.yml`. Pure Dart since T-56 PR 16 (24/08/2026), and the only copy: the app repo's C# suites went with the emptying |
 | **Play listing + brand masters** | **here**, in `store/` (T-56 PR 4c) — the TWA/Bubblewrap project stayed behind, and retiring that package is **T-52** |
 | The old Blazor client | `entrelares-app`, **shut down and archived** (24/08/2026). It holds the frozen client and its unit suite, nothing else, and nothing is deployed from it. Nothing there needs to be read to work here |
 

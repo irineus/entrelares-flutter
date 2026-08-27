@@ -22,6 +22,7 @@ import 'screens/home_shell.dart';
 import 'screens/leaving_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/oauth_onboarding_screen.dart';
 import 'screens/policy_update_screen.dart';
 import 'screens/premium_return_screen.dart';
 import 'screens/profile_screen.dart';
@@ -32,6 +33,7 @@ import 'screens/update_password_screen.dart';
 import 'services/account_identity.dart';
 import 'services/admin_mode.dart';
 import 'services/analytics_service.dart';
+import 'services/auth_providers.dart';
 import 'services/custody_data_source.dart';
 import 'services/notification_badge.dart';
 import 'services/onboarding_service.dart';
@@ -103,7 +105,7 @@ class EntrelaresApp extends StatefulWidget {
   State<EntrelaresApp> createState() => _EntrelaresAppState();
 }
 
-enum _AuthPhase { gate, anon, authed }
+enum _AuthPhase { gate, anon, onboarding, authed }
 
 /// Pings the router into re-running its redirect when the auth phase moves.
 class _RouterRefresh extends ChangeNotifier {
@@ -179,6 +181,10 @@ class _EntrelaresAppState extends State<EntrelaresApp>
           onSignUp: () => _router.go('/register'),
           prefs: widget.prefs,
           expiredReason: _expiredReason,
+          // F-57: the button exists only where the project's GoTrue says the
+          // provider does — the fail-closed switch is the console config.
+          googleEnabled: AuthProviders.googleEnabled(),
+          onSignInWithGoogle: _signInWithGoogle,
         ),
       ),
       GoRoute(
@@ -189,6 +195,27 @@ class _EntrelaresAppState extends State<EntrelaresApp>
           inviteToken: InviteFormRules.inviteTokenFrom(state.uri),
           onSignIn: _signIn,
           onBackToLogin: () => _router.go('/login'),
+          googleEnabled: AuthProviders.googleEnabled(),
+          // F-57: the invite branch hands its token over, and the stash has
+          // to happen HERE — the OAuth redirect leaves the widget tree behind.
+          onSignInWithGoogle: ({String? inviteToken}) =>
+              _signInWithGoogle(inviteToken: inviteToken),
+        ),
+      ),
+      // F-57: where a deferred (social-login) session becomes a member —
+      // outside the shell like /leaving and /policy-update: a profile-less
+      // session has no tabs to browse.
+      GoRoute(
+        path: '/onboarding',
+        builder: (_, _) => OauthOnboardingScreen(
+          dataSource: _dataSource,
+          analytics: _analytics,
+          prefs: widget.prefs,
+          onSignOut: _signOut,
+          onCompleted: () async {
+            await _resolveAuthedPhase();
+            if (mounted) _router.go('/');
+          },
         ),
       ),
       GoRoute(
@@ -420,6 +447,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   AuthPhase get _routePhase => switch (_phase) {
         _AuthPhase.gate => AuthPhase.gate,
         _AuthPhase.anon => AuthPhase.anon,
+        _AuthPhase.onboarding => AuthPhase.onboarding,
         _AuthPhase.authed => AuthPhase.authed,
       };
 
@@ -464,8 +492,10 @@ class _EntrelaresAppState extends State<EntrelaresApp>
         case AuthChangeEvent.signedIn:
           if (_phase == _AuthPhase.anon) {
             _expiredReason = SessionExpiredReason.none;
-            _setPhase(_AuthPhase.authed);
-            _syncProfileLanguage();
+            // F-57: the OAuth return lands here (deep link / web redirect) —
+            // and an OAuth session may have NO profile yet, so the phase is
+            // resolved from the profile, never assumed.
+            unawaited(_resolveAuthedPhase());
           }
         default:
           break;
@@ -544,15 +574,66 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     _expiredReason = !alive && hadSession
         ? SessionExpiredReason.restored
         : SessionExpiredReason.none;
-    _setPhase(alive ? _AuthPhase.authed : _AuthPhase.anon);
-    if (alive) await _syncProfileLanguage();
+    if (alive) {
+      // The splash stays up while the profile decides the phase — the shell
+      // must never flash for a session that turns out to be onboarding.
+      await _resolveAuthedPhase();
+    } else {
+      _setPhase(_AuthPhase.anon);
+    }
   }
 
   Future<void> _signIn(String email, String password) async {
     await _client.auth.signInWithPassword(email: email, password: password);
     _expiredReason = SessionExpiredReason.none;
-    _setPhase(_AuthPhase.authed);
-    await _syncProfileLanguage();
+    await _resolveAuthedPhase();
+  }
+
+  /// F-57 — the Google door. On Android the redirect returns through the
+  /// per-flavor custom scheme (see [DeepLinkUrls.oauthCallback]); on web the
+  /// page itself round-trips to its own origin and `Supabase.initialize`
+  /// consumes the code on the way back in. Errors are the button's to show.
+  Future<void> _signInWithGoogle({String? inviteToken}) async {
+    final token = inviteToken?.trim() ?? '';
+    if (token.isNotEmpty) {
+      // The stash IS the state: the OAuth round-trip keeps no widget alive,
+      // so the onboarding screen re-reads the token from prefs.
+      await widget.prefs
+          .setString(OauthOnboardingScreen.pendingInviteTokenKey, token);
+    }
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: kIsWeb ? Uri.base.origin : DeepLinkUrls.oauthCallback,
+    );
+  }
+
+  /// F-57 — a validated session is AUTHED only if it has a profile; a
+  /// deferred OAuth sign-up has none yet and lives on the onboarding screen.
+  /// A transient read failure is never a verdict: the session stays authed
+  /// and every screen shows its own error state, exactly as before.
+  bool _resolvingPhase = false;
+
+  Future<void> _resolveAuthedPhase() async {
+    if (_resolvingPhase) return;
+    _resolvingPhase = true;
+    try {
+      Member? me;
+      var profileKnown = true;
+      try {
+        me = await _dataSource.fetchOwnProfile();
+      } catch (_) {
+        profileKnown = false;
+      }
+      if (!mounted) return;
+      if (profileKnown && me == null) {
+        _setPhase(_AuthPhase.onboarding);
+        return;
+      }
+      _setPhase(_AuthPhase.authed);
+      if (me != null) await _applyProfileGates(me);
+    } finally {
+      _resolvingPhase = false;
+    }
   }
 
   Future<void> _signOut() async {
@@ -569,16 +650,11 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   /// U-13 — the authenticated half of the language rule, in the web's
   /// MainLayout order: adoption first (it "reboots" the tree), detection
   /// recording second and best-effort — a failed write costs one e-mail in
-  /// the old language and retries next boot.
-  Future<void> _syncProfileLanguage() async {
-    final Member? me;
-    try {
-      me = await _dataSource.fetchOwnProfile();
-    } catch (_) {
-      return; // no profile readable — nothing to sync
-    }
-    if (me == null) return;
-
+  /// the old language and retries next boot. The profile arrives from
+  /// [_resolveAuthedPhase], which already decided this session HAS one —
+  /// the old fetch-and-swallow here is what silently let a profile-less
+  /// session into the shell before F-57.
+  Future<void> _applyProfileGates(Member me) async {
     // S-11/S-15 — the two account gates, decided once per authenticated boot
     // exactly like the web's MainLayout does after its first render.
     _isLeaving = me.leftAt != null;

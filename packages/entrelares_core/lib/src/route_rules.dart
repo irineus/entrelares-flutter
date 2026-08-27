@@ -18,6 +18,12 @@ enum AuthPhase {
   /// No live session.
   anon,
 
+  /// F-57: a validated session with NO profile — an OAuth sign-up whose
+  /// profile `handle_new_user` deferred. The app is closed to it except the
+  /// onboarding screen, where family (or invitation claim) and S-13 consent
+  /// are collected.
+  onboarding,
+
   /// A validated session.
   authed,
 }
@@ -28,6 +34,11 @@ abstract final class RouteRules {
   static const String register = '/register';
   static const String resetPassword = '/reset-password';
   static const String updatePassword = '/update-password';
+
+  /// F-57: where a profile-less (deferred OAuth) session lives until it
+  /// founds a family or claims its invitation.
+  static const String onboarding = '/onboarding';
+
   static const String home = '/';
 
   /// Reachable without a session. `/update-password` is here even though the
@@ -41,12 +52,16 @@ abstract final class RouteRules {
   };
 
   /// Screens an authenticated visitor has no business on: a sign-up form
-  /// cannot apply to them, and a login form is already answered.
+  /// cannot apply to them, and a login form is already answered. F-57 adds
+  /// the onboarding screen — despite the name, a FULLY onboarded visitor has
+  /// no business there either (their family already exists), and the
+  /// onboarding PHASE forces its own route regardless of this set.
   static const Set<String> anonymousOnlyRoutes = {
     splash,
     login,
     register,
     resetPassword,
+    onboarding,
   };
 
   static bool isPublic(String location) => publicRoutes.contains(location);
@@ -98,6 +113,12 @@ abstract final class RouteRules {
             : (pendingLocation != null && isRestorable(pendingLocation)
                 ? pendingLocation
                 : login),
+        // F-57: a profile-less session is confined to the onboarding screen —
+        // the S-11 leaving confinement's shape, for the opposite end of the
+        // account's life. A pending destination is deliberately NOT honoured:
+        // there is no profile to show any of it to yet.
+        AuthPhase.onboarding =>
+            location == onboarding ? null : onboarding,
         AuthPhase.authed => anonymousOnlyRoutes.contains(location)
             ? (pendingLocation != null &&
                     isRestorableWhenAuthed(pendingLocation)
