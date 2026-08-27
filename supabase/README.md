@@ -58,7 +58,7 @@ The six steps below are ordered because they depend on each other:
 
 | Value | QA | Production |
 |---|---|---|
-| App URL (`APP_URL` secret, Site URL, Redirect URLs) | Cloudflare Pages branch preview of `dev` (`qa.entrelares.app` since F-54; the raw `https://dev.<project>.pages.dev` alias also works) | `https://web.entrelares.app` (F-54, Aug 2026 — the apex `entrelares.app` hosts the product **landing page**; e-mail/DNS records stay on the apex; the pre-rebrand `app.guardacompartilhada.com` 301-redirects here indefinitely) |
+| App URL (`APP_URL` secret, Site URL, Redirect URLs) | **`https://web.entrelares.app` — the same value as production, since 27/08/2026.** Dev has had NO web deployment since T-56 killed the Blazor QA site, so there is no dev-specific host left to name. It used to say `qa.entrelares.app`, which did not stop resolving when that deployment died — it became a ghost serving a stale build, which is worse than a dead host because it answers. Cost of the alignment, worth knowing before it confuses someone: a DEV invitation e-mail now points at the PRODUCTION web app, whose database has no such token, so it says "convite inválido" — dev invite testing happens inside the app, never from the inbox (§9-ter) | `https://web.entrelares.app` (F-54, Aug 2026 — the apex `entrelares.app` hosts the product **landing page**; e-mail/DNS records stay on the apex; the pre-rebrand `app.guardacompartilhada.com` 301-redirects here indefinitely) |
 | `APP_ENVIRONMENT` secret | anything ≠ `Production` (e.g. `QA`) → notifications/e-mails prefixed `[Dev]` | `Production` (no prefix) |
 | App publish trigger (step 3) | push/merge to the `dev` branch | push/merge to `master` |
 
@@ -1190,6 +1190,31 @@ verification.
 
 ## 9-ter. Google login go-live (F-57) — enabling the provider, per project
 
+> **DONE — Google login is LIVE on BOTH projects since 27/08/2026.** The code merged the same
+> day (PRs #92/#93, `2.1.0+55`), the owner executed this whole section, and both projects now
+> answer `external.google: true`. **Verify it in one command, and prefer this over reading the
+> console** — it is the exact question the app asks, so it can never disagree with what the
+> user sees:
+>
+> ```
+> curl -s -H "apikey: <publishable key>" https://<ref>.supabase.co/auth/v1/settings
+> ```
+>
+> **What is live where, because the two channels are NOT in the same state:**
+>
+> | Channel | State |
+> |---|---|
+> | Web (`web.entrelares.app`) | Button live from the merge — the web build follows `main` |
+> | Android | **No button until a Play promotion of a bundle ≥ `2.1.2+57`.** What is on the store predates F-57 and has no such code — this is not a config problem and no console change fixes it |
+>
+> **Enabling prod before T-61 was deliberate, not an oversight.** T-61 (the consent screen and
+> Google's summary e-mail both naming `<ref>.supabase.co` instead of Entrelares) is a blocker
+> for the PUBLIC rollout (T-59), and the product is still in closed alpha — so this puts the
+> flow in front of exactly the testers whose feedback created F-57, while the branding fix
+> lands before it reaches strangers. When T-61 is done, the auth host changes and the redirect
+> URI moves with it: existing identities are untouched (they live in `auth.identities`), but
+> sign-ins IN FLIGHT during the switch will fail, so do it in a quiet window.
+
 The code shipped dormant on purpose: **the switch IS the provider config.**
 The app asks GoTrue's public settings endpoint (`/auth/v1/settings`) whether
 `google` is enabled and only then renders the button — so there is no
@@ -1258,9 +1283,10 @@ not apply because no Edge Function reads this config.
 > `qa.entrelares.app`, a host that did not stop resolving — it became a GHOST,
 > answering with a stale build, so the link opened a real-looking page with no
 > Google button and nothing about it said "wrong app" (measured 27/08/2026).
-> Set dev's `APP_URL` to `https://web.entrelares.app`, the same value prod
-> carries: the ghost is strictly worse than pointing at a live host, because a
-> stale build that answers is the failure mode that lies quietly.
+> **Already fixed the same day:** dev's `APP_URL` now carries
+> `https://web.entrelares.app`, the same value prod does — the ghost is strictly
+> worse than pointing at a live host, because a stale build that answers is the
+> failure mode that lies quietly.
 >
 > Know what that costs, though: a DEV invite e-mail then points at the
 > PRODUCTION web app, whose database has no such token, so it answers
