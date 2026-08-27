@@ -414,3 +414,44 @@ it operates: the comment above `version:` in the pubspec, echoed in `store/READM
   `reports_summary_tab.dart` + the two catalogs (F29)
 - Widget tests updated/added in the same delivery; the two source gates
   (`no_color_literal_test`, `no_literal_snack_test`) stay green.
+
+
+---
+
+### U-30 — The account surface must say how you get in (sign-in methods)
+
+| Field | Value |
+|---|---|
+| **Status** | `pending` |
+| **Priority** | `medium-high` — F-57 made the gap reachable by real users; it is not reachable before it |
+| **Complexity** | `low` (copy plus one list on an existing card) |
+| **Impact** | `medium` (comprehension of one's own account security) |
+| **Depends on / relates** | **F-57** (created the situation), **U-21** (whose "Segurança" group is the natural home — this is the slice that cannot wait for the redesign) |
+
+> **Found 27/08/2026, testing F-57 on a real device.** The password-less case was handled by
+> F-57 (a Google-only account correctly shows "Método de login: Conta Google" instead of the
+> password card). The LINKED case is the one nobody had looked at.
+
+**The gap.** Signing in with Google using the e-mail of an existing password account links the
+two identities onto one user (GoTrue's automatic linking, the F-57 posture). That account now
+has **two doors**, and the profile screen shows only one of them: the password card renders
+exactly as before, with no mention that a Google account also opens this login. Two concrete
+misreadings follow:
+
+- **"I changed my password, so the account is locked down."** It is not — the linked Google
+  account still opens it. Someone acting on a security worry (this product's users sometimes
+  have real ones) would be wrong about what they just did.
+- **"I changed my e-mail, so I sign in with the new address now."** Also not: `users.email`
+  moves and `profiles.email` follows it via the `sync_profile_email` trigger, but the Google
+  identity is untouched and still lets them in under the old address. Nothing on the card
+  says so.
+
+**Scope.** On the account surface, list the sign-in methods this account actually has
+(password / Google — read from the session's identity providers, which F-57 already exposes
+through `authProviders()`), and say in one line what each one means. Keep the password form
+where it is for accounts that have a password. No new server surface: the data is already in
+the session.
+
+**Note for whoever takes U-21.** If U-21 lands first, this belongs inside its "Segurança"
+group and this record collapses into it. If this lands first, U-21 inherits it as a card
+already written.

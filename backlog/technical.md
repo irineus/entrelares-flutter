@@ -694,3 +694,48 @@ release build prints today (they come from Gradle 9 on a modern JDK, not from ou
 **Files affected**
 - `.fvmrc` · `apps/entrelares_app/pubspec.yaml` + lockfiles across the workspace ·
   possibly `android/settings.gradle`/AGP versions if the SDK bump asks for them
+
+
+---
+
+### T-61 — Custom domain for the auth endpoint: the Google screens must say Entrelares
+
+| Field | Value |
+|---|---|
+| **Status** | `pending` |
+| **Priority** | `high` — **the owner named it a blocker for public availability** (27/08/2026, during the F-57 go-live): "vamos ter que ver uma solução para isso antes de fazer o release público" |
+| **Complexity** | `low` (console + DNS; no application code) |
+| **Impact** | `high` (first-contact trust, on the one screen where the user hands over their identity) |
+| **Depends on / relates** | **F-57** (which surfaced it), **T-59** (public rollout — this should land first), group 8 (owner spend) |
+
+> **Found 27/08/2026, testing F-57 on a real device.** Not a hypothesis: measured on the
+> device, twice, in the two places Google names the relying party.
+
+**The problem.** Google identifies the relying party by the **host of the redirect URI**, and
+today that host is the Supabase project itself. So the consent screen reads *"Fazer login no
+serviço `buroanotfjcgvbfmacuh.supabase.co`"* (`jptqbwfziyzlhlmoekzu…` in production) — and it
+does not stop at the screen the user is looking at: Google then sends a summary e-mail titled
+*"You shared some Google Account data with buroanotfjcgvbfmacuh.supabase.co"*, which lands in
+the inbox hours later with no way to connect it back to Entrelares.
+
+**Why this is worth spending on, in this product specifically.** The app's whole proposition
+is trust between separated caregivers around a child's routine. The moment we ask someone to
+hand over their Google identity is the moment that proposition is tested, and what they are
+shown is a random string. A user who backs out there does not report a bug — they simply do
+not sign up, and the closed alpha's own feedback (the F-57 origin) says sign-up friction is
+already the product's most failure-prone stretch.
+
+**The fix.** Supabase **[Custom Domains](https://supabase.com/docs/guides/platform/custom-domains)**,
+a paid per-project add-on: the project answers on our own host (e.g. `auth.entrelares.app`),
+the OAuth client's redirect URI moves with it, and Google then displays our domain in both the
+consent screen and the notification e-mail. Scope: buy the add-on, point DNS, update the
+redirect URI in the GCP client and the callback in each Supabase project, then re-run 9-ter.2.
+
+**What does NOT fix it, checked before proposing the spend:** the Branding app name and logo do
+appear on the consent screen, but the "to continue to X" line and the e-mail subject are both
+driven by the host — no free configuration reaches them.
+
+**Sequencing.** Production only, if the budget argues; dev may keep the project host, since no
+real user meets it. Doing this BEFORE the public rollout avoids a second migration of the
+redirect URI while real accounts exist — a change of auth host mid-flight is the kind of thing
+that invalidates in-progress sign-ins.
