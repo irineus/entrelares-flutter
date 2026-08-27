@@ -1237,11 +1237,27 @@ matching the path taken.
 
 **9-ter.3 Prod.** Repeat 9-ter.1 on the prod project. The button reaches real
 users on the WEB immediately; on Android it waits for the next Play promotion
-(the manifest's scheme filter ships with `2.1.0+55`+). **Order matters on
-Android:** enabling the provider on prod BEFORE the store carries a build with
-the scheme filter is harmless for web but leaves an Android user who taps the
-button stranded in the browser — enable prod only after the F-57 build is the
-one being served, or accept that window.
+(the manifest's scheme filter ships with `2.1.0+55`+).
+
+> **Correction (27/08/2026, during the go-live).** This step used to warn that
+> enabling prod before the store carried the F-57 build would strand an
+> Android user in the browser. Checked against the code, that scenario cannot
+> happen: the build currently on Play predates F-57 and has no button to tap,
+> and an Android user browsing `web.entrelares.app` returns through the web
+> origin (`Uri.base.origin`), never the scheme. The real constraint is the
+> other one, and 9-ter.1 already satisfies it: **prod's Redirect URLs must
+> already list `com.entrelares.app://login-callback` when a build ≥`2.1.0+55`
+> reaches the store** — provider and redirect URL are configured together, so
+> they cannot drift apart. Enabling prod is therefore safe for the web channel
+> at any time; what gates it is 9-ter.2, not the store.
+
+**Do not skip 9-ter.2 to get here faster.** Every automated layer (237 gate
+tests, the widget suites, `web-e2e`) exercises the RULES; none of them
+executes an actual OAuth round trip, because there is no Google to redirect to
+in CI. Until the dev APK run happens, the redirect, the scheme return and a
+profile created from a real Google identity have never run once — and dev has
+no web deployment (T-56), so that APK is the only place they can run before
+real users meet them.
 
 **Account linking posture (decided 27/08/2026):** GoTrue's automatic linking
 stays ON — Google e-mails arrive verified, so a Google sign-in with an
