@@ -1229,9 +1229,17 @@ afterwards — it just no longer creates it.
    One client for both projects is fine; the secret lives only in the Supabase
    consoles (never in this repo — Rule 1).
 
-**9-ter.1 Supabase — per project, DEV first.** *Authentication → Providers →
-Google*: enable, paste Client ID + secret, save. Then *Authentication → URL
-Configuration → Redirect URLs*, add the app's return addresses:
+**9-ter.1 Supabase — per project, DEV first.** *Authentication → **Sign In /
+Providers*** (the entry called plain "Providers" until 2026) → **Google**:
+enable, paste Client ID + secret, save.
+
+> Do NOT confuse it with its two neighbours, which read like the right thing
+> and are its mirror image: **OAuth Apps** (under MANAGE) and **OAuth Server
+> (BETA)** are Supabase acting AS an OAuth provider for third parties. What
+> this section configures is Supabase CONSUMING Google.
+
+Then *Authentication → URL Configuration → Redirect URLs*, add the app's
+return addresses:
 
 | Project | Add to Redirect URLs |
 |---|---|
