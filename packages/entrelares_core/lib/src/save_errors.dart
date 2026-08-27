@@ -49,39 +49,78 @@ String sessionExpiredMessage(Localization l) => l[KApp.sessionExpired];
 
 const _accented = 'áâãàéêíóôõúçÁÂÃÉÊÍÓÔÕÚÇ';
 
+/// `PostgrestException.toString()` — a FORMATTED DART STRING, not JSON.
+///
+/// The message is taken non-greedily up to the first `, code: `, which is the
+/// delimiter the package itself writes; our own sentences never contain that
+/// literal.
+final _postgrestToString =
+    RegExp(r'PostgrestException\(message: (.*?), code: (.*?), details: ',
+        dotAll: true);
+
+/// The `code`/`message` pair, from EITHER shape a save error reaches us in.
+///
+/// **Two shapes, and missing the second one is a bug this cost us.** The web
+/// client received the raw PostgREST JSON body as the exception's text, so
+/// hunting for `{` was enough there. This client receives
+/// `PostgrestException.toString()`, which carries no JSON at all —
+/// `PostgrestException(message: …, code: …, details: …, hint: …)`. Reading only
+/// the JSON shape meant `indexOf('{')` returned -1 for every real refusal, the
+/// whole branch was skipped, and every DB-raised rule — seat caps, admin-only,
+/// day protection, "this e-mail already has an account" — surfaced as the
+/// caller's generic "check your connection" fallback: the product blaming the
+/// user's network for a rule the server had explained perfectly well.
+///
+/// Found 27/08/2026 sending an invitation on a real device, and invisible to
+/// the suite because the tests fed hand-written JSON — the FROZEN WEB FORMAT.
+/// A ported mirror keeps its logic but not necessarily its INPUT format, and a
+/// test that encodes the old platform's format passes while production never
+/// matches. Both shapes are covered by tests now; keep them that way.
+({String? code, String? message}) _errorFields(String raw) {
+  final start = raw.indexOf('{');
+  final end = raw.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    try {
+      final doc = jsonDecode(raw.substring(start, end + 1));
+      if (doc is Map<String, dynamic>) {
+        return (
+          code: doc['code']?.toString(),
+          message: doc['message']?.toString(),
+        );
+      }
+    } on FormatException {
+      // Braces, but not JSON — fall through to the Dart shape below.
+    }
+  }
+  final match = _postgrestToString.firstMatch(raw);
+  if (match != null) {
+    return (code: match.group(2), message: match.group(1));
+  }
+  return (code: null, message: null);
+}
+
 /// Mirror of CalendarHelpers.TranslateSaveError. The two known-signature
 /// messages come from the catalog since the U-13 port (the web helper never
 /// extracted its literals — a residue frozen with the Blazor app); the
 /// trigger-raised pass-through stays PT-BR-only because the SERVER writes
 /// those sentences in PT-BR regardless of the reader.
 String translateSaveError(String raw, String fallback, Localization l) {
-  try {
-    final start = raw.indexOf('{');
-    final end = raw.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      final doc = jsonDecode(raw.substring(start, end + 1));
-      if (doc is Map<String, dynamic>) {
-        final code = doc['code'];
-        final message = doc['message'];
+  final fields = _errorFields(raw);
+  final message = fields.message;
 
-        if (code == '23505') {
-          if (message is String &&
-              message.contains('swap_requests_one_pending_per_date')) {
-            return l[KApp.errSwapPendingExists];
-          }
-          return l[KApp.errConcurrentSaveRetry];
-        }
-
-        // Trigger-raised messages arrive in PT-BR (accented) — show them.
-        if (message is String &&
-            message.isNotEmpty &&
-            message.split('').any(_accented.contains)) {
-          return message;
-        }
-      }
+  if (fields.code == '23505') {
+    if (message != null &&
+        message.contains('swap_requests_one_pending_per_date')) {
+      return l[KApp.errSwapPendingExists];
     }
-  } on FormatException {
-    // non-JSON body — fall through
+    return l[KApp.errConcurrentSaveRetry];
+  }
+
+  // Trigger-raised messages arrive in PT-BR (accented) — show them.
+  if (message != null &&
+      message.isNotEmpty &&
+      message.split('').any(_accented.contains)) {
+    return message;
   }
   return fallback;
 }

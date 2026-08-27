@@ -235,6 +235,17 @@ These survived the rewrite because none of them is about the client language.
   the T-39 billing seeds use FIXED external ids, so two overlapping runs delete each other's rows
   — which is the gotcha directly above. Only the queue DEPTH is the flaw, and the real fix, if it
   is ever worth it, is to give those seeds a run scope like the `evt_e2e_*` events already have.
+- **A ported mirror keeps its logic, not necessarily its INPUT format — and the test that
+  encodes the old format passes while production never matches.** `translateSaveError` was
+  ported from the Blazor helper, where the exception's text WAS the raw PostgREST JSON body, so
+  it started by hunting for `{`. In Flutter the input is `PostgrestException.toString()`, a
+  formatted Dart string with no JSON in it: `indexOf('{')` returned -1 for every real refusal,
+  and every DB-raised rule — seat caps, admin-only, day protection, "this e-mail already has an
+  account" — surfaced as the generic "check your connection", the product blaming the user's
+  network for a rule the server had explained. Green suite throughout, because the tests fed
+  hand-written JSON. **When porting a parser, assert against a string captured from the NEW
+  platform, never one written from the old contract** (27/08/2026, found by sending one
+  invitation on a real device).
 - **Supabase CLI on Windows:** `db dump -f` resolves against the CLI's own cwd — dump to a bare
   filename, then move.
 
