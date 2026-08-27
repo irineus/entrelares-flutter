@@ -1251,6 +1251,29 @@ The custom schemes match the manifest's `${applicationId}` intent filter and
 opens a chooser. Nothing here requires a redeploy: the S-16 ordering trap does
 not apply because no Edge Function reads this config.
 
+> **Do NOT test the invitation half from the e-mail on dev — it cannot work,
+> and the way it fails is a trap.** `send-swap-email` builds the invite link
+> from the `APP_URL` secret, and **dev has had no web target since T-56**: the
+> Blazor QA deployment died with the cutover. The secret still said
+> `qa.entrelares.app`, a host that did not stop resolving — it became a GHOST,
+> answering with a stale build, so the link opened a real-looking page with no
+> Google button and nothing about it said "wrong app" (measured 27/08/2026).
+> Set dev's `APP_URL` to `https://web.entrelares.app`, the same value prod
+> carries: the ghost is strictly worse than pointing at a live host, because a
+> stale build that answers is the failure mode that lies quietly.
+>
+> Know what that costs, though: a DEV invite e-mail then points at the
+> PRODUCTION web app, whose database has no such token, so it answers
+> "convite inválido". That is honest and harmless — a dev token can do nothing
+> in prod — but it means **dev invite testing happens inside the app**, never
+> from the inbox: use "Copiar link" on the Família screen, or push the link
+> straight in with
+> `adb shell am start -a android.intent.action.VIEW -d "https://web.entrelares.app/register?invite=<token>" com.entrelares.flutter`.
+> A debug build never verifies App Links (per-machine certificate), so the
+> e-mail link would land in the browser regardless of the secret's value.
+> Giving dev a web deployment again is the only real fix, and it is its own
+> scope.
+
 **9-ter.2 Verify on DEV before touching prod.** A dev-flavor build
 (`workflow_dispatch → build-apk`) on a real device: the button appears on
 `/login` (it was absent before — that is the fail-closed switch working), a
