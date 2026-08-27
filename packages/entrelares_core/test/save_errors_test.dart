@@ -113,6 +113,79 @@ void main() {
     });
   });
 
+  // The shape THIS client actually receives. Everything above feeds
+  // hand-written JSON, which is the body the WEB client got — and that gap is
+  // why the suite stayed green while every refusal in the app read "check your
+  // connection": `PostgrestException.toString()` carries no JSON at all, so
+  // the JSON-only reader matched nothing in production. Found 27/08/2026
+  // sending an invitation on a real device.
+  group('translateSaveError — PostgrestException.toString() (the real input)',
+      () {
+    String postgrest(String message, String code) =>
+        'PostgrestException(message: $message, code: $code, '
+        'details: Bad Request, hint: null)';
+
+    test('the RPC sentence reaches the user instead of the fallback', () {
+      // The exact refusal that exposed the bug: an admin inviting an address
+      // that already has an account.
+      final raw =
+          postgrest('Este e-mail já possui cadastro no aplicativo.', '23514');
+      expect(translateSaveError(raw, _fallback, _pt),
+          'Este e-mail já possui cadastro no aplicativo.');
+      // Language-blind, exactly like the JSON path: the sentence is the
+      // server's own.
+      expect(translateSaveError(raw, _fallback, _en),
+          'Este e-mail já possui cadastro no aplicativo.');
+    });
+
+    test('a seat cap explains WHICH limit was hit', () {
+      final raw = postgrest(
+          'Famílias no plano gratuito incluem 2 responsáveis. Para adicionar '
+              'mais (avós, babá, etc.), ative o Premium.',
+          '23514');
+      expect(translateSaveError(raw, _fallback, _pt), contains('Premium'));
+    });
+
+    test('23505 still maps to the concurrency messages', () {
+      expect(
+        translateSaveError(
+            postgrest(
+                'duplicate key value violates unique constraint '
+                    '"care_schedules_family_schedule_date_key"',
+                '23505'),
+            _fallback,
+            _pt),
+        'Outro responsável salvou este dia primeiro — atualize o calendário '
+        'e tente novamente.',
+      );
+      expect(
+        translateSaveError(
+            postgrest(
+                'duplicate key value violates unique constraint '
+                    '"swap_requests_one_pending_per_date"',
+                '23505'),
+            _fallback,
+            _pt),
+        'Já existe uma solicitação pendente para este dia — o calendário '
+        'foi atualizado.',
+      );
+    });
+
+    test('a message carrying commas survives the split on ", code: "', () {
+      final raw = postgrest(
+          'Esta família já atingiu o limite de 4 responsáveis, contando '
+              'convites pendentes, e não aceita mais.',
+          '23514');
+      expect(translateSaveError(raw, _fallback, _pt),
+          endsWith('e não aceita mais.'));
+    });
+
+    test('an unaccented message still keeps the fallback', () {
+      expect(translateSaveError(postgrest('some internal detail', 'P0001'),
+          _fallback, _pt), _fallback);
+    });
+  });
+
   group('sessionExpiredMessage', () {
     test('follows the reader language', () {
       expect(sessionExpiredMessage(_pt),
