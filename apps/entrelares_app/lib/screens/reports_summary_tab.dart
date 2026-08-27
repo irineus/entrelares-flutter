@@ -346,22 +346,31 @@ class _ReportsSummaryTabState extends State<ReportsSummaryTab> {
   String _daysLabel(int count, Localization l) =>
       l.format(count == 1 ? K.sumDaysOne : K.sumDaysMany, [count]);
 
-  /// One stat: label above, value under it. The label may wrap inside its
-  /// column; the value never leaves it — which is what keeps every card on
-  /// the same grid at any font scale.
+  /// One stat: label above, value under it — each on EXACTLY one line. A
+  /// half-column is narrow enough that at large font scales a whole word
+  /// stops fitting ("Agendad / o", owner's device), and a mid-word break is
+  /// worse than a fractionally smaller word: the [FittedBox] shrinks the
+  /// line only when it would otherwise wrap, so at ordinary scales nothing
+  /// changes at all.
   Widget _stat(String label, String value, {required ToneColors tone}) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
+          _oneLine(Text(label,
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
-                  ?.copyWith(color: tone.onContainer)),
-          Text(value,
+                  ?.copyWith(color: tone.onContainer))),
+          _oneLine(Text(value,
               style: TextStyle(
-                  fontWeight: FontWeight.bold, color: tone.onContainer)),
+                  fontWeight: FontWeight.bold, color: tone.onContainer))),
         ],
+      );
+
+  Widget _oneLine(Widget text) => FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: AlignmentDirectional.centerStart,
+        child: text,
       );
 
   /// Two stats side by side in equal columns — the owner's sketch:

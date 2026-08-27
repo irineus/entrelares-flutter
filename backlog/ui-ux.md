@@ -375,10 +375,12 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
   Realizado, and under a hairline rule Cedeu beside Recebeu (the single `sumSwapSplit` string
   split into two labelled stats, in days); Previsto joins full-width when the U-20 toggle is
   on. Every card shares the same grid at any font scale. The labels lost their trailing
-  colons in both catalogs, and the PT "Programado" became **"Agendado"** — at large font
-  scales the ten-letter word broke mid-column, and the domain already calls the planned
-  responsible "agendado" (F15's "Responsável agendado"), so the shorter word is also the
-  more consistent one.
+  colons in both catalogs, and the PT "Programado" became **"Agendado"** — the domain already
+  calls the planned responsible "agendado" (F15's "Responsável agendado"). Renaming alone did
+  not close it: at the owner's font scale even the eight-letter word still broke ("Agendad /
+  o" — its round glyphs are as wide as "Realizado"'s nine, which include thin i/l/z), so each
+  stat line now renders through a `FittedBox.scaleDown`: EXACTLY one line, shrinking a
+  fraction only when it would otherwise wrap — at ordinary scales nothing changes.
 
 **Files affected**
 - Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`
