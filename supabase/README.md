@@ -1198,17 +1198,34 @@ and each project (dev / prod) arms itself independently. Until you finish this
 section on a project, that project's builds simply have no Google button.
 
 **9-ter.0 GCP — one OAuth client, once.** In a Google Cloud project owned by
-the product account:
+the product account (ours is `entrelares-506400`). Google reorganised this
+console in 2026: what used to be *APIs & Services → OAuth consent screen* is
+now its own product, **Google Auth Platform** (`console.cloud.google.com/auth`),
+split into Branding / Audience / Clients / Data Access. The old
+*APIs & Services → Credentials* page still exists and still LISTS the client
+afterwards — it just no longer creates it.
 
-1. *APIs & Services → OAuth consent screen*: External, app name **Entrelares**,
-   support e-mail, the `entrelares.app` domain, publish it (the "testing" state
-   caps sign-ins and expires refresh tokens after 7 days).
-2. *Credentials → Create credentials → OAuth client ID → Web application*
-   (WEB, even for Android: GoTrue does the exchange server-side). Authorized
-   redirect URIs — BOTH projects' GoTrue callbacks:
+1. *Google Auth Platform → **Branding***: app name **Entrelares**, support
+   e-mail, the `entrelares.app` authorized domain.
+2. *Google Auth Platform → **Audience***: **External**, and **publish it** —
+   the "Testing" state caps sign-ins to a listed set of accounts and expires
+   refresh tokens after 7 days. Left in Testing, this surfaces as users being
+   silently signed out a week later, which reads like an app bug and is not.
+3. *Google Auth Platform → **Clients** → Create OAuth client → Application
+   type: **Web application*** (WEB, even for Android: the device never talks to
+   Google directly — GoTrue does the code exchange server-side). Name it for
+   the console's own benefit (`Entrelares — Supabase GoTrue`). Leave
+   *Authorized JavaScript origins* EMPTY — this is a redirect flow, not a
+   browser-implicit one. Under **Authorized redirect URIs**, BOTH projects'
+   GoTrue callbacks:
    - `https://buroanotfjcgvbfmacuh.supabase.co/auth/v1/callback` (dev)
    - `https://jptqbwfziyzlhlmoekzu.supabase.co/auth/v1/callback` (prod)
-3. Keep the **Client ID** and **Client secret** — the next step wants them.
+
+   The create screen warns that settings take **5 minutes to a few hours** to
+   take effect. Believe it: a `redirect_uri_mismatch` in the first minutes
+   after saving is propagation, not a typo — re-check the URI once, then wait
+   rather than "fixing" a correct value.
+4. Keep the **Client ID** and **Client secret** — the next step wants them.
    One client for both projects is fine; the secret lives only in the Supabase
    consoles (never in this repo — Rule 1).
 
