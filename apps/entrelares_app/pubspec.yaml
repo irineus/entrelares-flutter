@@ -16,9 +16,17 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-# versionName / versionCode. Bump on every functional change handed to the
-# owner, same rule as the product repos.
-version: 0.2.51+53
+# versionName / versionCode — POLICY (owner decision, 27/08/2026, in U-29):
+# `2.0.0` opens the Flutter GENERATION — the Blazor client retired at 1.8.15,
+# and the spike's 0.2.x line never graduated at the cutover, so the public
+# number read as the product moving backwards. From here, bump per MERGED PR:
+#   MINOR — the PR delivers a backlog item (feature/UX);
+#   PATCH — fixes/polish only;
+#   MAJOR — owner decision only (generation/rebrand);
+#   +N    — rises on EVERY merge to main, strictly monotonic: Play burns a
+#           versionCode by UPLOAD and never accepts it again (store/README §6).
+# Env.appVersion mirrors this line — env_version_test pins the two together.
+version: 2.0.0+54
 
 environment:
   sdk: ^3.12.2

@@ -175,9 +175,14 @@ cd apps/entrelares_app && fvm flutter build appbundle --flavor prod --release
 - **Release signing** comes from the git-ignored `apps/entrelares_app/android/key.properties`
   (T-55): `prod.*` must be the PRODUCT's upload keystore. Without the file a release build fails
   fast, on purpose.
-- **Version**: `version:` in `pubspec.yaml` feeds both halves — the name (`0.2.48`) and the build
+- **Version**: `version:` in `pubspec.yaml` feeds both halves — the name (`2.0.0`) and the build
   number after `+`, which becomes Android's `versionCode`. **Every upload needs a higher
   `versionCode` than the last**, and a code is burned by the UPLOAD, not by the rollout.
+  **Bump policy (owner decision, 27/08/2026):** `2.0.0` opened the Flutter generation (the
+  Blazor client retired at `1.8.15`; the spike's `0.2.x` never graduated at the cutover).
+  Per MERGED PR: MINOR when it delivers a backlog item, PATCH for fixes/polish, MAJOR only by
+  owner decision, and `+N` rises on every merge to `main` — the full text lives as the
+  comment above `version:` in the pubspec, next to the number it governs.
 - The Play Billing side of the account (products, RTDN, the service account the server uses to
   verify a purchase) is configured once, in [`supabase/README.md`](../supabase/README.md) §9-bis.
 

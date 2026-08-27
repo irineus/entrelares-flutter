@@ -111,5 +111,5 @@ class Env {
   /// Mirrors `pubspec.yaml`'s `version:` — the web's `AppVersion.Display`.
   /// Only the F-17 export reads it, and a stale value there would misdate an
   /// LGPD record, so `env_version_test.dart` fails the build if the two drift.
-  static const String appVersion = '0.2.51+53';
+  static const String appVersion = '2.0.0+54';
 }

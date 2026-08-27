@@ -389,6 +389,13 @@ whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own �
   is a one-shot flag consumed by the calendar, so a later ping (a tour replay) never reopens
   the sheet as a side effect.
 
+**Version graduation (owner decision, 27/08/2026).** Delivered in the same branch: the app
+version left the spike's `0.2.x` line — which never graduated at the T-53 cutover, so the
+public number read as the product moving BACKWARDS from the Blazor client's retired `1.8.15`
+— and opened the Flutter generation at **`2.0.0+54`**. The bump policy (MINOR per delivered
+backlog item, PATCH for fixes, MAJOR by owner decision, `+N` on every merge) is written where
+it operates: the comment above `version:` in the pubspec, echoed in `store/README.md` §6.
+
 **Files affected**
 - Round 1: `apps/entrelares_app/lib/screens/bulk_sheet.dart` (F1) · `profile_screen.dart`
   (F2, F3, F7) · `family_screen.dart` (F2, F4, F6) · `policy_update_screen.dart` (F4) ·
