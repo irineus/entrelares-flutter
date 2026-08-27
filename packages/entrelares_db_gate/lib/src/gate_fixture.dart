@@ -273,6 +273,38 @@ class GateFixture {
       .firstWhere((r) => r.roleName.toLowerCase() == roleName.toLowerCase())
       .id;
 
+  /// F-57: a user created the way an OAUTH (Google) sign-up creates one, in
+  /// the respect that matters — NO founder/invite metadata in
+  /// `raw_user_meta_data`, which is the condition `handle_new_user` defers
+  /// the profile on. (The provider itself cannot be simulated: the Admin API
+  /// refuses to forge `provider: google`, which is why the deferred branch is
+  /// keyed on the metadata's absence and not on the provider.) The password is
+  /// kept on purpose: it lets the suite sign this user in and exercise the
+  /// authenticated RPCs with the same JWT shape the real OAuth session would
+  /// carry.
+  Future<String> createOauthUser(String tag) async {
+    final email = testEmail(tag);
+    _userIds.add(await _admin.createConfirmedUser(
+      email,
+      password,
+      {'full_name': 'E2E OAuth $tag'},
+    ));
+    return email;
+  }
+
+  /// F-57: a user with NO metadata at all — the shape a password sign-up
+  /// straight at the GoTrue API (never our forms) produces. Since the
+  /// deferred branch keys on the metadata's absence, this defers exactly like
+  /// an OAuth sign-up; the suite pins that down as documented behaviour. The
+  /// id is tracked so teardown removes it.
+  Future<void> createBareUser(String email) async {
+    _userIds.add(await _admin.createConfirmedUser(email, password, const {}));
+  }
+
+  /// F-57: registers a family created OUTSIDE [createFamily] (e.g. by
+  /// `complete_oauth_onboarding`) for the run's teardown purge.
+  void trackFamily(int familyId) => _extraFamilyIds.add(familyId);
+
   /// F-28: lazily add a THIRD caregiver to family A through the real invitation
   /// flow, shared by every test that needs a multi-caregiver family (one GoTrue
   /// user for the whole run; the purge removes it with the family).

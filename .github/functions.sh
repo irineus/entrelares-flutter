@@ -18,7 +18,7 @@
 # rejects an anonymous request before our code runs.
 
 FUNCTIONS_NO_JWT="send-swap-email auto-approve-expired register-invitee purge-deleted send-account-email billing-webhook billing-store-verify billing-store-webhook send-auth-email"
-FUNCTIONS_WITH_JWT="elevate billing-checkout admin-update-member-email"
+FUNCTIONS_WITH_JWT="elevate billing-checkout admin-update-member-email claim-invitation"
 
 # esm.sh 522s and rate limits have taken whole runs down on transient failure
 # alone. `db push` and `functions deploy` are both idempotent, so retrying is free.

@@ -29,6 +29,12 @@ class AdminApi {
       };
 
   /// Returns the new user's id.
+  ///
+  /// There is deliberately no `app_metadata` parameter: GoTrue does not let
+  /// the Admin API forge `provider`/`providers` (its own defaults win), which
+  /// is exactly why the F-57 deferred branch keys on the ABSENCE of our
+  /// user_metadata instead of on the provider — a provider-based rule would be
+  /// one this gate can never exercise.
   Future<String> createConfirmedUser(
     String email,
     String password,
