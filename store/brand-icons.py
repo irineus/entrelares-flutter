@@ -27,14 +27,21 @@ Outputs:  apps/entrelares_app/web/favicon.png                    (96, squircle)
           apps/entrelares_app/assets/brand/emblema-monochrome.png (512, the
               Android 13 themed-icon glyph: white alpha shape)
           store/brand-calendario.svg                             (vector source)
+          store/store_icon.png                                   (512, the Play
+              LISTING icon — full-bleed indigo, mark at 60% so Play's own
+              rounding and circular masks never bite into the card)
 
-NOT an output, on purpose (two survivors of the clay era, both deliberate,
-owner decision 26/08/2026):
-- store/store_icon.png — the Play Console icon stays on the clay emblem until
-  the owner updates the LISTING art (coordinate with T-57); writing it here
-  would silently push a rebrand into the store behind that decision.
-- The landing repo's favicon/OG keep their own clay masters; moving them is a
-  follow-up of its own, not this script's reach.
+`store_icon.png` was deliberately NOT written here between 26/08 and 28/08/2026:
+the Play listing had to stay on the clay emblem until the listing art moved as a
+WHOLE, and a routine re-run of this script could not be allowed to push a rebrand
+into the store behind that decision. **T-57 is that whole**, so the hold is over
+and the file is an output again — the framing that used to justify hand-supplying
+it now lives in `store_listing()`, separate from the PWA's, so tuning one can
+never drift the other.
+
+STILL not an output, and still deliberate: the landing repo keeps its own copy of
+this script (`entrelares-site/assets-src/brand-icons.py`) and its own masters.
+Moving the landing to the new mark is T-57's landing half, in that repo.
 """
 from pathlib import Path
 
@@ -157,6 +164,19 @@ def full_bleed(size: int) -> Image.Image:
     _centred_mark(d, size * SS, 0.66)
     return _finish(img, size, opaque_on=INDIGO)
 
+def store_listing(size: int) -> Image.Image:
+    """Play LISTING icon: full-bleed indigo, mark at 60%.
+
+    Play does not serve this file as uploaded — it applies its own rounding,
+    and some surfaces mask it to a circle. 0.60 (against the PWA's 0.66) is
+    what keeps the card clear of the circular mask's chord at the corners; the
+    old clay file was hand-framed for exactly this reason.
+    """
+    img, d = _canvas(size)
+    d.rectangle([0, 0, size * SS, size * SS], fill=INDIGO)
+    _centred_mark(d, size * SS, 0.60)
+    return _finish(img, size, opaque_on=INDIGO)
+
 def maskable_bleed(size: int) -> Image.Image:
     """PWA maskable: full-bleed indigo, mark inside the safe zone."""
     img, d = _canvas(size)
@@ -239,5 +259,7 @@ if __name__ == "__main__":
     print("ok emblema-maskable.png")
     monochrome(512).save(BRAND / "emblema-monochrome.png", optimize=True)
     print("ok emblema-monochrome.png")
+    store_listing(512).save(ROOT / "store" / "store_icon.png", optimize=True)
+    print("ok store_icon.png")
     write_svg(ROOT / "store" / "brand-calendario.svg")
     print("ok brand-calendario.svg")

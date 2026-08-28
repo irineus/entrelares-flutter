@@ -26,6 +26,16 @@ points at them; this directory is about the *presence*, not the pipeline.
   [`listing-en-US.txt`](listing-en-US.txt) — app name, short description and full description,
   with the Play character limits noted inline. **Edit the files, review in a PR, then paste into
   the Console** — never draft in the Console directly, where nothing is versioned.
+- **Both files were re-verified sentence by sentence against the code on 28/08/2026 (T-57)**,
+  and three claims moved. *"Funciona também offline"* / *"Works offline too"* was **deleted**:
+  it was written for the Blazor PWA's service worker, the cutover falsified it, and **T-18 is
+  still `pending`** — the whole app has exactly one mention of the word, in a comment. The
+  real-time paragraph now says what the code does: live updates **with the app open**, and
+  e-mail (`send-swap-email`) when it is closed, because **F-09, push, is `pending`**. And the
+  PDF report is named as Premium, which is where `reports_pdf_tab.dart` gates it. In their
+  place the bullet list gained the web channel, which does exist. **A listing is a claim about
+  the system (the S-15 rule): re-read it against the code before every republish, and never
+  paste a sentence a test could not defend.**
 - **English translation** (the app is bilingual since U-13): at the top of the Main store
   listing page → **Manage translations** → **Add your own translation** → **English (United
   States) – en-US** → paste from `listing-en-US.txt`. The default language stays pt-BR.
@@ -62,8 +72,8 @@ means editing the script and re-running it — never editing a PNG by hand.
 |---|---|
 | [`brand-icons.py`](brand-icons.py) | Draws the mark and derives every icon file below. THE source. |
 | [`brand-calendario.svg`](brand-calendario.svg) | Vector rendition, written by the script — for print/large-format use, never edited by hand. |
-| [`store_icon.png`](store_icon.png) | 512², the Play listing icon. **Still the F-54 clay emblem, on purpose** — see below. |
-| [`brand-emblema.png`](brand-emblema.png) / [`brand-emblema-flat.png`](brand-emblema-flat.png) | The retired AI-generated clay masters (F-54). Kept because `store_icon.png` and the landing still show them; no script reads them any more. |
+| [`store_icon.png`](store_icon.png) | 512², the Play listing icon. **Written by the script since T-57** (28/08/2026), at its own framing — see below. |
+| [`brand-emblema.png`](brand-emblema.png) / [`brand-emblema-flat.png`](brand-emblema-flat.png) | The retired AI-generated clay masters (F-54). Kept only because the **landing** still shows them; nothing in this repo reads them any more. |
 
 `brand-icons.py` writes, and these are the ONLY places the mark is vendored:
 
@@ -78,6 +88,8 @@ apps/entrelares_app/assets/brand/emblema-maskable.png   (512, adaptive
 apps/entrelares_app/assets/brand/emblema-monochrome.png (512, the Android 13
     themed-icon glyph)
 store/brand-calendario.svg
+store/store_icon.png                                    (512, the Play LISTING
+    icon — full-bleed indigo, mark at 60%)
 ```
 
 The three `assets/brand/` files are what `flutter_launcher_icons` reads (config block in
@@ -85,25 +97,47 @@ The three `assets/brand/` files are what `flutter_launcher_icons` reads (config 
 the script already composes the safe zone, plus the monochrome layer). After running the script:
 `fvm dart run flutter_launcher_icons` refreshes the mipmaps and the adaptive XML.
 
-**Why `store_icon.png` is not written by the script.** Owner decision (26/08/2026, U-29): the
-Play **listing** stays on the clay emblem until the listing art is updated as a whole —
-screenshots, feature graphic and icon together (coordinate with **T-57**). Writing it here would
-silently push a rebrand into the store behind that decision. The same applies to the landing
-repo's favicon/OG art: moving it to the new mark is a follow-up of its own, not this script's
-reach.
+**Why `store_icon.png` is written by the script again.** It was deliberately NOT an output
+between 26/08 and 28/08/2026: the Play **listing** had to stay on the clay emblem until the
+listing art moved as a WHOLE — screenshots, feature graphic and icon together — and a routine
+re-run of the script could not be allowed to push a rebrand into the store behind that owner
+decision. **T-57 is that whole**, so the hold is discharged and `store_listing()` writes the
+512². It keeps its OWN framing — the mark at **60%**, against the PWA's 66% — because Play
+applies its own rounding and masks the icon to a circle in some surfaces; that crop is exactly
+why the old file used to be hand-supplied, and a separate function is what stops one framing
+from drifting into the other. **The PNG is only half the delivery: Play serves its own copy,
+so the file has to be re-uploaded in the Console.**
+
+The landing repo's favicon and OG art are still on the clay masters, behind their own copy of
+this script (`entrelares-site/assets-src/brand-icons.py`). Moving them is T-57's landing half,
+and it happens in that repo.
 
 ## 3 · Feature graphic (1024×500, required)
 
-[`feature-graphic.png`](feature-graphic.png), rendered from
-[`feature-graphic.html`](feature-graphic.html) with headless Chrome — the exact command, and the
-crop workaround for builds that subtract window chrome from `--window-size`, are in the file's
-own header comment. Re-render whenever the tagline or the artwork changes, and **re-upload**:
-Play serves its own copy and nothing updates it automatically.
+**Both languages have a generator since T-57 (28/08/2026), and both are on the new mark.**
 
-[`feature-graphic-english.png`](feature-graphic-english.png) is an English render kept as-is from
-13/08/2026 and **not usable as an upload yet**: it is 2950×1440 — exactly Play's 2.048∶1 ratio,
-but the form takes 1024×500 — and there is no `feature-graphic-english.html` that reproduces it.
-An EN listing that needs its own graphic either downscales this file or gains a generator.
+| Render | Source |
+|---|---|
+| [`feature-graphic.png`](feature-graphic.png) | [`feature-graphic.html`](feature-graphic.html) |
+| [`feature-graphic-english.png`](feature-graphic-english.png) | [`feature-graphic-english.html`](feature-graphic-english.html) |
+
+Headless Chrome renders them — the exact command, and the crop workaround for builds that
+subtract window chrome from `--window-size`, are in the PT-BR file's header comment. The two
+files are the same layout in two languages, so **a layout change has to be made in both**.
+
+The plaque is [`store_icon.png`](store_icon.png) shown 1∶1, so the graphic cannot drift from the
+launcher: **re-run `brand-icons.py` first**, then re-render. The palette is the U-27 token set
+(`surface`, `text`, `textMuted`, `accent`, `swapped`); the cream/navy of the clay era went with
+the emblem.
+
+Re-render whenever the tagline or the mark changes, and **re-upload both**: Play serves its own
+copy and nothing updates it automatically (the en-US one at *Manage translations → English
+(United States)*).
+
+> **What the English file used to be.** Until T-57 it was a 2950×1440 clay render from
+> 13/08/2026 with no source — exactly Play's 2.048∶1 ratio, but the form takes 1024×500, so the
+> en-US listing could only show the Portuguese graphic or a stretched one. U-29 retired the art
+> it drew; the generator above replaced the file.
 
 ## 4 · Policy forms (Data Safety, content rating, app access)
 

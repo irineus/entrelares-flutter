@@ -14,7 +14,7 @@ SWAPS BOTH SIDES APPROVE
 Need to trade a day? Propose the swap with a short message ("doctor's appointment at 2pm") — nothing moves on the calendar until the other caregiver agrees. Whoever answers can reply with a note, and all of it is recorded. If nobody answers, the request is auto-approved after 48 hours, with a reminder first.
 
 A HISTORY NOBODY CAN REWRITE
-Every calendar change is recorded: who asked, who approved, and the messages they exchanged. The history cannot be edited or deleted — by anyone. Export a PDF report of any period with the full timeline.
+Every calendar change is recorded: who asked, who approved, and the messages they exchanged. The history cannot be edited or deleted — by anyone. On the Premium plan, export a PDF report of any period with the full timeline.
 
 PERIOD SUMMARY
 See how many days each caregiver had — planned and actual —, how many swaps each one gave up and received, and the projected balance including the future swaps already agreed on.
@@ -23,12 +23,12 @@ MORE CAREGIVERS IN THE ROUTINE
 Grandparents, a nanny or another caregiver can join the family with their own role, invited by e-mail by an administrator.
 
 ALWAYS UP TO DATE
-Real-time notifications: requests, approvals and changes reach every caregiver the moment they happen.
+With the app open, the calendar updates in real time: requests, approvals and changes appear without a reload. With the app closed, every request, approval and deadline reminder arrives by e-mail.
 
 BUILT FOR EVERYDAY USE
 • In English and Portuguese — each person in the family reads in their own language, notifications and e-mails included
 • Built for the phone
-• Works offline too (data syncs when you reconnect)
+• The same calendar in the browser, at https://web.entrelares.app
 • The essentials are free: calendar, approved swaps, notifications and history
 
 PRIVACY

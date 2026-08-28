@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="utf-8" />
+<title>Entrelares — Play feature graphic generator (en-US)</title>
+<!--
+  T-57 (28/08/2026) — generator for store/feature-graphic-english.png, the
+  en-US Play feature graphic (1024x500). The PT-BR sibling, and the full render
+  instructions, live in feature-graphic.html; this file is its translation and
+  nothing else, so any layout change must be made in BOTH.
+
+  WHY IT EXISTS. The en-US listing had no generator: the file it inherited from
+  13/08/2026 was a 2950x1440 clay render — exactly Play's 2.048:1 ratio, but the
+  form takes 1024x500, and there was no source to re-render it from. So the
+  English listing could only ever show the Portuguese graphic or a stretched
+  one. U-29 retired the clay art anyway; T-57 replaced the file with this
+  render, and the 2950x1440 original went with the emblem it drew.
+
+  Render with headless Chrome at 1024x500:
+
+    chrome --headless --disable-gpu --hide-scrollbars \
+           --screenshot=store/feature-graphic-english.png --window-size=1024,500 \
+           store/feature-graphic-english.html
+
+  Upload at Play Console -> Store presence -> Main store listing ->
+  Manage translations -> English (United States) -> Feature graphic.
+-->
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1024px; height: 500px; overflow: hidden; }
+  body {
+    font-family: "Segoe UI", "Liberation Sans", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    background: #f9fafb;
+    background-image:
+      radial-gradient(680px 440px at 94% 0%, rgba(79, 70, 229, 0.12) 0%, rgba(79, 70, 229, 0) 60%),
+      radial-gradient(600px 420px at 2% 100%, rgba(217, 119, 6, 0.12) 0%, rgba(217, 119, 6, 0) 58%);
+    color: #111827;
+    position: relative;
+  }
+  /* Fixed positions, not flex — see the PT-BR file for why. */
+  .art {
+    position: absolute; top: 72px; left: 58px;
+    width: 356px; height: 356px;
+    border-radius: 84px; overflow: hidden;
+    box-shadow: 0 12px 32px rgba(17, 24, 39, 0.16);
+    background: url(store_icon.png) no-repeat #4f46e5;
+    background-size: 100% 100%;
+  }
+
+  .copy { position: absolute; top: 118px; left: 462px; right: 44px; }
+  .name { font-size: 56px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 16px; }
+  h1 { font-size: 42px; font-weight: 800; line-height: 1.16; letter-spacing: -0.02em; margin-bottom: 20px; }
+  .sub { font-size: 24px; line-height: 1.35; color: #6b7280; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="art"></div>
+
+<div class="copy">
+  <div class="name">Entrelares</div>
+  <h1>Two homes,<br />one childhood.</h1>
+  <!-- Deliberate break: the line does not fit the 518px column, and an
+       orphaned "parents" reads worse than a balanced pair. -->
+  <p class="sub">Shared custody calendar<br />for separated parents</p>
+</div>
+
+</body>
+</html>
