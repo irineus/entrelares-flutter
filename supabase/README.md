@@ -1190,11 +1190,23 @@ verification.
 
 ## 9-ter. Google login go-live (F-57) — enabling the provider, per project
 
-> **DONE — Google login is LIVE on BOTH projects since 27/08/2026.** The code merged the same
-> day (PRs #92/#93, `2.1.0+55`), the owner executed this whole section, and both projects now
-> answer `external.google: true`. **Verify it in one command, and prefer this over reading the
-> console** — it is the exact question the app asks, so it can never disagree with what the
-> user sees:
+> **PARTIALLY DONE, and the gap was invisible for a month — read 9-ter.0 step 2 first.** The
+> code merged on 27/08/2026 (PRs #92/#93, `2.1.0+55`) and both projects answer
+> `external.google: true`, but on 28/08/2026 the console showed the Google Auth Platform app
+> still in **Testing**: step 2 of 9-ter.0 was never executed. Consequences, live since the
+> go-live: **only accounts on the test-user list can sign in with Google** — every other alpha
+> tester hits a wall — and those who do sign in are **silently signed out after 7 days**.
+>
+> **Why nobody caught it, which is the lesson worth more than the fix.** This banner told you to
+> verify in one command and to prefer that over reading the console. That advice is right about
+> what it covers and dangerously wrong as a stand-in for the section: `/auth/v1/settings`
+> answers **only** "is the provider enabled". It says nothing about publishing status, so
+> `external.google: true` was read as "9-ter is done" when it only ever meant "step 9-ter.1
+> happened". **There is no endpoint for publishing status** — the Audience page is the only
+> source, and that asymmetry is exactly where a config gap can hide behind a green check.
+>
+> So: verify the provider with the command below, and verify the AUDIENCE by opening
+> `https://console.cloud.google.com/auth/audience`. Two checks, because there is no one check.
 >
 > ```
 > curl -s -H "apikey: <publishable key>" https://<ref>.supabase.co/auth/v1/settings
@@ -1239,6 +1251,17 @@ afterwards — it just no longer creates it.
    the "Testing" state caps sign-ins to a listed set of accounts and expires
    refresh tokens after 7 days. Left in Testing, this surfaces as users being
    silently signed out a week later, which reads like an app bug and is not.
+
+   > **This step was MISSED at the go-live and the miss survived a month
+   > (found 28/08/2026, preparing T-61).** It is the one step in this section
+   > with no observable signal on our side: the button appears, a listed
+   > tester signs in, the settings endpoint says `true` — everything a
+   > developer would check comes back green while the app is closed to
+   > everyone not on the list. **Confirm it by eye, on the Audience page,
+   > every time this section is run**, and confirm it the only way that
+   > actually proves it: sign in with an account that is NOT a test user.
+   > Publishing is also the prerequisite for T-61 path A — verification cannot
+   > be submitted while the app is in Testing (§9-quater.A).
 3. *Google Auth Platform → **Clients** → Create OAuth client → Application
    type: **Web application*** (WEB, even for Android: the device never talks to
    Google directly — GoTrue does the code exchange server-side). Name it for
@@ -1394,9 +1417,23 @@ verification is a separate submission with human review. "Branding set, screen s
 ref" is the expected state of a published, unverified app, so the device measurement and this
 path do not contradict each other.
 
+0. **Publish the app first.** *Google Auth Platform → **Audience*** must read **In
+   production**, not Testing — Google neither requires nor accepts verification for an app in
+   Testing, so everything below is inert until this is done. It is also §9-ter.0 step 2, which
+   was missed at the F-57 go-live; see the banner at the top of §9-ter.
 1. *Google Auth Platform → **Branding***: app name **Entrelares**, logo, support e-mail,
    authorized domain `entrelares.app`, and the home page / privacy policy / terms links — the
-   landing already serves `entrelares.app/privacidade` and `/termos` (lote 4).
+   landing already serves `entrelares.app/privacidade` and `/termos` (lote 4). **Use
+   `apps/entrelares_app/assets/brand/emblema.png`** (the indigo squircle, U-29) — NOT
+   `store/store_icon.png`, which is deliberately still the retired F-54 clay emblem until the
+   Play listing art moves as a whole (T-57).
+
+   > **Measured on 28/08/2026:** the *Authorized domains* list already carries both Supabase
+   > project hosts, added by the console because the OAuth client's redirect URIs live there.
+   > **Do not remove them** — that breaks the client. This is also precisely where path A may be
+   > refused, since Google wants proven ownership of authorized domains and `supabase.co` is not
+   > ours. The submission is the only way to find out; a refusal on that ground is the
+   > definition of "A failed" and the trigger for B.
 2. *Google Auth Platform → **Data Access (Scopes)***: confirm only `openid`,
    `.../auth/userinfo.email` and `.../auth/userinfo.profile`. The app passes **no** `scopes` to
    `signInWithOAuth` (`main.dart`), so these are the defaults — all non-sensitive, which is the

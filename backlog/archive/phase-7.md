@@ -3185,6 +3185,21 @@ one — the R2 bucket + credential pattern from T-19 remains the named lever.
 
 > **Created 12/08/2026 from closed-alpha feedback; delivered AND switched on 27/08/2026.**
 
+> **Follow-up finding, 28/08/2026 — the go-live was one console step short, and it is the step
+> with no signal.** Preparing T-61, the Google Auth Platform console showed the app still in
+> **Testing**: §9-ter.0 step 2 (Audience → publish) was never executed. Since 27/08 that means
+> Google sign-in worked **only for accounts on the test-user list** — the owner's device test
+> passed for exactly that reason — while every other alpha tester met a closed door, and anyone
+> who did get in is signed out after 7 days.
+>
+> Nothing in the delivered code is wrong and nothing here changes it; the switch is still the
+> provider config. What failed is the *verification* of a config step: `/auth/v1/settings`
+> reports whether the provider is enabled and **nothing about publishing status**, so the one
+> command the runbook recommended came back green over a half-configured app. There is no
+> endpoint for the missing half — only the console — and a check that cannot see a failure mode
+> reads as proof that the failure mode is absent. Runbook corrected in the same delivery
+> (§9-ter banner and 9-ter.0 step 2).
+
 **What shipped (decisions locked with the owner, 27/08/2026)**
 
 - **The central finding, absent from the record's edge list:** `handle_new_user` RAISES for a
