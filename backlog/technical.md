@@ -499,15 +499,42 @@ published listing.
 | **D · the copy** | **done, both languages** |
 | **E · the publish** | **nothing uploaded.** Both repo halves are merge-ready; the Console is untouched |
 
-**The frames were shot from PRODUCTION, family *Neves* (Rafael/Marina/Nair) — and that family
-still exists and has to be removed by hand.** The decision behind it: **the PRODUCTION project,
-with a disposable family created for the shoot** — a `--flavor prod` / `APP_ENV=prod` build against
+**The frames were shot from PRODUCTION, across TWO families — and only one of them was
+disposable.** The decision behind it: **the PRODUCTION project, with a disposable family created
+for the shoot** — a `--flavor prod` / `APP_ENV=prod` build against
 real production, as the first gotcha below prescribes. The alternative considered and rejected
 was seeding the family in **dev** through `service_role` (server-written notification titles
 carry no `[Dev] ` prefix, since the prefix is applied by the CLIENT on write, so the frames
-would have come out clean); it was rejected for fidelity. Two consequences to plan for: the
-family is real production data and has to be **removed by hand afterwards**, and it must not be
-named `E2E-…`, which the purge sweep would eat mid-session.
+would have come out clean); it was rejected for fidelity. Two consequences were planned for — the families are real
+production data and have to be **removed by hand afterwards**, and they must not be named
+`E2E-…`, which the purge sweep would eat mid-session — and the first of those turned out to hold
+for only one of the two.
+
+> **The cleanup, and why half of it did not happen (28/08/2026).** The frames came from
+> **`Família Andrade` (id 18)**, created the morning of the shoot, and **`Familia Neves` (id 2)**,
+> which was **not** created for it — it dates from 02/08/2026. Andrade was purged in full: 2
+> profiles, 90 `care_schedules`, 103 `activity_logs`, 1 notification, 1 invitation, the family
+> row and **both `auth.users`**, verified afterwards by a sweep that found zero orphan
+> notifications and **zero `auth.users` without a profile anywhere in the project**.
+>
+> **Neves was kept, deliberately, and the reason is worth writing down: it holds the ledger of
+> real money.** Ten `billing_events` — `PAYMENT_CREATED`×2, `PAYMENT_RECEIVED` and
+> `PAYMENT_PARTIALLY_REFUNDED` on the Asaas rail (02–03/08), then `PAYMENT_DELETED` +
+> `SUBSCRIPTION_DELETED`, and the **`PLAY_PURCHASE_VERIFIED` plus three RTDN of 23/08 — the real
+> purchase that proved the T-48 store go-live**. `purge_e2e_family`'s own comment says that table
+> is denormalized on purpose so the *audit survives the subscription*; deleting the family would
+> have deleted the audit it was built to preserve. The owner keeps Neves as the production test
+> family (28/08/2026).
+>
+> **Two traps met on the way, both worth repeating.** `purge_e2e_family` **refuses** either
+> family by design — the double signature wants `E2E-` in the name and `@resend.dev` on every
+> e-mail, exactly so a fixture bug cannot delete a real family — so the teardown had to be
+> hand-written. And its body has been rewritten five times: the **T-39 version**
+> (`20260728150000`) is the one to copy, because it deletes `notifications` by
+> `recipient_profile_id` (that table has no `family_id`), adds `billing_events`, and moves
+> `activity_logs` to **after** `care_schedules`, since deleting days fires the audit triggers that
+> write fresh log rows. The July body gets all three wrong — the `CREATE OR REPLACE` gotcha in
+> `CLAUDE.md`, met in the wild.
 
 **How the capture actually went, and what it cost (28/08/2026)**
 
