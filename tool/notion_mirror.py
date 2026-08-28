@@ -131,6 +131,15 @@ HAND_REVIEWED: dict[str, dict[str, set[str]]] = {
         "6eb7e05": {"T-56"},   # the mirror learns the Flutter repo + the skill (#57)
         "d8499b5": {"T-56"},   # the DB gate moves house, 221 tests intact (#58)
         "3220a6a": {"T-56"},   # migrations, functions and the production backup (#59)
+        # F-57's UX follow-up, merged the same day the item closed: the owner
+        # tested the delivered flow on a real device and asked for two moves
+        # (the Google button above the password fields; the account identity and
+        # its escape hatch above the form). It is F-57 work by any reading, and
+        # the trailer was simply forgotten in the squash body — the same slip
+        # this table exists to absorb, and the reason the subject fallback is
+        # not enough: this subject names F-57, so it would have been credited by
+        # accident rather than on purpose.
+        "16446f2": {"F-57"},   # Google before the password, identity before the form (#99)
     },
 }
 
