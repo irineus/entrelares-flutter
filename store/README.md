@@ -73,7 +73,15 @@ means editing the script and re-running it — never editing a PNG by hand.
 | [`brand-icons.py`](brand-icons.py) | Draws the mark and derives every icon file below. THE source. |
 | [`brand-calendario.svg`](brand-calendario.svg) | Vector rendition, written by the script — for print/large-format use, never edited by hand. |
 | [`store_icon.png`](store_icon.png) | 512², the Play listing icon. **Written by the script since T-57** (28/08/2026), at its own framing — see below. |
-| [`brand-emblema.png`](brand-emblema.png) / [`brand-emblema-flat.png`](brand-emblema-flat.png) | The retired AI-generated clay masters (F-54). Kept only because the **landing** still shows them; nothing in this repo reads them any more. |
+
+**The clay masters are gone from this directory (T-57, 28/08/2026).** `brand-emblema.png` and
+`brand-emblema-flat.png` were the AI-generated F-54 artwork, and they were kept here after U-29
+retired the art — on the belief that the landing still needed them. It does not: the landing
+carries its OWN copies in `entrelares-site/assets-src/`, and its generators read from there. So
+this pair was read by nothing at all, which is the worst state for a 2.4 MB binary with no vector
+source. Older records (`backlog/archive/phase-7.md`, `docs/changelog-blazor.md`) still name the
+paths, correctly, as history — **the files are in git, and a live copy sits in the landing repo
+until its own half of T-57 retires it.**
 
 `brand-icons.py` writes, and these are the ONLY places the mark is vendored:
 

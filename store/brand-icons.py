@@ -10,9 +10,12 @@ the SHARED days. Launcher background: brand indigo `#4F46E5` (option A, then
 concept V1 of the U-29 icon review).
 
 This file replaced the previous clay-emblem derivation (F-54) on 26/08/2026.
-The AI-generated masters (`brand-emblema.png`, `brand-emblema-flat.png`) had
-no vector source; the mark below is pure geometry, so THIS SCRIPT is the
-source — it also writes `store/brand-calendario.svg` as the vector artifact.
+The AI-generated masters it used to read (`brand-emblema.png`,
+`brand-emblema-flat.png`) had no vector source, and T-57 deleted them from
+`store/` once nothing here read them any more (a live copy survives in
+`entrelares-site/assets-src/` until the landing migrates). The mark below is
+pure geometry, so THIS SCRIPT is the source — it also writes
+`store/brand-calendario.svg` as the vector artifact.
 
 Usage (needs Pillow):  python3 store/brand-icons.py
 Then:                  cd apps/entrelares_app && fvm dart run flutter_launcher_icons

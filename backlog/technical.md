@@ -493,7 +493,7 @@ published listing.
 
 | Part | State |
 |---|---|
-| **A · the mark** | `store/store_icon.png` **done**; the landing's five brand files (`favicon.png`, `icon-192.png`, `icon-512.png`, `og-cover.png`, `og-cover-en.png`) still on clay, behind `entrelares-site/assets-src/brand-icons.py` and the three `og-cover*.html` — the landing PR |
+| **A · the mark** | `store/store_icon.png` **done**, and the two clay masters deleted from `store/` — nothing here read them, and the landing reads its own copies; the landing's five brand files (`favicon.png`, `icon-192.png`, `icon-512.png`, `og-cover.png`, `og-cover-en.png`) still on clay, behind `entrelares-site/assets-src/brand-icons.py` and the three `og-cover*.html` — the landing PR |
 | **B · feature graphic** | **done, both languages**, with a generator each |
 | **C · the eight frames** | not started — needs the capture sitting |
 | **D · the copy** | **done, both languages** |
