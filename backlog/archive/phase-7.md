@@ -3177,13 +3177,13 @@ one — the R2 bucket + credential pattern from T-19 remains the named lever.
 
 | Field | Value |
 |---|---|
-| **Status** | `done` (27/08/2026, `2.1.0+55`, PRs #92 + #93) — **phase 1 (Google) only, by the item's own design**: the Apple half was always coupled to T-40 (the App Store requires Sign in with Apple once ANY third-party login exists) and moves with it |
+| **Status** | `done` (27/08/2026, `2.1.2+57`, PRs #92 + #93 + #99) — **phase 1 (Google) only, by the item's own design**: the Apple half was always coupled to T-40 (the App Store requires Sign in with Apple once ANY third-party login exists) and moves with it. **LIVE on both projects since 27/08/2026**, when the owner ran `supabase/README.md` §9-ter; Android shows the button only after a Play promotion of a bundle ≥ `2.1.2+57` |
 | **Priority** | `high` — owner 12/08/2026: *"creio que possa ser implementado o quanto antes"* |
 | **Complexity** | `medium` — accurate, but not where the record guessed: GoTrue did the heavy lifting, and the real work was a trigger invariant nobody had listed |
 | **Impact** | `high` (kills the confirmation-e-mail failure mode — the whole 07/08 QA round — for Google sign-ups) |
-| **Depends on / relates** | S-13/S-15 (consent moved into the deferred onboarding), U-21 (the profile shows the sign-in method for password-less sessions), T-40 (Apple half), F-15/F-28 (invite claim via OAuth, delivered) |
+| **Depends on / relates** | S-13/S-15 (consent moved into the deferred onboarding), U-21 (the profile shows the sign-in method for password-less sessions), T-40 (Apple half), F-15/F-28 (invite claim via OAuth, delivered), **T-61** and **U-30** (both found while testing this item on a real device) |
 
-> **Created 12/08/2026 from closed-alpha feedback; delivered 27/08/2026 in two PRs.**
+> **Created 12/08/2026 from closed-alpha feedback; delivered AND switched on 27/08/2026.**
 
 **What shipped (decisions locked with the owner, 27/08/2026)**
 
@@ -3219,10 +3219,33 @@ one — the R2 bucket + credential pattern from T-19 remains the named lever.
 - **U-21 slice:** a session whose providers exclude `email` sees its sign-in method in place
   of the password card — offering "alterar senha" to a password-less account would submit
   against nothing.
+- **The device round (#99), after the owner tested the delivered flow.** Two moves, one
+  rule: *an affordance placed after the cost it avoids does not avoid any cost.* The Google
+  button went ABOVE the password fields — it exists so nobody invents a password, and at the
+  bottom it arrived once that price was already paid; everything below it is now explicitly
+  the secondary path. And the account identity ("Conectado como <address>") plus its escape
+  hatch went above the form, because the wrong-account realisation happens at the prefilled
+  name — and the ADDRESS is what carries it, since two accounts of one person routinely share
+  a display name. Both positions are pinned by coordinate-ordering tests: here the order IS
+  the feature, and nothing else in the tree would notice it drifting back down.
 - Coverage: `oauth_onboarding` + `claim_invitation` gate suites (deferred trigger, founder
-  RPC, claim, thief token, stale policy, S-11 migration with surviving session); 11 widget
-  tests (fail-closed button, both onboarding branches, migration dialog, profile swap);
-  route-rules and onboarding-validation cases in core.
+  RPC, claim, thief token, stale policy, S-11 migration with surviving session); 13 widget
+  tests (fail-closed button, both onboarding branches, migration dialog, profile swap,
+  the two orderings); route-rules and onboarding-validation cases in core.
+
+**Verified on a device, not only in CI (27/08/2026).** All three paths were walked on real
+hardware: a new Google account reaching `/onboarding` and founding a family; an invited
+address claiming through Google; and an existing password account **linking** and landing
+straight on its own calendar, never seeing onboarding. That last one is the account-linking
+posture this item chose, and the OAuth round trip is precisely what CI cannot exercise —
+there is no Google to redirect to inside a runner.
+
+**Two findings it produced, both recorded as their own items.** **T-61**: the Google consent
+screen *and* the summary e-mail Google sends afterwards both name `<ref>.supabase.co`, never
+Entrelares — a blocker for the public rollout, on the one screen where the product asks for
+someone's identity. **U-30**: an account that linked Google to an existing password login now
+has two doors and the profile screen shows one, so "I changed my password" reads as a lock
+that is not there.
 
 **What the next reader should know.** The `_isRestoring`/`_isSigningUp` guards the record
 pointed at were the BLAZOR AuthService's — dead with the archiving; the Flutter equivalents
