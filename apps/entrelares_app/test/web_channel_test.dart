@@ -18,6 +18,27 @@ File _workflow() => File('../../.github/workflows/verify.yml');
 File _androidManifest() =>
     File('android/app/src/main/AndroidManifest.xml');
 
+/// The one CSP the web channel ships, as written in `_headers`.
+String? _csp(String headers) =>
+    RegExp(r'Content-Security-Policy: (.+)').firstMatch(headers)?.group(1);
+
+/// The sources a directive lists, in source order.
+List<String> _sources(String csp, String directive) =>
+    RegExp('$directive ([^;]+)').firstMatch(csp)!.group(1)!.trim().split(' ');
+
+/// Does one CSP source cover `<scheme>://<host>`? A source matches exactly or
+/// through a single leading `*.` on the host, and `*.example.com` does NOT
+/// cover the bare `example.com` — nothing else in this CSP is dynamic, so a
+/// hand-rolled matcher says what it means where a general parser would only
+/// look like it does.
+bool _covers(String source, String scheme, String host) {
+  final parts = RegExp(r'^(\w+)://(\*\.)?(.+)$').firstMatch(source);
+  if (parts == null || parts.group(1) != scheme) return false;
+  final pattern = parts.group(3)!;
+  if (parts.group(2) == null) return host == pattern;
+  return host.endsWith('.$pattern');
+}
+
 void main() {
   group('_redirects (SPA fallback)', () {
     test('every unmatched path falls back to index.html with a 200', () {
@@ -67,9 +88,7 @@ void main() {
     setUp(() => headers = _web('_headers').readAsStringSync());
 
     test('the CSP allows what CanvasKit needs and nothing more', () {
-      final csp = RegExp(r'Content-Security-Policy: (.+)')
-          .firstMatch(headers)
-          ?.group(1);
+      final csp = _csp(headers);
       expect(csp, isNotNull, reason: 'the web channel ships with a CSP');
 
       // WebAssembly and blob workers: the engine does not run without them.
@@ -93,6 +112,33 @@ void main() {
       // inside script-src would mean the build lost that flag.
       final scriptSrc = RegExp(r'script-src ([^;]+)').firstMatch(csp!)!.group(1);
       expect(scriptSrc, isNot(contains('gstatic')));
+    });
+
+    // T-61 — the mirror that makes the auth host movable. `connect-src` and
+    // `Env.supabaseUrl` are two independent strings in two files, and this is
+    // the ONE place on the web channel where letting them drift costs nothing
+    // at build time and everything at runtime: a host the CSP does not cover
+    // is not a degraded auth flow, it is an app that reaches no API at all —
+    // REST, Realtime and Functions included — with the browser console as the
+    // only witness. Today `https://*.supabase.co` happens to cover both
+    // projects; the moment prod answers on `auth.entrelares.app` (T-61, so the
+    // Google consent screen names Entrelares instead of the project ref) that
+    // wildcard stops covering it, and this test is what turns that into a red
+    // gate instead of a silent outage. Asserted against `Env.prod` because
+    // that is the build `deploy-web` publishes.
+    test('connect-src covers the Supabase host the prod build names', () {
+      final host = Uri.parse(Env.prod.supabaseUrl).host;
+      final sources = _sources(_csp(headers)!, 'connect-src');
+
+      for (final scheme in const ['https', 'wss']) {
+        expect(
+          sources.any((s) => _covers(s, scheme, host)),
+          isTrue,
+          reason: 'the CSP must allow $scheme://$host — `Env.prod.supabaseUrl` '
+              'names it, so a build that cannot reach it is a dead app. '
+              'Move the host and `_headers` moves with it.',
+        );
+      }
     });
 
     test('the files whose staleness breaks a deploy are uncacheable', () {
