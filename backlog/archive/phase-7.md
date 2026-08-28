@@ -3336,7 +3336,7 @@ the item now covers **every surface a stranger sees, in both languages**, and th
 **together**.
 
 **Why together, and not one fix at a time.** U-29 deliberately did NOT move the store icon —
-[`store/README.md`](../store/README.md) §2 records the reason: *"the Play listing stays on the
+[`store/README.md`](../../store/README.md) §2 records the reason: *"the Play listing stays on the
 clay emblem until the listing art is updated as a whole — screenshots, feature graphic and icon
 together (coordinate with T-57)"*. Shipping the icon alone gives the store one mark and eight
 photographs of another; shipping the frames alone does the mirror image. **This item is the
@@ -3350,13 +3350,13 @@ different artifact with a different delivery path, and nothing in any build touc
 
 | Where | What |
 |---|---|
-| [`store/store_icon.png`](../store/store_icon.png) | **Done (PR 1, 28/08/2026).** The decision was to teach the script: `store_listing()` writes the 512² at its OWN framing — mark at **60%**, against the PWA's 66% — because Play rounds it and masks it to a circle in some surfaces, which is the crop the hand-supplied file used to survive. A separate function is what stops one framing from drifting into the other. **The upload is still pending** |
+| [`store/store_icon.png`](../../store/store_icon.png) | **Done (PR 1, 28/08/2026).** The decision was to teach the script: `store_listing()` writes the 512² at its OWN framing — mark at **60%**, against the PWA's 66% — because Play rounds it and masks it to a circle in some surfaces, which is the crop the hand-supplied file used to survive. A separate function is what stops one framing from drifting into the other. **Uploaded 28/08/2026** (Console submission 9) |
 | Play Console → *Grow users → Store presence → Main store listing → **App icon*** | The upload itself |
-| `entrelares-site/public/` | `favicon.png`, `icon-192.png`, `icon-512.png`, `og-cover.png`, `og-cover-en.png` — **five** files, all on the clay mark. `store/README.md` §2 calls moving them "a follow-up of its own"; this is that follow-up |
+| `entrelares-site/public/` | `favicon.png`, `icon-192.png`, `icon-512.png`, `og-cover.png`, `og-cover-en.png` — **five** files, all moved to the U-29 mark on 28/08/2026 and live on `entrelares.app` since the `preview`→`main` promotion ([site#63](https://github.com/irineus/entrelares-site/pull/63)). The landing keeps one rendered master (`assets-src/brand-marca.png`) plus a resize script, so the geometry has a single home in the app repo |
 
 **B · Feature graphic (1024×500, required by Play)**
 
-[`store/feature-graphic.png`](../store/feature-graphic.png) is still the clay art, rendered from
+[`store/feature-graphic.png`](../../store/feature-graphic.png) is still the clay art, rendered from
 `feature-graphic.html` with headless Chrome. Re-render against the new mark and **re-upload** —
 §3's warning applies: *Play serves its own copy and nothing updates it automatically*.
 
@@ -3370,7 +3370,7 @@ or gains a generator. Decide which; do not leave the EN listing showing the PT g
 > plaque in both is `store_icon.png` shown 1∶1, so the graphic cannot drift from the launcher —
 > re-run `brand-icons.py` before re-rendering. The 2950×1440 clay file was replaced by the render
 > (it drew an emblem U-29 had already retired, and it had no source to re-render from). **Both
-> uploads are still pending.**
+> were uploaded on 28/08/2026** (Console submission 9).
 
 **C · The eight frames — with a finding attached**
 
@@ -3391,11 +3391,16 @@ The frames and their file names are as described above, unchanged. What is new i
 > TITLES (`main.dart`), not into any widget — `grep` finds no badge, banner or pill. So a DEV pill
 > on the live listing can only come from the **Blazor** client, i.e. from an upload older than the
 > 13/08 masking. Confirm at full size in the Console; the repo side needs nothing.
+>
+> **Closed by the re-upload (28/08/2026).** Submission 9 replaced every screenshot in both
+> languages, so whatever the Console was serving is gone regardless of how it got there. The
+> lesson it leaves is the durable part: **a file being correct in the repo says nothing about
+> what the store serves**, because Play keeps its own copy and no build touches it.
 
 **D · The copy — where this stops being cosmetic**
 
-[`store/listing-pt-BR.txt`](../store/listing-pt-BR.txt) and
-[`listing-en-US.txt`](../store/listing-en-US.txt) were last touched when they MOVED repositories
+[`store/listing-pt-BR.txt`](../../store/listing-pt-BR.txt) and
+[`listing-en-US.txt`](../../store/listing-en-US.txt) were last touched when they MOVED repositories
 (#70, 24/08); their content predates the cutover. **Re-verify every sentence against the code
 before re-publishing — the S-15 rule, applied to marketing.** The sweep already found one:
 
@@ -3439,11 +3444,14 @@ half is **manual uploads in the Console** — icon, feature graphic, eight scree
 language, and both listing texts. Do them as one pass, in both languages, and only then is the
 U-29 decision discharged.
 
-**Where the item stands (28/08/2026)**
+**Where the item ended (28/08/2026)**
 
-`pending` on purpose: **PR 1 delivered the half that does not need a running app**, and nothing
-has been uploaded to the Console yet — E's "one sitting" is intact, because a repo file is not a
-published listing.
+All five parts closed on the same day. The repo halves went in
+[#105](https://github.com/irineus/entrelares-flutter/pull/105) (copy, listing icon, both feature
+graphics) and [site#62](https://github.com/irineus/entrelares-site/pull/62) (the sixteen frames
+and the mark), the landing reached production through
+[site#63](https://github.com/irineus/entrelares-site/pull/63), and the Play half published as
+**Console submission 9** — 11 changes, both languages, 28/08/2026 11:32.
 
 | Part | State |
 |---|---|
@@ -3451,7 +3459,7 @@ published listing.
 | **B · feature graphic** | **done, both languages**, with a generator each |
 | **C · the eight frames** | **done, both languages** (28/08/2026) — see below |
 | **D · the copy** | **done, both languages** |
-| **E · the publish** | **nothing uploaded.** Both repo halves are merge-ready; the Console is untouched |
+| **E · the publish** | **done.** Console submission 9 published 28/08/2026 11:32 — app icon, both feature graphics, phone + 7" + 10" screenshots and the full description, in `pt-BR` and `en-US`. The tablet sets were not in the item's plan and were replaced too: they carried the same Blazor material |
 
 **The frames were shot from PRODUCTION, across TWO families — and only one of them was
 disposable.** The decision behind it: **the PRODUCTION project, with a disposable family created
