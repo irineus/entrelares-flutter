@@ -3267,3 +3267,317 @@ pointed at were the BLAZOR AuthService's — dead with the archiving; the Flutte
 (`_userSignOut`, `SessionGate`) needed no change. What DID need change was
 `_syncProfileLanguage`'s fetch-and-swallow, which silently let a profile-less session into
 the shell: phase resolution now happens before the shell renders (`_resolveAuthedPhase`).
+
+---
+
+### T-57 — Bring the whole product listing to the current app (icon, art, screenshots, copy — PT-BR + en-US) — DELIVERED
+
+| Field | Value |
+|---|---|
+| **Status** | `done` (28/08/2026) — repo halves in [#105](https://github.com/irineus/entrelares-flutter/pull/105) and [entrelares-site#62](https://github.com/irineus/entrelares-site/pull/62), promoted to the landing's production in [#63](https://github.com/irineus/entrelares-site/pull/63); the Play half published as **Console submission 9**, 11 changes, 28/08/2026 11:32. **Absorbs and closes L-21.** Nothing left over except two follow-ups recorded below, neither of which belongs to this item |
+| **Priority** | `high` — raised from `medium` on 26/08/2026. It opened as "nothing is broken, the pictures are merely old"; the sweep below found the listing **claiming a feature the product does not have** (offline) and the Console apparently serving a pre-masking screenshot upload. A listing is a claim about the system, so a stale one is not merely unflattering |
+| **Complexity** | `medium` — the capture is one sitting; the cost is the seeded family, the two languages, the three publishing surfaces, and the fact that the mark, the art, the frames and the copy have to land TOGETHER |
+| **Impact** | `high` — it is the store listing's and the landing's whole visual argument, and it is also where the product makes its public promises |
+| **Roadmap** | Group 5 (polish), taking the slot L-21 vacates |
+| **Repo** | `flutter` (the app being photographed, `store/`, and the mark's generator) **and** `entrelares-site` (the landing's own art and frames). Plus the Play Console uploads, which live in no repo at all |
+
+> **Absorbs [L-21](https://github.com/irineus/entrelares-site/blob/preview/ROADMAP.md)
+> ("English screenshots for `/en/`"), 24/08/2026, owner decision.** L-21 was written on
+> 10/08/2026 with a premise that has since died: that the PT-BR captures were current and only
+> the English set was missing. The cutover (T-53) replaced the client they photograph and
+> U-27/U-28 replaced its visual system, so **both** sets are now stale — and one capture session
+> produces both. Splitting "shoot the EN frames" from "publish the EN frames" would create a
+> hand-off inside a single sitting.
+
+**Description**
+Re-capture the eight product frames from the **Flutter** app and republish them to both
+consumers. The current set was captured on **23/07/2026** from the QA environment of the
+**Blazor** client, with the `[Dev]` badge masked in place afterwards.
+
+The eight frames (the names are the contract — the landing's `<picture>` elements and their
+`alt` text reference them, so keep them):
+
+| File | What it shows |
+|---|---|
+| `today-calendar-meu-dia` | Home: the day card when the day is the viewer's, plus the month |
+| `today-calendar-dia-do-outro` | The same card in its two-colour state |
+| `calendario-tres-cuidadores` | The month with three caregivers, one colour each |
+| `editor-dia` | The day sheet: responsible, handoff time, observation |
+| `troca-aguardando-aprovacao` | A pending swap with Aprovar / Recusar |
+| `assistente-rotacao-com-avo` | The rotation wizard building a cycle with a grandmother |
+| `historico-auditoria` | The immutable history with date and time |
+| `familia-membros` | The family screen with members and the e-mail invitation |
+
+Each one ships as a **`.png` + `.webp` pair, 1080×1920**. The PT-BR set keeps its place at
+`entrelares-site/public/img/screenshots/`; the English set goes to a **parallel directory**,
+`public/img/screenshots/en/` — L-21's call, and it is the right one: `public/index.html` and
+`public/en/index.html` point at the same files today, so overwriting them in English would
+hand the PT-BR page an English UI and merely move the defect. The **Play listing** takes the
+PT-BR set for `pt-BR` and the English one for `en-US`, uploaded in the Console.
+
+**Two constraints inherited from L-21/L-03, and they are not stylistic**
+
+- **No invented data and no mocked screens** — the frames are a claim about the system, so
+  this is the S-15 rule applied to marketing assets. Fictional family, real running UI.
+- **Keep the `webp` + `png` pair and the existing `loading`/`width`/`height` attributes**, or
+  the hero's LCP regresses. The `alt` text on `/en/` has to describe the English screen it
+  will then actually show.
+
+If **L-17** (the landing's animated demo of the immutable history) is scheduled anywhere near
+this, do them in the same sitting: the recording and the stills come from the same running
+app, and standing that app up is the expensive part.
+
+**The item grew to the WHOLE listing (26/08/2026, owner decision)**
+
+It opened as "re-shoot the eight frames". Two things happened after it was written: **U-29
+replaced the mark** (26/08 — the calendar card whose day cells draw the two interlocked houses)
+and a sweep of the live listing found that the frames were the least of it. The owner's call:
+the item now covers **every surface a stranger sees, in both languages**, and they publish
+**together**.
+
+**Why together, and not one fix at a time.** U-29 deliberately did NOT move the store icon —
+[`store/README.md`](../store/README.md) §2 records the reason: *"the Play listing stays on the
+clay emblem until the listing art is updated as a whole — screenshots, feature graphic and icon
+together (coordinate with T-57)"*. Shipping the icon alone gives the store one mark and eight
+photographs of another; shipping the frames alone does the mirror image. **This item is the
+release condition of that decision**, and it is not met surface by surface.
+
+**A · The mark — three places, none of them the bundle**
+
+The launcher icon travels in the `.aab` and U-29 already regenerated it, which is why the
+INSTALLED app shows the new mark while the store shows the old one. The listing icon is a
+different artifact with a different delivery path, and nothing in any build touches it.
+
+| Where | What |
+|---|---|
+| [`store/store_icon.png`](../store/store_icon.png) | **Done (PR 1, 28/08/2026).** The decision was to teach the script: `store_listing()` writes the 512² at its OWN framing — mark at **60%**, against the PWA's 66% — because Play rounds it and masks it to a circle in some surfaces, which is the crop the hand-supplied file used to survive. A separate function is what stops one framing from drifting into the other. **The upload is still pending** |
+| Play Console → *Grow users → Store presence → Main store listing → **App icon*** | The upload itself |
+| `entrelares-site/public/` | `favicon.png`, `icon-192.png`, `icon-512.png`, `og-cover.png`, `og-cover-en.png` — **five** files, all on the clay mark. `store/README.md` §2 calls moving them "a follow-up of its own"; this is that follow-up |
+
+**B · Feature graphic (1024×500, required by Play)**
+
+[`store/feature-graphic.png`](../store/feature-graphic.png) is still the clay art, rendered from
+`feature-graphic.html` with headless Chrome. Re-render against the new mark and **re-upload** —
+§3's warning applies: *Play serves its own copy and nothing updates it automatically*.
+
+The English side is a known hole, not an oversight: `feature-graphic-english.png` is
+**2950×1440** — Play's 2.048∶1 ratio, but the form takes 1024×500 — and there is no
+`feature-graphic-english.html` that reproduces it. An en-US listing either downscales that file
+or gains a generator. Decide which; do not leave the EN listing showing the PT graphic.
+
+> **Done (PR 1, 28/08/2026): the EN gained a generator.** Both files are re-rendered on the new
+> mark, from `feature-graphic.html` and the new `feature-graphic-english.html`, at 1024×500. The
+> plaque in both is `store_icon.png` shown 1∶1, so the graphic cannot drift from the launcher —
+> re-run `brand-icons.py` before re-rendering. The 2950×1440 clay file was replaced by the render
+> (it drew an emblem U-29 had already retired, and it had no source to re-render from). **Both
+> uploads are still pending.**
+
+**C · The eight frames — with a finding attached**
+
+The frames and their file names are as described above, unchanged. What is new is this:
+
+> **The Console's screenshots look like an upload OLDER than the repo's files (26/08/2026).** On
+> the live Play page, both calendar frames carry an orange **DEV** pill at the bottom right. The
+> versioned files — `entrelares-site/public/img/screenshots/today-calendar-meu-dia.png` and
+> `calendario-tres-cuidadores.png` — were opened and **do not have it**: the `[Dev]` masking was
+> done, in the repo. So the two consumers that `store/README.md` §1 calls "one set" have drifted,
+> and the store is the one that drifted. **Confirm at full size in the Console before acting on
+> it**; if it holds, the listing has been telling every visitor since 13/08 that they are looking
+> at a development build. It also kills the assumption that a re-upload is optional whenever the
+> files already exist in the repo.
+>
+> **The repo half is confirmed (28/08/2026): the Flutter app has no DEV pill at all.** The only
+> environment marker in the client is `environmentPrefix`, and it goes into stored notification
+> TITLES (`main.dart`), not into any widget — `grep` finds no badge, banner or pill. So a DEV pill
+> on the live listing can only come from the **Blazor** client, i.e. from an upload older than the
+> 13/08 masking. Confirm at full size in the Console; the repo side needs nothing.
+
+**D · The copy — where this stops being cosmetic**
+
+[`store/listing-pt-BR.txt`](../store/listing-pt-BR.txt) and
+[`listing-en-US.txt`](../store/listing-en-US.txt) were last touched when they MOVED repositories
+(#70, 24/08); their content predates the cutover. **Re-verify every sentence against the code
+before re-publishing — the S-15 rule, applied to marketing.** The sweep already found one:
+
+> **"Funciona também offline (os dados sincronizam ao reconectar)" is not true of this product.**
+> **T-18** — *"Offline-first data strategy (read cache + offline indicator)"* — is `pending` in
+> this very file. If offline worked, that item would not exist. The sentence was written for the
+> **Blazor PWA**, whose service worker cached the shell; what answers at that URL today is the
+> **tombstone** worker, which deletes caches by design (T-53 stage 4). The claim did not rot
+> through neglect — the cutover falsified it, and nobody re-read the listing.
+
+> **Confirmed and removed (PR 1, 28/08/2026).** `grep -rn offline apps/entrelares_app/lib`
+> returns exactly **one** hit, and it is a comment in `supabase_custody_data_source.dart` — no
+> cache, no indicator, no worker. The bullet is deleted from both files rather than softened:
+> there is nothing true to say in its place while T-18 is `pending`. Its slot went to the **web
+> channel**, which does exist. Worth recording: **the landing never repeated the claim** — the
+> defect was the Play listing's alone.
+
+Two more to check, stated as questions rather than verdicts:
+
+- **"Notificações em tempo real […] chegam na hora para todos os responsáveis."** In-app Realtime
+  exists (plus the F-23 poll), but **F-09, push notifications, is `pending`** — with the app
+  closed, nothing arrives. Decide whether the sentence survives as written.
+  **Decided (PR 1): it does not.** The paragraph now splits the promise the way the code does —
+  live updates *with the app open*, and e-mail (`send-swap-email`, which fires on
+  `swap_requested`, on every resolution and on the F-24 reminder) when it is closed. A third
+  sentence moved in the same pass, unprompted: the PDF report is gated by `_isPremium` in
+  `reports_pdf_tab.dart`, so the copy now names it as Premium.
+- The store shows the app as **"Entrelares (acesso antecipado)"**. That is Play's own
+  early-access tag from the closed test, not our copy — recorded so the next reader does not go
+  hunting for it in `listing-pt-BR.txt`.
+
+The **en-US listing** gets the same treatment, and it is not a translation exercise: it is the
+same verification performed in the other language, against the same code. Console path —
+*Main store listing → Manage translations → English (United States)*; the default language stays
+pt-BR.
+
+**E · The publish, in one sitting**
+
+Nothing here is delivered by a merge. The repo half is `store/` plus `entrelares-site`; the store
+half is **manual uploads in the Console** — icon, feature graphic, eight screenshots per
+language, and both listing texts. Do them as one pass, in both languages, and only then is the
+U-29 decision discharged.
+
+**Where the item stands (28/08/2026)**
+
+`pending` on purpose: **PR 1 delivered the half that does not need a running app**, and nothing
+has been uploaded to the Console yet — E's "one sitting" is intact, because a repo file is not a
+published listing.
+
+| Part | State |
+|---|---|
+| **A · the mark** | **done in both repos.** `store/store_icon.png` is back under the script; the landing's five brand files moved to the U-29 mark; the four clay masters (two per repo) deleted — no vector source, and the geometry now has one home, with the landing holding a rendered master instead of a second drawing |
+| **B · feature graphic** | **done, both languages**, with a generator each |
+| **C · the eight frames** | **done, both languages** (28/08/2026) — see below |
+| **D · the copy** | **done, both languages** |
+| **E · the publish** | **nothing uploaded.** Both repo halves are merge-ready; the Console is untouched |
+
+**The frames were shot from PRODUCTION, across TWO families — and only one of them was
+disposable.** The decision behind it: **the PRODUCTION project, with a disposable family created
+for the shoot** — a `--flavor prod` / `APP_ENV=prod` build against
+real production, as the first gotcha below prescribes. The alternative considered and rejected
+was seeding the family in **dev** through `service_role` (server-written notification titles
+carry no `[Dev] ` prefix, since the prefix is applied by the CLIENT on write, so the frames
+would have come out clean); it was rejected for fidelity. Two consequences were planned for — the families are real
+production data and have to be **removed by hand afterwards**, and they must not be named
+`E2E-…`, which the purge sweep would eat mid-session — and the first of those turned out to hold
+for only one of the two.
+
+> **The cleanup, and why half of it did not happen (28/08/2026).** The frames came from
+> **`Família Andrade` (id 18)**, created the morning of the shoot, and **`Familia Neves` (id 2)**,
+> which was **not** created for it — it dates from 02/08/2026. Andrade was purged in full: 2
+> profiles, 90 `care_schedules`, 103 `activity_logs`, 1 notification, 1 invitation, the family
+> row and **both `auth.users`**, verified afterwards by a sweep that found zero orphan
+> notifications and **zero `auth.users` without a profile anywhere in the project**.
+>
+> **Neves was kept, deliberately, and the reason is worth writing down: it holds the ledger of
+> real money.** Ten `billing_events` — `PAYMENT_CREATED`×2, `PAYMENT_RECEIVED` and
+> `PAYMENT_PARTIALLY_REFUNDED` on the Asaas rail (02–03/08), then `PAYMENT_DELETED` +
+> `SUBSCRIPTION_DELETED`, and the **`PLAY_PURCHASE_VERIFIED` plus three RTDN of 23/08 — the real
+> purchase that proved the T-48 store go-live**. `purge_e2e_family`'s own comment says that table
+> is denormalized on purpose so the *audit survives the subscription*; deleting the family would
+> have deleted the audit it was built to preserve. The owner keeps Neves as the production test
+> family (28/08/2026).
+>
+> **Two traps met on the way, both worth repeating.** `purge_e2e_family` **refuses** either
+> family by design — the double signature wants `E2E-` in the name and `@resend.dev` on every
+> e-mail, exactly so a fixture bug cannot delete a real family — so the teardown had to be
+> hand-written. And its body has been rewritten five times: the **T-39 version**
+> (`20260728150000`) is the one to copy, because it deletes `notifications` by
+> `recipient_profile_id` (that table has no `family_id`), adds `billing_events`, and moves
+> `activity_logs` to **after** `care_schedules`, since deleting days fires the audit triggers that
+> write fresh log rows. The July body gets all three wrong — the `CREATE OR REPLACE` gotcha in
+> `CLAUDE.md`, met in the wild.
+
+**How the capture actually went, and what it cost (28/08/2026)**
+
+Shot on an Android device rather than in the browser, so the frames arrived **1440×3088 JPEG** —
+20∶9, which is neither the 1080×1920 of the existing set nor a ratio Play takes. The fix, applied
+uniformly: crop the OS chrome (**94 px** of status bar, **35 px** of gesture pill — measured, not
+guessed), fit to height, then pad the width by **replicating the edge column**, which is seamless
+because the app's left and right edges are flat (white AppBar, `surface` middle, white nav). A
+20∶9 screen cannot become 9∶16 without either losing content or letterboxing, and losing content
+was the worse trade. The hero's `webp` came out at 76 KB against the previous 80 KB, so the L-03
+LCP constraint held.
+
+**Two measurement bugs are worth knowing before anyone repeats this**, because they had the same
+shape: a search window that ended exactly where the boundary was, so the code reported the window
+edge as the answer. The first cropped 185 px off the top (the status bar *plus* the app's
+safe-area inset); the second cropped 186 px off the bottom and **silently ate the navigation
+bar's labels** — and the frames looked fine until they were compared against the source. Size the
+window to contain the *gap after* the boundary, never to the expected answer.
+
+Three rounds of review were needed on the family itself, and every one was the same class of
+defect — **the data looked like test data**. First a third caregiver named "Tio (Tio)": name equal
+to role, and an uncle where the file name `assistente-rotacao-com-avo` and both pages' `alt` text
+promise a grandmother. Then an `EN-today-calendar-meu-dia` that was really a second
+`dia-do-outro`, because the card is unified only when the viewer IS the day's responsible
+(`isUnified = userSlot == responsibleSlot`, `today_rules.dart`) — a state that needs the right
+ACCOUNT logged in, not the right screen. **Neither was visible by looking; both came from reading
+the frames against the rules.**
+
+Left as-is by owner decision, and recorded so the next session starts from a list instead of
+re-deriving one: the family renders "Familia Neves" without the accent; the swap message reads
+*"combinado, busco as 18h"*; the day note names a different child in each language; and
+`historico-auditoria` shows four instances of the same action, where an approval would have told
+the product's actual story.
+
+**Two findings for other items, both from running this item's own acceptance — *open the Play
+page and the landing as a stranger would*.**
+
+1. **The landing's install instructions point at a host that does not exist.** `public/index.html`
+   and `public/en/index.html` both tell the reader to open **`app.entrelares.app`** — twice each,
+   under *Android (Chrome)* and *iPhone e iPad (Safari)*. That name does not resolve (`curl` gets
+   no connection); the web channel is **`web.entrelares.app`**, which answers 200. Four
+   occurrences, on the section whose only job is to get a stranger into the product, live in
+   production. `app.entrelares.app` survives elsewhere only as `Env.analyticsHostname`, an Umami
+   label that was never a host. **Not fixed here** — it is a landing defect, not listing art or
+   listing copy — but it is worth more than everything this item shipped, and should not wait for
+   a themed item to adopt it.
+2. **The OG banners carry a chip reading "Android e iPhone"**, and there is no iOS app. The web
+   channel answers on an iPhone, so the claim is defensible — but it is the same class as the
+   "offline" sentence this item deleted from the Play listing, and the hero's *"Sem loja de
+   apps"* bullet has drifted the other way now that the app IS on Play. Decide them with **T-40**
+   (the iOS channel) or as a landing copy follow-up.
+
+**Acceptance:** open the Play page and the landing as a stranger would, in each language, and
+find nothing left of the previous product — no clay mark, no Blazor screenshot, no DEV pill, and
+no sentence the code cannot back.
+
+**Four things that will bite, all knowable in advance**
+
+1. **Do not shoot the dev flavour.** `SupabaseCustodyDataSource.environmentPrefix` puts
+   `"[Dev] "` at the head of every stored notification title on non-production flavours. It is
+   a deploy marker, deliberately outside `params` — so it is baked into the text a
+   notification frame would photograph, and no amount of masking fixes a title. Shoot a
+   **production-configured** build (`--dart-define=APP_ENV=prod` on web, `--flavor prod` on
+   Android) against a family created for the purpose.
+2. **The language is resolved, not toggled.** `LanguageResolver` reads localStorage override →
+   `profiles.language` → `navigator.language`. The English set therefore needs the override or
+   a profile stamped `en` — not a device-language guess, which is what makes an English frame
+   silently render Portuguese.
+3. **The seeded family has to be plausible AND disposable.** Three caregivers (the
+   `calendario-tres-cuidadores` and `assistente-rotacao-com-avo` frames need the grandmother),
+   real-looking names, a swap mid-flight for the approval frame, and history for the audit
+   frame. It must not be a real family's data, and it must not be an `E2E-` family the purge
+   sweep will eat mid-session.
+4. **A closed test survives a listing update**, so this does not have to wait for a release —
+   but it should PRECEDE the next production rollout, which is the argument the
+   `store/README.md` note has been carrying.
+
+**Justification**
+The listing and the landing are the only two places where somebody who has never opened the
+app decides whether to. Both currently show the Blazor client under the pre-U-27 visual
+system: the product is misrepresented *cosmetically*, not in what it claims — which is why
+this is polish and not a defect, and also why it never becomes urgent on its own and has to be
+written down to happen at all.
+
+**Files affected**
+- `entrelares-site/public/img/screenshots/*.{png,webp}` — the eight PT-BR frames, re-shot
+- `entrelares-site/public/img/screenshots/en/*.{png,webp}` — the English set (new directory)
+- `entrelares-site/public/index.html` + `public/en/index.html` — `alt` text review; `/en/`
+  finally points at the English captures (the L-21 half)
+- `entrelares-site/ROADMAP.md` — L-21's record, closed as absorbed
+- `store/README.md` §1 — the "out of date" note comes down when the frames are current
+- Play Console (owner ops, no code): the `pt-BR` and `en-US` screenshot sets

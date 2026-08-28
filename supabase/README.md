@@ -1424,9 +1424,10 @@ path do not contradict each other.
 1. *Google Auth Platform → **Branding***: app name **Entrelares**, logo, support e-mail,
    authorized domain `entrelares.app`, and the home page / privacy policy / terms links — the
    landing already serves `entrelares.app/privacidade` and `/termos` (lote 4). **Use
-   `apps/entrelares_app/assets/brand/emblema.png`** (the indigo squircle, U-29) — NOT
-   `store/store_icon.png`, which is deliberately still the retired F-54 clay emblem until the
-   Play listing art moves as a whole (T-57).
+   `apps/entrelares_app/assets/brand/emblema.png`** (the indigo squircle, U-29) — or
+   `store/store_icon.png`, which since **T-57** (28/08/2026) is the same U-29 mark rather than
+   the retired F-54 clay emblem; the two differ only in framing (the store icon is full-bleed at
+   60 %, cut for Play's own rounding).
 
    > **Measured on 28/08/2026:** the *Authorized domains* list already carries both Supabase
    > project hosts, added by the console because the OAuth client's redirect URIs live there.

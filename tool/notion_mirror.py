@@ -63,6 +63,14 @@ SEP = "\x1e"
 # start with a backlog prefix again.
 ID_RE = re.compile(r"\b([FUTS]-\d{2})\b(?!-\d)")
 L_RE = re.compile(r"\b(L-\d{2})\b")
+# The trailer is read with BOTH vocabularies, in every repo. Scoping IDs by repo is
+# right for PROSE — an `F-` mentioned in a landing commit is background, not a
+# delivery — but a `Backlog:` trailer is a deliberate declaration, and the landing
+# DOES deliver app-repo items: T-57's eight screenshots and the U-29 mark shipped
+# from `entrelares-site` (28/08/2026) and were invisible here until this line
+# existed, though the module docstring already promised "recorded in one repo and
+# may be delivered in another".
+ANY_ID_RE = re.compile(r"\b([FUTSL]-\d{2})\b(?!-\d)")
 # Conventional-commit scope naming an item: feat(s15): / test(t32):
 SCOPE_RE = re.compile(r"^\w+\(([futs])-?(\d{2})\)", re.I)
 TRAILER_RE = re.compile(r"^Backlog:\s*(.+)$", re.M)
@@ -107,6 +115,11 @@ HAND_REVIEWED: dict[str, dict[str, set[str]]] = {
         "7bf4380": {"L-08"},   "61e94e0": {"L-02"},
     },
     "flutter": {
+        # T-57 shipped real store assets — the 512² listing icon, both feature
+        # graphics and both listing texts — under a `docs(store):` subject, which the
+        # docs heuristic reads as writing ABOUT the item. The subject was mis-scoped at
+        # commit time; the payload was the delivery.
+        "05142ac": {"T-57"},
         # The stage-3 BATCH commits need no entry — they spell "(T-53)" in the subject.
         # What needs one is the work at both ends of the item, whose subjects describe
         # the effect and whose messages name no item at all. Credited from the stage's
@@ -201,7 +214,7 @@ def delivered_by(sha: str, subject: str, message: str, landing: bool,
     present = ids_in(message, landing)
     trailer = set()
     for m in TRAILER_RE.finditer(message):
-        trailer |= ids_in(m.group(1), landing)
+        trailer |= set(ANY_ID_RE.findall(m.group(1)))
     if trailer:
         return trailer & present or trailer
     named = ids_in(subject, landing)
@@ -429,15 +442,22 @@ def main() -> int:
     for label, repo in paths.items():
         rows = read_commits(repo, REPOS[label], label)
         all_rows[label] = rows
+        hand = HAND_REVIEWED.get(label, {})
         for r in rows:
+            # A hand-reviewed sha is authoritative over the `docs:` heuristic too. The
+            # heuristic is right in the general case — most `docs(backlog):` commits
+            # write ABOUT an item instead of delivering it — but it also catches the
+            # occasional commit that was mis-scoped at the time and whose payload was
+            # real. Only shas listed by hand are affected.
+            as_docs = r["docs"] and r["sha"] not in hand
             for i in r["ent"]:
-                (doc if r["docs"] else ent)[i].append(r)
+                (doc if as_docs else ent)[i].append(r)
             for i in r["ctx"]:
-                (doc if r["docs"] else ctx)[i].append(r)
+                (doc if as_docs else ctx)[i].append(r)
         # The hand review is only as good as its shas: an entry that matches nothing is
         # a typo or a rebased commit, and silence would look exactly like "no deliveries".
         seen = {r["sha"] for r in rows}
-        for sha in HAND_REVIEWED.get(label, {}):
+        for sha in hand:
             if sha not in seen:
                 print(f"WARNING: HAND_REVIEWED[{label}][{sha}] matches no commit in "
                       f"{REPOS[label]['ref']}", file=sys.stderr)

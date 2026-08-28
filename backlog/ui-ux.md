@@ -344,7 +344,7 @@ reads; the adaptive icon gained the indigo background and the **Android 13 monoc
 safe zone. The native splash inherits the new mark automatically (`launch_background.xml`
 draws `@mipmap/ic_launcher`). **Deliberately out (owner decision 26/08/2026):**
 `store/store_icon.png` stays on the clay emblem until the Play listing art is refreshed as a
-whole (T-57), and the landing repo's favicon/OG art is a follow-up of its own —
+whole (T-57, done 28/08/2026 — which also moved the landing repo's favicon/OG art) —
 `store/README.md` §2 records both.
 
 **Round 4 — device QA of the round-3 build (owner-reported, 26/08/2026).** Three returns:
