@@ -14,7 +14,7 @@ TROCAS COM APROVAÇÃO DOS DOIS LADOS
 Precisou trocar um dia? Proponha a troca com uma mensagem curta ("consulta médica às 14h") — nada muda no calendário sem o outro responsável concordar. Quem responde também pode comentar, e tudo fica registrado. Sem resposta, a solicitação é aprovada automaticamente após 48 horas, com lembrete antes.
 
 HISTÓRICO QUE NINGUÉM PODE ALTERAR
-Cada mudança no calendário fica registrada: quem pediu, quem aprovou e as mensagens trocadas. O histórico não pode ser editado nem apagado — por ninguém. Gere um relatório em PDF do período com a linha do tempo completa.
+Cada mudança no calendário fica registrada: quem pediu, quem aprovou e as mensagens trocadas. O histórico não pode ser editado nem apagado — por ninguém. No plano Premium, gere um relatório em PDF do período com a linha do tempo completa.
 
 RESUMO DO PERÍODO
 Veja quantos dias cada responsável teve — o planejado e o realizado —, quantas trocas cada um cedeu e recebeu, e o saldo previsto considerando as trocas futuras já combinadas.
@@ -23,12 +23,12 @@ MAIS CUIDADORES NA ROTINA
 Avós, babá ou outro responsável podem participar da família com papel próprio, convidados por e-mail pelos administradores.
 
 SEMPRE ATUALIZADO
-Notificações em tempo real: solicitações, aprovações e mudanças chegam na hora para todos os responsáveis.
+Com o app aberto, o calendário se atualiza em tempo real: solicitações, aprovações e mudanças aparecem sem precisar recarregar. Com o app fechado, cada solicitação, aprovação e lembrete de prazo chega por e-mail.
 
 FEITO PARA O SEU DIA A DIA
 • Em português e em inglês — cada pessoa da família lê no seu idioma, inclusive as notificações e os e-mails
 • Feito para o celular
-• Funciona também offline (os dados sincronizam ao reconectar)
+• O mesmo calendário no navegador, em https://web.entrelares.app
 • O essencial é gratuito: calendário, trocas com aprovação, notificações e histórico
 
 PRIVACIDADE

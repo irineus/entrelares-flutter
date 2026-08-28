@@ -396,7 +396,7 @@ different artifact with a different delivery path, and nothing in any build touc
 
 | Where | What |
 |---|---|
-| [`store/store_icon.png`](../store/store_icon.png) | 512², still the retired F-54 clay emblem. `brand-icons.py` does **not** write it — a deliberate 13/08 removal so a routine re-run could not silently regress the framing, reaffirmed by U-29. First decision of this section: teach the script to write it, or hand-frame it again. Play crops it, and the old file was hand-supplied precisely because it survived that crop better |
+| [`store/store_icon.png`](../store/store_icon.png) | **Done (PR 1, 28/08/2026).** The decision was to teach the script: `store_listing()` writes the 512² at its OWN framing — mark at **60%**, against the PWA's 66% — because Play rounds it and masks it to a circle in some surfaces, which is the crop the hand-supplied file used to survive. A separate function is what stops one framing from drifting into the other. **The upload is still pending** |
 | Play Console → *Grow users → Store presence → Main store listing → **App icon*** | The upload itself |
 | `entrelares-site/public/` | `favicon.png`, `icon-192.png`, `icon-512.png`, `og-cover.png`, `og-cover-en.png` — **five** files, all on the clay mark. `store/README.md` §2 calls moving them "a follow-up of its own"; this is that follow-up |
 
@@ -411,6 +411,13 @@ The English side is a known hole, not an oversight: `feature-graphic-english.png
 `feature-graphic-english.html` that reproduces it. An en-US listing either downscales that file
 or gains a generator. Decide which; do not leave the EN listing showing the PT graphic.
 
+> **Done (PR 1, 28/08/2026): the EN gained a generator.** Both files are re-rendered on the new
+> mark, from `feature-graphic.html` and the new `feature-graphic-english.html`, at 1024×500. The
+> plaque in both is `store_icon.png` shown 1∶1, so the graphic cannot drift from the launcher —
+> re-run `brand-icons.py` before re-rendering. The 2950×1440 clay file was replaced by the render
+> (it drew an emblem U-29 had already retired, and it had no source to re-render from). **Both
+> uploads are still pending.**
+
 **C · The eight frames — with a finding attached**
 
 The frames and their file names are as described above, unchanged. What is new is this:
@@ -424,6 +431,12 @@ The frames and their file names are as described above, unchanged. What is new i
 > it**; if it holds, the listing has been telling every visitor since 13/08 that they are looking
 > at a development build. It also kills the assumption that a re-upload is optional whenever the
 > files already exist in the repo.
+>
+> **The repo half is confirmed (28/08/2026): the Flutter app has no DEV pill at all.** The only
+> environment marker in the client is `environmentPrefix`, and it goes into stored notification
+> TITLES (`main.dart`), not into any widget — `grep` finds no badge, banner or pill. So a DEV pill
+> on the live listing can only come from the **Blazor** client, i.e. from an upload older than the
+> 13/08 masking. Confirm at full size in the Console; the repo side needs nothing.
 
 **D · The copy — where this stops being cosmetic**
 
@@ -439,11 +452,23 @@ before re-publishing — the S-15 rule, applied to marketing.** The sweep alread
 > **tombstone** worker, which deletes caches by design (T-53 stage 4). The claim did not rot
 > through neglect — the cutover falsified it, and nobody re-read the listing.
 
+> **Confirmed and removed (PR 1, 28/08/2026).** `grep -rn offline apps/entrelares_app/lib`
+> returns exactly **one** hit, and it is a comment in `supabase_custody_data_source.dart` — no
+> cache, no indicator, no worker. The bullet is deleted from both files rather than softened:
+> there is nothing true to say in its place while T-18 is `pending`. Its slot went to the **web
+> channel**, which does exist. Worth recording: **the landing never repeated the claim** — the
+> defect was the Play listing's alone.
+
 Two more to check, stated as questions rather than verdicts:
 
 - **"Notificações em tempo real […] chegam na hora para todos os responsáveis."** In-app Realtime
   exists (plus the F-23 poll), but **F-09, push notifications, is `pending`** — with the app
   closed, nothing arrives. Decide whether the sentence survives as written.
+  **Decided (PR 1): it does not.** The paragraph now splits the promise the way the code does —
+  live updates *with the app open*, and e-mail (`send-swap-email`, which fires on
+  `swap_requested`, on every resolution and on the F-24 reminder) when it is closed. A third
+  sentence moved in the same pass, unprompted: the PDF report is gated by `_isPremium` in
+  `reports_pdf_tab.dart`, so the copy now names it as Premium.
 - The store shows the app as **"Entrelares (acesso antecipado)"**. That is Play's own
   early-access tag from the closed test, not our copy — recorded so the next reader does not go
   hunting for it in `listing-pt-BR.txt`.
@@ -459,6 +484,69 @@ Nothing here is delivered by a merge. The repo half is `store/` plus `entrelares
 half is **manual uploads in the Console** — icon, feature graphic, eight screenshots per
 language, and both listing texts. Do them as one pass, in both languages, and only then is the
 U-29 decision discharged.
+
+**Where the item stands (28/08/2026)**
+
+`pending` on purpose: **PR 1 delivered the half that does not need a running app**, and nothing
+has been uploaded to the Console yet — E's "one sitting" is intact, because a repo file is not a
+published listing.
+
+| Part | State |
+|---|---|
+| **A · the mark** | **done in both repos.** `store/store_icon.png` is back under the script; the landing's five brand files moved to the U-29 mark; the four clay masters (two per repo) deleted — no vector source, and the geometry now has one home, with the landing holding a rendered master instead of a second drawing |
+| **B · feature graphic** | **done, both languages**, with a generator each |
+| **C · the eight frames** | **done, both languages** (28/08/2026) — see below |
+| **D · the copy** | **done, both languages** |
+| **E · the publish** | **nothing uploaded.** Both repo halves are merge-ready; the Console is untouched |
+
+**The frames were shot from PRODUCTION, family *Neves* (Rafael/Marina/Nair) — and that family
+still exists and has to be removed by hand.** The decision behind it: **the PRODUCTION project,
+with a disposable family created for the shoot** — a `--flavor prod` / `APP_ENV=prod` build against
+real production, as the first gotcha below prescribes. The alternative considered and rejected
+was seeding the family in **dev** through `service_role` (server-written notification titles
+carry no `[Dev] ` prefix, since the prefix is applied by the CLIENT on write, so the frames
+would have come out clean); it was rejected for fidelity. Two consequences to plan for: the
+family is real production data and has to be **removed by hand afterwards**, and it must not be
+named `E2E-…`, which the purge sweep would eat mid-session.
+
+**How the capture actually went, and what it cost (28/08/2026)**
+
+Shot on an Android device rather than in the browser, so the frames arrived **1440×3088 JPEG** —
+20∶9, which is neither the 1080×1920 of the existing set nor a ratio Play takes. The fix, applied
+uniformly: crop the OS chrome (**94 px** of status bar, **35 px** of gesture pill — measured, not
+guessed), fit to height, then pad the width by **replicating the edge column**, which is seamless
+because the app's left and right edges are flat (white AppBar, `surface` middle, white nav). A
+20∶9 screen cannot become 9∶16 without either losing content or letterboxing, and losing content
+was the worse trade. The hero's `webp` came out at 76 KB against the previous 80 KB, so the L-03
+LCP constraint held.
+
+**Two measurement bugs are worth knowing before anyone repeats this**, because they had the same
+shape: a search window that ended exactly where the boundary was, so the code reported the window
+edge as the answer. The first cropped 185 px off the top (the status bar *plus* the app's
+safe-area inset); the second cropped 186 px off the bottom and **silently ate the navigation
+bar's labels** — and the frames looked fine until they were compared against the source. Size the
+window to contain the *gap after* the boundary, never to the expected answer.
+
+Three rounds of review were needed on the family itself, and every one was the same class of
+defect — **the data looked like test data**. First a third caregiver named "Tio (Tio)": name equal
+to role, and an uncle where the file name `assistente-rotacao-com-avo` and both pages' `alt` text
+promise a grandmother. Then an `EN-today-calendar-meu-dia` that was really a second
+`dia-do-outro`, because the card is unified only when the viewer IS the day's responsible
+(`isUnified = userSlot == responsibleSlot`, `today_rules.dart`) — a state that needs the right
+ACCOUNT logged in, not the right screen. **Neither was visible by looking; both came from reading
+the frames against the rules.**
+
+Left as-is by owner decision, and recorded so the next session starts from a list instead of
+re-deriving one: the family renders "Familia Neves" without the accent; the swap message reads
+*"combinado, busco as 18h"*; the day note names a different child in each language; and
+`historico-auditoria` shows four instances of the same action, where an approval would have told
+the product's actual story.
+
+**One finding for another item.** The landing's OG banners carry a chip reading **"Android e
+iPhone"**, and there is no iOS app — the web channel answers on an iPhone, so the claim is
+defensible, but it is the same class as the "offline" sentence this item deleted from the Play
+listing. Not changed here: it is landing marketing copy, outside D's scope. Decide it with
+**T-40** (the iOS channel) or as a landing follow-up.
 
 **Acceptance:** open the Play page and the landing as a stranger would, in each language, and
 find nothing left of the previous product — no clay mark, no Blazor screenshot, no DEV pill, and
