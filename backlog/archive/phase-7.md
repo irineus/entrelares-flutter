@@ -3540,14 +3540,18 @@ page and the landing as a stranger would*.**
    no connection); the web channel is **`web.entrelares.app`**, which answers 200. Four
    occurrences, on the section whose only job is to get a stranger into the product, live in
    production. `app.entrelares.app` survives elsewhere only as `Env.analyticsHostname`, an Umami
-   label that was never a host. **Not fixed here** — it is a landing defect, not listing art or
-   listing copy — but it is worth more than everything this item shipped, and should not wait for
-   a themed item to adopt it.
-2. **The OG banners carry a chip reading "Android e iPhone"**, and there is no iOS app. The web
-   channel answers on an iPhone, so the claim is defensible — but it is the same class as the
-   "offline" sentence this item deleted from the Play listing, and the hero's *"Sem loja de
-   apps"* bullet has drifted the other way now that the app IS on Play. Decide them with **T-40**
-   (the iOS channel) or as a landing copy follow-up.
+   label that was never a host. **Fixed the same day**, in
+   [site#64](https://github.com/irineus/entrelares-site/pull/64), on the owner's instruction —
+   as a landing defect rather than as part of this item, and it is worth more than everything
+   this item shipped.
+2. **"Android e iPhone" and "Sem loja de apps" — checked, and NOT defects.** Read in context
+   both hold: the PWA does run on both platforms, the install section gives the steps for each,
+   and the Play listing is still a CLOSED test, invisible to a visitor — so a page that says it
+   installs "sem loja" is describing the path it actually offers. They were left alone on
+   purpose: correct copy should not be edited early to look thorough. **They flip at T-59**
+   (closed test → public availability), where a checklist line now says so, together with the
+   Google Play badge block that already sits commented out in both pages waiting for exactly
+   that event.
 
 **Acceptance:** open the Play page and the landing as a stranger would, in each language, and
 find nothing left of the previous product — no clay mark, no Blazor screenshot, no DEV pill, and

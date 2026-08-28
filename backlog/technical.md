@@ -454,6 +454,14 @@ mostly owner ops, plus small PRs wherever a checkbox turns out to be code.
   F-44 notes, the §7 operator list) + the materiality call on the policy text.
 - [x] **T-57 shot** (28/08/2026, Console submission 9) — the listing must not go public with screenshots of the dead Blazor
   client under the pre-U-27 visual system.
+- [ ] **The landing's "no app store" framing flips with this event.** While the Play listing is
+  a CLOSED test it is invisible to a visitor, so `entrelares-site`'s hero bullet *"Sem loja de
+  apps"* / *"No app store"* and the install section's *"instala direto do navegador, sem loja"*
+  are all TRUE — they describe the path that page offers. Public availability falsifies the
+  first and leaves the second merely incomplete. Both pages already carry a **Google Play badge
+  block, commented out**, whose comment says to uncomment it "when the T-38 listing is LIVE";
+  that moment is this item, not T-38. Found while closing T-57 (28/08/2026), and deliberately
+  NOT changed then — correct copy should not be edited early to look thorough.
 - [ ] **T-36 decision** — the no-PITR/no-daily-backup risk was accepted for a closed test
   with ~12 testers; a public listing reopens that acceptance (T-36 is the dependency that
   survived every reordering).
