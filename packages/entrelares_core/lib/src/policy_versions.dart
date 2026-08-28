@@ -1,14 +1,20 @@
 /// S-13/S-15 — the policy version the sign-up consent refers to, and the pure
-/// decision of the re-consent gate. Mirror of `entrelares-app`
-/// `Entrelares/Helpers/PolicyVersions.cs`.
+/// decision of the re-consent gate. Ported from `entrelares-app`
+/// `Entrelares/Helpers/PolicyVersions.cs`; that repo was archived with the
+/// Blazor client (T-56, 25/08/2026), so this is now the only copy.
 ///
 /// A bump is not just a record: it DRIVES the gate. Bumping [current] makes
 /// every profile stamped with an older version pass through [evaluate], and
 /// from [enforceFrom] the app blocks until the new text is accepted.
-/// MATERIAL-CHANGE CHECKLIST, all in the same delivery — and it now spans two
-/// repos, since the Blazor client carries the same two constants:
+/// MATERIAL-CHANGE CHECKLIST, all in the same delivery — it still spans two
+/// repos, but the second one is now `entrelares-site`, which holds the ONLY
+/// copy of the legal TEXT: the app has no `/privacy` route of its own and links
+/// straight to the landing (see `deep_link_urls.dart`).
+///   0. the text itself, in `entrelares-site/public/{privacidade,termos}.html`;
 ///   1. [current];
-///   2. [enforceFrom] = publication date + 15 days;
+///   2. [enforceFrom] = publication date + 15 days — and "publication" there is
+///      the landing's `preview`→`main` promotion, which is deploy-on-demand in
+///      that repo, never the merge that only reaches `preview`;
 ///   3. the `policy.current_version` / `policy.enforce_from` rows in
 ///      `app_settings` (migration) — the RPC validates against them and REFUSES
 ///      an accept whose version does not match, so a forgotten migration is a
