@@ -698,15 +698,15 @@ release build prints today (they come from Gradle 9 on a modern JDK, not from ou
 
 ---
 
-### T-61 — Custom domain for the auth endpoint: the Google screens must say Entrelares
+### T-61 — The Google sign-in screens must say Entrelares, not the project ref
 
 | Field | Value |
 |---|---|
 | **Status** | `pending` |
 | **Priority** | `high` — **the owner named it a blocker for public availability** (27/08/2026, during the F-57 go-live): "vamos ter que ver uma solução para isso antes de fazer o release público" |
-| **Complexity** | `low-medium` — console + DNS, **plus three lines of client code**: the first analysis said "no application code" and that was wrong (see *The client side*, below) |
+| **Complexity** | `low` on the decided path (**A**: a console submission, no code, no DNS, no spend) · `medium` on the fallback (**B**: ~1 session of client code + one OAuth client per flavor) |
 | **Impact** | `high` (first-contact trust, on the one screen where the user hands over their identity) |
-| **Depends on / relates** | **F-57** (which surfaced it), **T-59** (public rollout — this should land first), group 8 (owner spend) |
+| **Depends on / relates** | **F-57** (which surfaced it), **T-59** (public rollout — this should land first), **T-40** (iOS inherits whichever path wins) |
 
 > **Found 27/08/2026, testing F-57 on a real device.** Not a hypothesis: measured on the
 > device, twice, in the two places Google names the relying party.
@@ -725,50 +725,70 @@ shown is a random string. A user who backs out there does not report a bug — t
 not sign up, and the closed alpha's own feedback (the F-57 origin) says sign-up friction is
 already the product's most failure-prone stretch.
 
-**The fix (decided with the owner, 27/08/2026).** Supabase
-**[Custom Domains](https://supabase.com/docs/guides/platform/custom-domains)**, a paid
-per-project add-on: the project answers on **`auth.entrelares.app`**, the OAuth client's
-redirect URI moves with it, and Google then displays our domain in both the consent screen and
-the notification e-mail. **Production only** — dev keeps the project host, since no real user
-meets it and the add-on is billed per project.
+**The decision (owner, 28/08/2026): A now, B if A fails — both free.** The first analysis
+proposed the paid Custom Domain add-on and recorded that "no free configuration reaches those
+lines". That was wrong on both counts, and the correction is the substance of this item.
 
-**The free alternative, considered and rejected.** Supabase also offers **vanity subdomains**
-(`entrelares.supabase.co`): no add-on, CLI only, marked experimental. It deletes the random
-string but keeps `supabase.co` on the exact screen where the user hands over their identity —
-half the problem, on the half that is the reason the item exists. The two are **mutually
-exclusive**, so taking the cheap one now would buy a SECOND host migration later, with real
-accounts already created. Rejected on that, not on price. *(The earlier "what does NOT fix it"
-finding still stands: the Branding app name and logo do appear on the consent screen, but the
-"to continue to X" line and the e-mail subject are driven by the host alone.)*
+| | Path | Cost | Android | Web |
+|---|---|---|---|---|
+| **A** | **Google brand verification** — decided first move | zero | fixes | fixes |
+| **B** | **Native sign-in** (`signInWithIdToken`) — decided fallback | zero | fixes | **does not** |
+| C | Vanity subdomain (`entrelares.supabase.co`) | zero | partial | partial |
+| D | Custom domain (`auth.entrelares.app`) | ~US$10/mo | fixes | fixes |
 
-**The client side — the "no application code" reading was wrong.** Three files name the host,
-and one of them fails in a way nothing catches:
+**A — why it is the first move.** Supabase's own Google guide states that Branding **and
+Verification** *"show a logo and name instead of the Supabase project ID in the consent
+screen"*. §9-ter.0 configured Branding and PUBLISHED the Audience — but published ≠ verified,
+and verification is a separate submission with human review. So the device measurement above and
+this path do not contradict each other: an unverified app showing the ref is exactly the
+expected state. The app requests only non-sensitive scopes (`main.dart` passes no `scopes`, so
+`openid`/`email`/`profile`), which is the light review path. **Open risk:** Google requires
+authorized domains you can prove you own and infers them from the redirect URIs; if `supabase.co`
+is pulled into that list the submission may be refused. That refusal — or a review that returns
+with the ref still on screen — is the ONLY trigger for B.
 
-* `apps/entrelares_app/lib/env.dart` — `Env.prod.supabaseUrl`.
-* `apps/entrelares_app/web/_headers` — `connect-src https://*.supabase.co wss://*.supabase.co`.
-  **`auth.entrelares.app` does not match that wildcard**, and the failure is not a degraded
-  auth flow: the CSP blocks the app's whole API surface, REST and Realtime included, with the
-  browser console as the only witness.
-* `apps/entrelares_app/pubspec.yaml` — the version bump the flip requires like any functional
-  change.
+**B — what the fallback is, and what it accepts.** Google issues an ID token to the app and
+`signInWithIdToken` exchanges it for a Supabase session; GoTrue's redirect never happens, so no
+host is displayed at all — the native account picker shows the app's own name, which is also
+better UX than today's Custom Tab. Most of F-57 survives untouched: the `/auth/v1/settings`
+fail-closed switch (the provider still has to be enabled), `OauthOnboardingScreen`,
+`completeOauthOnboarding`, migration `20260827140000` and the `oauth_onboarding` /
+`claim_invitation` / `joined_via_invite` gate suites all live downstream of "a Google session
+exists". What changes is the body of `_signInWithGoogle`, a `google_sign_in ^7.x` dependency, one
+Android OAuth client per flavor, and the manifest scheme filter becoming dead code.
 
-**And the flip is not deferrable.** The CLI documents activation as a hard cutover for auth:
-*"After the custom hostname is activated, your project's third-party auth providers will no
-longer function on the Supabase-provisioned subdomain."* REST/Realtime/Storage keep answering
-on both hosts; **Google sign-in exists only on the new one** from that instant. So the client
-change ships in the same window as the activation — including a Play promotion, or the store
-build's Google button breaks until one happens.
+> **B does not fix the web, and that is accepted.** `google_sign_in_web` reports
+> `supportsAuthentication: false` and throws on `authenticate()`; the only web path is Google's
+> rendered GIS button, which would put a third-party SCRIPT source in the CSP and replace the
+> U-27 button with an iframe — reversing the owner decision of 23/08/2026 that fonts may come
+> from a third party and executable code may not.
+>
+> **The positioning this rests on (owner, 28/08/2026):** Entrelares is an **Android/iOS
+> product**. `web.entrelares.app` and the Asaas rail it sells through are the **alternative
+> channel, deliberately not the main focus.** Write that down rather than infer it: the repo
+> builds both channels to the same standard and ranks neither, so a future reader looking at the
+> web gap would read it as an oversight instead of a priced trade.
 
-**Delivered so far (PR 1, 27/08/2026), before any spend:** the mirror that makes the flip safe.
-`web_channel_test` now asserts that `connect-src` covers the host `Env.prod.supabaseUrl` names,
-in both `https` and `wss` — so the one-line host change is a red gate until `_headers` follows
-it, instead of a silent outage. The ordered procedure (add-on → DNS with the proxy OFF →
-`domains create/reverify` → GCP redirect URI → `domains activate` → client flip → verify →
-rollback) is `supabase/README.md` §9-quater.
+**The client side — "no application code" was wrong.** It is true of A (nothing changes) but of
+nothing else. B rewrites the sign-in callback; C and D each move the host, and **three files name
+it**: `lib/env.dart` (`Env.prod.supabaseUrl`), `web/_headers` — whose `connect-src` wildcard
+`*.supabase.co` does **not** cover `auth.entrelares.app`, and a host the CSP misses is not a
+degraded login but an app that reaches no API at all — and `pubspec.yaml` for the version bump.
 
-**Remaining, all owner/console work:** buy the add-on, create the Cloudflare records, run the
-three CLI commands, add the callback in GCP, then the one-PR client flip and the §9-ter.2
-re-run on production.
+**C and D, kept on the shelf.** Vanity subdomains and the Custom Domain add-on are **mutually
+exclusive**, so the cheap one now would buy a second host migration later with real accounts
+already created. D also carries a fact worth keeping visible: activation is a hard cutover —
+*"your project's third-party auth providers will no longer function on the Supabase-provisioned
+subdomain"* — so the client flip and a Play promotion must ride the same window.
+
+**Delivered (PR 1, 27-28/08/2026), before any spend:** `web_channel_test` now asserts that
+`connect-src` covers the host `Env.prod.supabaseUrl` names, in both `https` and `wss`, so any
+future host change is a red gate until `_headers` follows it instead of a silent outage. Plus the
+runbook: `supabase/README.md` §9-quater carries all four paths, A first, with D's full ordered
+procedure preserved for the day it is needed.
+
+**Remaining:** execute §9-quater.A (console submission, then re-measure the consent screen AND
+the summary e-mail on a real device). If it fails, §9-quater.B.
 
 **Sequencing.** Doing this BEFORE the public rollout avoids a second migration of the redirect
 URI while real accounts exist — a change of auth host mid-flight is the kind of thing that
