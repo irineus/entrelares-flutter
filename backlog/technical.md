@@ -704,7 +704,7 @@ release build prints today (they come from Gradle 9 on a modern JDK, not from ou
 |---|---|
 | **Status** | `pending` |
 | **Priority** | `high` — **the owner named it a blocker for public availability** (27/08/2026, during the F-57 go-live): "vamos ter que ver uma solução para isso antes de fazer o release público" |
-| **Complexity** | `low` (console + DNS; no application code) |
+| **Complexity** | `low-medium` — console + DNS, **plus three lines of client code**: the first analysis said "no application code" and that was wrong (see *The client side*, below) |
 | **Impact** | `high` (first-contact trust, on the one screen where the user hands over their identity) |
 | **Depends on / relates** | **F-57** (which surfaced it), **T-59** (public rollout — this should land first), group 8 (owner spend) |
 
@@ -725,17 +725,51 @@ shown is a random string. A user who backs out there does not report a bug — t
 not sign up, and the closed alpha's own feedback (the F-57 origin) says sign-up friction is
 already the product's most failure-prone stretch.
 
-**The fix.** Supabase **[Custom Domains](https://supabase.com/docs/guides/platform/custom-domains)**,
-a paid per-project add-on: the project answers on our own host (e.g. `auth.entrelares.app`),
-the OAuth client's redirect URI moves with it, and Google then displays our domain in both the
-consent screen and the notification e-mail. Scope: buy the add-on, point DNS, update the
-redirect URI in the GCP client and the callback in each Supabase project, then re-run 9-ter.2.
+**The fix (decided with the owner, 27/08/2026).** Supabase
+**[Custom Domains](https://supabase.com/docs/guides/platform/custom-domains)**, a paid
+per-project add-on: the project answers on **`auth.entrelares.app`**, the OAuth client's
+redirect URI moves with it, and Google then displays our domain in both the consent screen and
+the notification e-mail. **Production only** — dev keeps the project host, since no real user
+meets it and the add-on is billed per project.
 
-**What does NOT fix it, checked before proposing the spend:** the Branding app name and logo do
-appear on the consent screen, but the "to continue to X" line and the e-mail subject are both
-driven by the host — no free configuration reaches them.
+**The free alternative, considered and rejected.** Supabase also offers **vanity subdomains**
+(`entrelares.supabase.co`): no add-on, CLI only, marked experimental. It deletes the random
+string but keeps `supabase.co` on the exact screen where the user hands over their identity —
+half the problem, on the half that is the reason the item exists. The two are **mutually
+exclusive**, so taking the cheap one now would buy a SECOND host migration later, with real
+accounts already created. Rejected on that, not on price. *(The earlier "what does NOT fix it"
+finding still stands: the Branding app name and logo do appear on the consent screen, but the
+"to continue to X" line and the e-mail subject are driven by the host alone.)*
 
-**Sequencing.** Production only, if the budget argues; dev may keep the project host, since no
-real user meets it. Doing this BEFORE the public rollout avoids a second migration of the
-redirect URI while real accounts exist — a change of auth host mid-flight is the kind of thing
-that invalidates in-progress sign-ins.
+**The client side — the "no application code" reading was wrong.** Three files name the host,
+and one of them fails in a way nothing catches:
+
+* `apps/entrelares_app/lib/env.dart` — `Env.prod.supabaseUrl`.
+* `apps/entrelares_app/web/_headers` — `connect-src https://*.supabase.co wss://*.supabase.co`.
+  **`auth.entrelares.app` does not match that wildcard**, and the failure is not a degraded
+  auth flow: the CSP blocks the app's whole API surface, REST and Realtime included, with the
+  browser console as the only witness.
+* `apps/entrelares_app/pubspec.yaml` — the version bump the flip requires like any functional
+  change.
+
+**And the flip is not deferrable.** The CLI documents activation as a hard cutover for auth:
+*"After the custom hostname is activated, your project's third-party auth providers will no
+longer function on the Supabase-provisioned subdomain."* REST/Realtime/Storage keep answering
+on both hosts; **Google sign-in exists only on the new one** from that instant. So the client
+change ships in the same window as the activation — including a Play promotion, or the store
+build's Google button breaks until one happens.
+
+**Delivered so far (PR 1, 27/08/2026), before any spend:** the mirror that makes the flip safe.
+`web_channel_test` now asserts that `connect-src` covers the host `Env.prod.supabaseUrl` names,
+in both `https` and `wss` — so the one-line host change is a red gate until `_headers` follows
+it, instead of a silent outage. The ordered procedure (add-on → DNS with the proxy OFF →
+`domains create/reverify` → GCP redirect URI → `domains activate` → client flip → verify →
+rollback) is `supabase/README.md` §9-quater.
+
+**Remaining, all owner/console work:** buy the add-on, create the Cloudflare records, run the
+three CLI commands, add the callback in GCP, then the one-PR client flip and the §9-ter.2
+re-run on production.
+
+**Sequencing.** Doing this BEFORE the public rollout avoids a second migration of the redirect
+URI while real accounts exist — a change of auth host mid-flight is the kind of thing that
+invalidates in-progress sign-ins.

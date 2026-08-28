@@ -1213,7 +1213,9 @@ verification.
 > flow in front of exactly the testers whose feedback created F-57, while the branding fix
 > lands before it reaches strangers. When T-61 is done, the auth host changes and the redirect
 > URI moves with it: existing identities are untouched (they live in `auth.identities`), but
-> sign-ins IN FLIGHT during the switch will fail, so do it in a quiet window.
+> sign-ins IN FLIGHT during the switch will fail, so do it in a quiet window. **The procedure
+> is §9-quater** — read it before touching the domain, because activation stops Google sign-in
+> on `<ref>.supabase.co` the moment it lands.
 
 The code shipped dormant on purpose: **the switch IS the provider config.**
 The app asks GoTrue's public settings endpoint (`/auth/v1/settings`) whether
@@ -1344,6 +1346,127 @@ the next app boot, password sign-in never depended on any of this. Sessions
 already created by Google keep working (they are ordinary GoTrue sessions);
 disabling only closes the door for NEW sign-ins.
 
+
+## 9-quater. Custom auth domain (T-61) — making the Google screens say Entrelares
+
+> **NOT DONE.** This section is the procedure, written before the execution so the ordering
+> is decided in the calm. Scope locked with the owner on 27/08/2026: **`auth.entrelares.app`,
+> PRODUCTION ONLY**.
+
+**Why.** Google identifies the relying party by the HOST of the redirect URI, and today that
+host is the project ref. Measured on a real device during the F-57 go-live: the consent screen
+reads *"Fazer login no serviço `jptqbwfziyzlhlmoekzu.supabase.co`"*, and Google's summary
+e-mail arrives titled *"You shared some Google Account data with
+jptqbwfziyzlhlmoekzu.supabase.co"*. Neither line is reachable from the Branding config — the
+host is the only lever. Full reasoning in the T-61 record (`backlog/technical.md`).
+
+> **The free alternative was considered and rejected (27/08/2026).** Supabase also offers
+> **vanity subdomains** (`entrelares.supabase.co`) — no add-on, CLI only, marked experimental.
+> It removes the random string but keeps `supabase.co` on the screen where the user hands over
+> their identity, which is the half of the problem the item exists for. The two are **mutually
+> exclusive**, so taking the cheap one now would mean a SECOND host migration later, with real
+> accounts already created. Rejected on that ground, not on price.
+
+**Dev deliberately stays on `<ref>.supabase.co`** — no real user meets it, and the add-on is
+billed per project. Consequence to expect rather than debug: a dev-flavor rehearsal of §9-ter.2
+still shows the project ref on the consent screen. That is the decision working, not a
+regression.
+
+**9-quater.0 — Buy the add-on.** *Dashboard → the PROD project → Settings → Add-ons → Custom
+Domain*. Per project, per month. Owner-only step: it is a spend.
+
+**9-quater.1 — DNS, on the `entrelares.app` zone (Cloudflare).**
+
+| Type | Name | Value | Proxy |
+|---|---|---|---|
+| CNAME | `auth` | `jptqbwfziyzlhlmoekzu.supabase.co.` | **DNS only (grey cloud)** |
+
+**The grey cloud is not a preference.** Supabase terminates TLS for this hostname itself and
+issues the certificate through an ACME challenge against these records; with Cloudflare's proxy
+orange, our edge answers for the name and the issuance never completes. Use a low TTL until the
+domain is verified — a mistake then costs minutes instead of a day.
+
+**9-quater.2 — Register and verify ownership.**
+
+```
+supabase domains create --project-ref jptqbwfziyzlhlmoekzu --custom-hostname auth.entrelares.app
+```
+
+It prints one outstanding TXT record, `_acme-challenge.auth.entrelares.app`. **Cloudflare appends
+the zone to the name**, so create it as `_acme-challenge.auth`, never as the full name — the
+classic way to end up with `_acme-challenge.auth.entrelares.app.entrelares.app`. Trim the
+surrounding whitespace off the value. Then:
+
+```
+supabase domains reverify --project-ref jptqbwfziyzlhlmoekzu
+```
+
+Expect to run it more than once: DNS has to propagate and the certificate can take up to 30
+minutes.
+
+**9-quater.3 — GCP BEFORE activating.** *Google Auth Platform → Clients →* the
+`Entrelares — Supabase GoTrue` client → **Authorized redirect URIs**: ADD
+
+- `https://auth.entrelares.app/auth/v1/callback`
+
+**in addition to** the two already there (§9-ter.0). Do not remove the prod project-ref URI —
+it is what a rollback returns to. Google's own warning applies here as much as it did then:
+the change takes **5 minutes to a few hours** to propagate, so a `redirect_uri_mismatch` right
+after saving is propagation, not a typo.
+
+**9-quater.4 — Activate. This is the hard cutover.**
+
+```
+supabase domains activate --project-ref jptqbwfziyzlhlmoekzu
+```
+
+What activation actually does, and the asymmetry that matters:
+
+| Surface | On `<ref>.supabase.co` after activation |
+|---|---|
+| REST, Realtime, Storage, Edge Functions | **keep working** — both hosts serve them |
+| **Third-party auth (Google)** | **stops working.** GoTrue advertises the custom domain only |
+
+So the client flip below is not optional and cannot be deferred to "next release": from
+activation onward, the ONLY host where Google sign-in exists is the new one. Do it in a quiet
+window — sign-ins in flight at that instant fail (the user retries and succeeds; existing
+sessions and `auth.identities` rows are untouched).
+
+**What does NOT change, so nobody "fixes" it:** the Redirect URLs / Site URL allowlist (those
+are the app's RETURN addresses — `com.entrelares.app://login-callback`,
+`https://web.entrelares.app`), the `APP_URL` secret, and the Edge Function warm-up in
+`.github/functions.sh`, which addresses functions on the project host that keeps answering.
+
+**9-quater.5 — The client flip, in the same window.** One PR, three lines and a version bump:
+
+1. `apps/entrelares_app/lib/env.dart` — `Env.prod.supabaseUrl` → `https://auth.entrelares.app`.
+2. `apps/entrelares_app/web/_headers` — `connect-src` gains
+   `https://auth.entrelares.app wss://auth.entrelares.app`. **Keep the `*.supabase.co` pair**:
+   dev still lives there. Miss this and the web channel does not degrade — it reaches NO API at
+   all, REST and Realtime included, with only the browser console to say why.
+3. `apps/entrelares_app/pubspec.yaml` — `version:`, both halves.
+
+Step 2 cannot be forgotten: `web_channel_test` asserts that `connect-src` covers the host
+`Env.prod.supabaseUrl` names, so step 1 without step 2 is a red gate (T-61). Merging to `main`
+publishes the web channel; Android picks the new host up at the next Play promotion, and until
+then the store build still points at the project ref — where **Google sign-in no longer works**.
+Sequence the promotion with this, or accept a window where the store app's Google button fails.
+
+**9-quater.6 — Verify, in this order.**
+
+```
+curl -s -H "apikey: sb_publishable_uKr0ES-10F3gpcd0j0osYw_HxqP_RMZ" \
+  https://auth.entrelares.app/auth/v1/settings
+```
+
+`external.google` must be `true` on the NEW host. Then re-run §9-ter.2 against **production**
+on a real device, and read the two lines the item exists for: the consent screen must say
+*"Fazer login no serviço auth.entrelares.app"*, and Google's summary e-mail must name the same
+host. Only both together close T-61.
+
+**Rolling back.** `supabase domains delete --project-ref jptqbwfziyzlhlmoekzu`, then revert the
+client flip (§9-quater.5) and promote/publish it. This only works because §9-quater.3 kept the
+old redirect URI listed in GCP — removing it is what would make the rollback a second outage.
 
 ## 10. S-16 — migração das chaves de API e da assinatura JWT
 
