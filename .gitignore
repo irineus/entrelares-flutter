@@ -35,3 +35,6 @@ packages/*/pubspec.lock
 # Scratch worktrees created per session (.claude/worktrees/<branch>); the rest
 # of .claude/ (project settings, skills, hooks) stays versionable on purpose.
 .claude/worktrees/
+
+# Python bytecode (store/brand-icons.py is imported by the landing repo generator)
+__pycache__/

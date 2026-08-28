@@ -92,7 +92,7 @@ escape hatch is gone — which is the point, but worth doing knowingly.
 | **Priority** | `high` — the policy describes a payment arrangement that stopped being the whole truth on 23/08/2026, and Play reads the Data safety form and the policy against each other |
 | **Complexity** | `medium` — the console form is one sitting; deciding whether the policy change is MATERIAL is the expensive half, because material means blocking the entire user base for 15 days |
 | **Impact** | `high` — LGPD disclosure on one side, the store's own compliance review on the other |
-| **Roadmap** | Group 5 (polish), alongside T-57 — like it, this should precede the next PRODUCTION rollout; a closed test survives it. The board owns the order |
+| **Roadmap** | Group 5 (polish). It sat alongside T-57, which **landed 28/08/2026**; like it, this should precede the next PRODUCTION rollout, and a closed test survives it — so S-18 is now the last of that pair still open. The board owns the order |
 | **Repo** | `flutter` (the Data safety answers, the `PolicyVersions` constants, the `app_settings` migration) **and** `entrelares-site` (the legal text itself) |
 
 **The finding (25/08/2026).** Surfaced while preparing the first Play upload since the cutover

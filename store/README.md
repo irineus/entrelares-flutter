@@ -41,18 +41,19 @@ points at them; this directory is about the *presence*, not the pipeline.
   States) – en-US** → paste from `listing-en-US.txt`. The default language stays pt-BR.
 - **Categories**: app category **Parenting** (fallback: Lifestyle). Tags: family, calendar.
 - **Contact details**: e-mail `suporte@entrelares.app`; website `https://entrelares.app`.
-- **Screenshots (phone)** — ⚠️ **the one thing on this page that is out of date.** The Console
-  and the landing share one set (`entrelares-site/public/img/screenshots/*.png`, 1080×1920),
-  captured on **23/07/2026** from the QA environment of the **Blazor** client, with the `[Dev]`
-  badge masked in place. Two things have happened to them since: the cutover replaced the client
-  they photograph, and U-27/U-28 replaced its visual system. So the listing shows a product that
-  no longer exists — cosmetically, not in what it claims. **Recapturing is scheduled as
-  [T-57](../backlog/technical.md)** (24/08/2026), which absorbed `entrelares-site`'s **L-21**:
-  that item wanted the EN set for the same frames, on the assumption the PT-BR ones were
-  current — an assumption the cutover ended. It needs the Flutter app in production
-  configuration (the dev flavour prefixes `[Dev] ` into stored notification titles), both
-  languages, and a pass over both the Play listing and the landing. It should precede the next
-  production rollout; a closed test survives a listing update.
+- **Screenshots (phone)** — **current since 28/08/2026** ([T-57](../backlog/archive/phase-7.md)).
+  The Console and the landing share one set, and it is now TWO sets: `pt-BR` from
+  `entrelares-site/public/img/screenshots/`, `en-US` from `.../screenshots/en/`, eight frames
+  each at 1080×1920 with a `webp`+`png` pair. They photograph the **Flutter** app in production
+  configuration, under the U-27 visual system — the previous ones were the **Blazor** client,
+  23/07/2026. The same item closed `entrelares-site`'s **L-21** (the English page had been
+  serving the Portuguese captures).
+  **Two things to know before re-shooting.** Never shoot the dev flavour: `environmentPrefix`
+  puts `[Dev] ` at the head of every stored notification title, and no masking fixes a title.
+  And the frames come off a phone at 20∶9, which Play does not take — the delivered set was
+  cropped of its OS chrome and fitted to 9∶16 by replicating the edge column, which works only
+  because the app's side edges are flat. The file names are a contract: the landing's
+  `<picture>` elements and their `alt` text reference them.
 
 ## 2 · Brand assets
 
