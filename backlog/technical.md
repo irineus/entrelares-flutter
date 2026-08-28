@@ -493,20 +493,60 @@ published listing.
 
 | Part | State |
 |---|---|
-| **A · the mark** | `store/store_icon.png` **done**, and the two clay masters deleted from `store/` — nothing here read them, and the landing reads its own copies; the landing's five brand files (`favicon.png`, `icon-192.png`, `icon-512.png`, `og-cover.png`, `og-cover-en.png`) still on clay, behind `entrelares-site/assets-src/brand-icons.py` and the three `og-cover*.html` — the landing PR |
+| **A · the mark** | **done in both repos.** `store/store_icon.png` is back under the script; the landing's five brand files moved to the U-29 mark; the four clay masters (two per repo) deleted — no vector source, and the geometry now has one home, with the landing holding a rendered master instead of a second drawing |
 | **B · feature graphic** | **done, both languages**, with a generator each |
-| **C · the eight frames** | not started — needs the capture sitting |
+| **C · the eight frames** | **done, both languages** (28/08/2026) — see below |
 | **D · the copy** | **done, both languages** |
-| **E · the publish** | nothing uploaded |
+| **E · the publish** | **nothing uploaded.** Both repo halves are merge-ready; the Console is untouched |
 
-**The frames' data source is decided (owner, 28/08/2026): the PRODUCTION project, with a
-disposable family created for the shoot** — a `--flavor prod` / `APP_ENV=prod` build against
+**The frames were shot from PRODUCTION, family *Neves* (Rafael/Marina/Nair) — and that family
+still exists and has to be removed by hand.** The decision behind it: **the PRODUCTION project,
+with a disposable family created for the shoot** — a `--flavor prod` / `APP_ENV=prod` build against
 real production, as the first gotcha below prescribes. The alternative considered and rejected
 was seeding the family in **dev** through `service_role` (server-written notification titles
 carry no `[Dev] ` prefix, since the prefix is applied by the CLIENT on write, so the frames
 would have come out clean); it was rejected for fidelity. Two consequences to plan for: the
 family is real production data and has to be **removed by hand afterwards**, and it must not be
 named `E2E-…`, which the purge sweep would eat mid-session.
+
+**How the capture actually went, and what it cost (28/08/2026)**
+
+Shot on an Android device rather than in the browser, so the frames arrived **1440×3088 JPEG** —
+20∶9, which is neither the 1080×1920 of the existing set nor a ratio Play takes. The fix, applied
+uniformly: crop the OS chrome (**94 px** of status bar, **35 px** of gesture pill — measured, not
+guessed), fit to height, then pad the width by **replicating the edge column**, which is seamless
+because the app's left and right edges are flat (white AppBar, `surface` middle, white nav). A
+20∶9 screen cannot become 9∶16 without either losing content or letterboxing, and losing content
+was the worse trade. The hero's `webp` came out at 76 KB against the previous 80 KB, so the L-03
+LCP constraint held.
+
+**Two measurement bugs are worth knowing before anyone repeats this**, because they had the same
+shape: a search window that ended exactly where the boundary was, so the code reported the window
+edge as the answer. The first cropped 185 px off the top (the status bar *plus* the app's
+safe-area inset); the second cropped 186 px off the bottom and **silently ate the navigation
+bar's labels** — and the frames looked fine until they were compared against the source. Size the
+window to contain the *gap after* the boundary, never to the expected answer.
+
+Three rounds of review were needed on the family itself, and every one was the same class of
+defect — **the data looked like test data**. First a third caregiver named "Tio (Tio)": name equal
+to role, and an uncle where the file name `assistente-rotacao-com-avo` and both pages' `alt` text
+promise a grandmother. Then an `EN-today-calendar-meu-dia` that was really a second
+`dia-do-outro`, because the card is unified only when the viewer IS the day's responsible
+(`isUnified = userSlot == responsibleSlot`, `today_rules.dart`) — a state that needs the right
+ACCOUNT logged in, not the right screen. **Neither was visible by looking; both came from reading
+the frames against the rules.**
+
+Left as-is by owner decision, and recorded so the next session starts from a list instead of
+re-deriving one: the family renders "Familia Neves" without the accent; the swap message reads
+*"combinado, busco as 18h"*; the day note names a different child in each language; and
+`historico-auditoria` shows four instances of the same action, where an approval would have told
+the product's actual story.
+
+**One finding for another item.** The landing's OG banners carry a chip reading **"Android e
+iPhone"**, and there is no iOS app — the web channel answers on an iPhone, so the claim is
+defensible, but it is the same class as the "offline" sentence this item deleted from the Play
+listing. Not changed here: it is landing marketing copy, outside D's scope. Decide it with
+**T-40** (the iOS channel) or as a landing follow-up.
 
 **Acceptance:** open the Play page and the landing as a stranger would, in each language, and
 find nothing left of the previous product — no clay mark, no Blazor screenshot, no DEV pill, and
