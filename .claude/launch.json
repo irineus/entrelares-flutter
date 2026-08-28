@@ -7,6 +7,12 @@
       "runtimeArgs": ["flutter", "run", "-d", "web-server", "--web-port", "8080", "--web-hostname", "127.0.0.1"],
       "cwd": "apps/entrelares_app",
       "port": 8080
+    },
+    {
+      "name": "entrelares-site",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8788", "-d", "C:/Users/irineu/source/repos/entrelares-site/public"],
+      "port": 8788
     }
   ]
 }
