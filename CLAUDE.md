@@ -321,6 +321,17 @@ cd packages/entrelares_db_gate && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> fvm 
 # Exige chromedriver no PATH (`chromedriver --port=4444 &` antes).
 cd apps/entrelares_app && fvm flutter drive --driver=test_driver/integration_test.dart   --target=integration_test/swap_workflow_test.dart -d web-server --browser-name=chrome --headless   --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
 ```
+⚠️ **Uma mudança só de markdown NÃO roda CI nenhum** (`paths-ignore: ['**/*.md']`,
+29/08/2026). A economia não são os três minutos do `verify`: são o `db-gate`, que segura
+um grupo de concorrência do REPOSITÓRIO INTEIRO — um PR de docs nessa fila é o que faz um
+terceiro pretendente ser despejado —, e o `web-e2e`, que cria família descartável no
+projeto dev compartilhado para não provar nada sobre um parágrafo. Duas premissas
+sustentam isso e as duas são GUARDADAS em `web_channel_test.dart`: nenhuma suíte lê um
+`.md` (se alguma passar a ler, o filtro a transformaria num teste que para de rodar
+justamente para as mudanças que ela vigia — o verde vazio do T-58), e nada sob
+`apps/entrelares_app/web/` é markdown (tudo ali é copiado verbatim para o build). Para
+forçar um run completo num branch só de docs: `workflow_dispatch`, que não tem filtro.
+
 ⚠️ O lane core do `verify.yml` roda **`dart analyze --fatal-infos`**, não `dart analyze`:
 uma info (ex.: `unnecessary_brace_in_string_interps` num `reason:` de teste) derruba o job
 — e como esse é o PRIMEIRO passo, os lanes de app e web nem chegam a rodar. Rodar o
