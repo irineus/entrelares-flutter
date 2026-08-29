@@ -12,11 +12,15 @@ import 'package:test/test.dart';
 
 void main() {
   group('shape', () {
-    test('three steps, in activation order', () {
+    test('four steps, in activation order', () {
       expect(OnboardingSteps.all, [
         OnboardingStep.inviteCoCaregiver,
         OnboardingStep.planTheDays,
         OnboardingStep.understandSwaps,
+        // F-09, and last on purpose: the only step that asks for something
+        // from OUTSIDE the product, and the only one whose prompt cannot be
+        // re-offered once refused.
+        OnboardingStep.enablePush,
       ]);
     });
 
@@ -39,6 +43,52 @@ void main() {
         ]
       ];
       expect(keys.toSet(), hasLength(keys.length));
+    });
+  });
+
+  group('enablePush (F-09)', () {
+    const onAndroid = OnboardingSignals(pushSupported: true);
+
+    test('is absent from a build with no push transport', () {
+      // The web channel. A step that can never be finished keeps the card on
+      // screen forever, at "3 de 4", for the rest of that person's life.
+      expect(OnboardingSteps.visibleIn(const OnboardingSignals()),
+          isNot(contains(OnboardingStep.enablePush)));
+      expect(OnboardingSteps.visibleIn(onAndroid),
+          contains(OnboardingStep.enablePush));
+    });
+
+    test('the count and the "all done" verdict follow the visible steps', () {
+      // Everything the product can ask of a web reader is done, so the card
+      // has nothing left to say and must go — even though `all` still holds a
+      // fourth step this build cannot offer.
+      const webDone = OnboardingSignals(
+        hasOtherActiveMember: true,
+        hasAnyPlannedDay: true,
+        hasTakenPartInASwap: true,
+      );
+      expect(OnboardingSteps.doneCount(webDone), 3);
+      expect(OnboardingSteps.allDone(webDone), isTrue);
+      expect(OnboardingSteps.shouldShowChecklist(webDone), isFalse);
+
+      // The same family on Android still has one thing to do.
+      final androidDone = webDone.copyWith(pushSupported: true);
+      expect(OnboardingSteps.doneCount(androidDone), 3);
+      expect(OnboardingSteps.allDone(androidDone), isFalse);
+      expect(OnboardingSteps.shouldShowChecklist(androidDone), isTrue);
+
+      expect(
+          OnboardingSteps.allDone(androidDone.copyWith(hasPushEnabled: true)),
+          isTrue);
+    });
+
+    test('closes on real state, never on a sheet having been shown', () {
+      expect(OnboardingSteps.isDone(OnboardingStep.enablePush, onAndroid),
+          isFalse);
+      expect(
+          OnboardingSteps.isDone(OnboardingStep.enablePush,
+              onAndroid.copyWith(hasPushEnabled: true)),
+          isTrue);
     });
   });
 

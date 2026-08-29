@@ -53,58 +53,7 @@ Sharing the custody plan with schools, doctors, or a family court is a real-worl
 
 ---
 
-### F-09 — Push notifications for swap requests
-
-| Field | Value |
-|---|---|
-| **Status** | `pending` |
-| **Priority** | `low` |
-| **Complexity** | `high` |
-| **Impact** | `medium` |
-
-**Description**
-Notify users when the app is closed or in the background. Since the T-53 cutover the Android
-channel is a **native app**, so the natural transport is **FCM** (`firebase_messaging`) — not
-the Web Push/VAPID stack the original record was written around.
-
-> **Rewritten 26/08/2026 (post-cutover board sweep).** The record assumed the Blazor PWA:
-> VAPID keys, a service-worker `push` handler, `js/pwa.js` install-state detection, the
-> iOS-needs-an-installed-PWA branch. The shipped `service-worker.js` is deliberately a
-> TOMBSTONE and cannot gain a push handler, and the PWA-install branch died with the PWA.
-> Everything below survives from the original design.
-
-- **Native first (Android now, iOS with T-40).** `firebase_messaging` with per-flavor Firebase
-  config; token registration into a new `push_subscriptions` table (per profile, per device,
-  RLS: own rows only). APNs rides the same plugin when T-40 happens — this item is T-40's
-  named push companion. **Flutter Web push is a separate, later decision**: it needs its own
-  service worker, and the tombstone constraint means it must be designed, never bolted on.
-- **Server side unchanged: hang the dispatcher off the single writer.** Every push-worthy
-  moment already writes a `notifications` row (swap requested / approved / refused / reverted /
-  auto-approved). Trigger the push from **that** insert (DB webhook → new Edge Function), so
-  push, in-app and e-mail can never tell three different stories. Since U-13/U-24 the row
-  carries `params` with ISO dates and is rendered in the **reader's** language — assemble the
-  payload per recipient with the server-side mirror (`functions/_shared/i18n.ts`), never from
-  a PT-BR string.
-- **The opt-in flow is still the hard part.** Never ask on load: Android 13+ has a real runtime
-  permission with the same "denied is expensive" economics the web prompt had. The request
-  rides a user gesture after the person has a reason to want it — the first swap request they
-  live through, or an explicit action on the Notificações screen. Wire it into the U-23
-  onboarding surface and honour its rule: a step reads REAL state, so it closes when a
-  `push_subscriptions` row exists, never when a modal was shown.
-- **Secrets/config:** the Firebase project config is per environment (dev/prod flavors) and
-  any function secret must exist on dev **and** prod *before* CI redeploys the functions — the
-  same ordering trap S-16 documented for the API keys.
-- **Quota:** push has no Resend-style shared allowance (T-49 does not apply), which raises the
-  product question to settle here: for which events does push **replace** the e-mail (F-38's
-  quota exists precisely because e-mail is the scarce channel) and for which does it add to it.
-
-**Files affected**
-- New migration — `push_subscriptions` table + RLS (own rows only)
-- `apps/entrelares_app/` — `firebase_messaging` wiring per flavor, token lifecycle, the
-  permission sheet, the U-23 onboarding step
-- `supabase/functions/send-push-notification/` — new Edge Function (**add it to
-  `.github/functions.sh`**, or the drift guard fails the run)
-- Catalog keys for every new string (U-13), DB rules covered in `packages/entrelares_db_gate`
+_F-09 (Phase 7 item) was completed on 29/08/2026 — its record lives in [`archive/phase-7.md`](archive/phase-7.md). Push rides FCM off the single writer: every push-worthy moment already writes a `notifications` row, and an AFTER INSERT trigger on that table is the dispatcher, so push, in-app and e-mail are three renderings of one event. Android is live; iOS inherits the rail inside T-40; web push stays a separate decision, because `web/service-worker.js` is the PWA's tombstone and cannot gain a handler._
 
 ---
 
@@ -594,7 +543,7 @@ engaged users — the exact people whose word of mouth the launch depends on.
 | **Complexity** | `medium` |
 | **Impact** | `high` (covers the most frequent real-life event the product currently sends to WhatsApp) |
 | **Roadmap** | Roadmap group 5 (progressive enhancement & polish) — same shelf as F-51: small, self-contained, born of field use. **Candidate to pull forward**: it is the cheapest remaining addition to the daily loop |
-| **Depends on** | **F-10/F-29** (notifications + realtime — the delivery already exists), **U-13/U-24** (the notice is read in the reader's language, with ISO dates in `params`), **F-38** (e-mail quota, if it also goes by e-mail), **F-09** (push, when it lands), **F-50** (a viewer never sends one) |
+| **Depends on** | **F-10/F-29** (notifications + realtime — the delivery already exists), **U-13/U-24** (the notice is read in the reader's language, with ISO dates in `params`), **F-38** (e-mail quota, if it also goes by e-mail), **F-09** (push — DELIVERED 29/08/2026, so a notice of this kind reaches the phone for free the moment its `type` joins `PUSH_TYPES`), **F-50** (a viewer never sends one) |
 | **Boundary** | **F-35** (in-app communication log, group 6) — see "Why this is not messaging" |
 
 > **Created 06/08/2026** from an external product review: *"a rotina de coparentalidade envolve

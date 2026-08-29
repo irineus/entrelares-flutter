@@ -132,6 +132,10 @@ abstract final class KApp {
   static const String pushToastOn = 'app.push.toastOn';
   static const String pushToastOff = 'app.push.toastOff';
   static const String pushErrEnable = 'app.push.errEnable';
+  static const String onbStepPushTitle = 'app.onbStep.push.title';
+  static const String onbStepPushHint = 'app.onbStep.push.hint';
+  static const String onbStepPushDoneHint = 'app.onbStep.push.doneHint';
+  static const String onbStepPushAction = 'app.onbStep.push.action';
 
   /// See `K.allKeys`.
   static const List<String> allKeys = [
@@ -199,6 +203,10 @@ abstract final class KApp {
     pushToastOn,
     pushToastOff,
     pushErrEnable,
+    onbStepPushTitle,
+    onbStepPushHint,
+    onbStepPushDoneHint,
+    onbStepPushAction,
   ];
 }
 
@@ -297,6 +305,13 @@ abstract final class StringsAppPtBr {
     KApp.pushErrEnable:
         'Não foi possível ativar os avisos agora. Você continua recebendo '
             'tudo nesta tela e por e-mail.',
+    KApp.onbStepPushTitle: 'Ativar avisos no celular',
+    KApp.onbStepPushHint:
+        'Uma troca costuma ser pedida em cima da hora. Com os avisos ligados '
+            'você fica sabendo na mesma hora, mesmo com o app fechado.',
+    KApp.onbStepPushDoneHint:
+        'Este aparelho avisa você sobre pedidos de troca e prazos.',
+    KApp.onbStepPushAction: 'Ativar avisos',
   };
 }
 
@@ -394,5 +409,12 @@ abstract final class StringsAppEn {
     KApp.pushErrEnable:
         'Could not turn alerts on right now. You still get everything on this '
             'screen and by e-mail.',
+    KApp.onbStepPushTitle: 'Turn on phone alerts',
+    KApp.onbStepPushHint:
+        'A swap is usually asked for at short notice. With alerts on you hear '
+            'about it right away, even with the app closed.',
+    KApp.onbStepPushDoneHint:
+        'This device alerts you about swap requests and deadlines.',
+    KApp.onbStepPushAction: 'Turn alerts on',
   };
 }

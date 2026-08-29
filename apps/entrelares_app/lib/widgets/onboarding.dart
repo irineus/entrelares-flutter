@@ -79,7 +79,7 @@ class OnboardingLauncher extends StatelessWidget {
               Text(
                 l.format(K.onbChecklistProgress, [
                   OnboardingSteps.doneCount(signals),
-                  OnboardingSteps.all.length,
+                  OnboardingSteps.visibleIn(signals).length,
                 ]),
                 style: theme.textTheme.bodySmall,
               ),
@@ -99,7 +99,7 @@ class OnboardingLauncher extends StatelessWidget {
 
 /// What the checklist asked for. The action survives completion on purpose —
 /// "Convidar" is still useful after the first invitation went out.
-enum OnboardingAction { invite, plan, explainSwaps, replayTour }
+enum OnboardingAction { invite, plan, explainSwaps, enablePush, replayTour }
 
 Future<OnboardingAction?> showOnboardingChecklist({
   required BuildContext context,
@@ -123,7 +123,7 @@ Future<OnboardingAction?> showOnboardingChecklist({
                 Text(l[K.onbChecklistIntro],
                     style: theme.textTheme.bodySmall),
                 const SizedBox(height: 16),
-                for (final step in OnboardingSteps.all)
+                for (final step in OnboardingSteps.visibleIn(signals))
                   _StepTile(step: step, signals: signals),
                 const SizedBox(height: 8),
                 TextButton(
@@ -156,6 +156,7 @@ class _StepTile extends StatelessWidget {
       OnboardingStep.inviteCoCaregiver => OnboardingAction.invite,
       OnboardingStep.planTheDays => OnboardingAction.plan,
       OnboardingStep.understandSwaps => OnboardingAction.explainSwaps,
+      OnboardingStep.enablePush => OnboardingAction.enablePush,
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),

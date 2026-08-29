@@ -5,4 +5,9 @@
          engine draws was pure white (and pure black at night), so every cold
          start flashed a colour the app does not own. -->
     <color name="launch_background">#F9FAFB</color>
+    <!-- F-09: Android tints the notification's silhouette with this. Without it
+         the glyph is drawn in the system's own grey and the notification loses
+         the one bit of brand it can carry. Token `accent.solid` (light) — the
+         same indigo as the launcher background. -->
+    <color name="notification_accent">#4F46E5</color>
 </resources>

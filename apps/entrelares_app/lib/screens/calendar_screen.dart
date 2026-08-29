@@ -79,6 +79,12 @@ class CalendarScreen extends StatefulWidget {
   /// Where the checklist's "Convidar" step sends the user.
   final VoidCallback? onOpenFamily;
 
+  /// F-09: the checklist's push step sends the person to Notificações,
+  /// where the enable button lives. ONE place owns the OS prompt — a second
+  /// entry point would be a second chance to spend a dialog that only
+  /// appears once per install.
+  final VoidCallback? onOpenNotifications;
+
   const CalendarScreen(
       {super.key,
       required this.dataSource,
@@ -86,7 +92,8 @@ class CalendarScreen extends StatefulWidget {
       this.onboarding,
       this.tourKeys,
       this.analytics,
-      this.onOpenFamily});
+      this.onOpenFamily,
+      this.onOpenNotifications});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -432,6 +439,8 @@ class _CalendarScreenState extends State<CalendarScreen>
         await _openWizard();
       case OnboardingAction.explainSwaps:
         await _explainSwaps();
+      case OnboardingAction.enablePush:
+        widget.onOpenNotifications?.call();
       case OnboardingAction.replayTour:
         if (widget.tourKeys == null) return;
         await showGuidedTour(context: context, keys: widget.tourKeys!);

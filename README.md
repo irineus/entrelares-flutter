@@ -22,7 +22,7 @@ apps/entrelares_app/tool/     # subset_inter.py — regenera a fonte embarcada (
 packages/entrelares_core/     # Dart puro: espelhos-cliente das regras do servidor, testáveis com `dart test`
 packages/entrelares_core/test/mirrors/   # T-56: os espelhos Dart↔Deno (i18n.ts, migrations)
 packages/entrelares_db_contracts/        # T-56 PR 6: as formas de linha do PostgREST, lidas pelo app E pelo gate
-packages/entrelares_db_gate/  # T-56 PRs 6-16 + F-57: o gate de banco (237 testes), Dart puro
+packages/entrelares_db_gate/  # T-56 PRs 6-16 + F-57 + F-09: o gate de banco (247 testes), Dart puro
 supabase/                     # T-56 PR 3: migrations, Edge Functions e o runbook de deploy
 backlog/                      # T-56 PR 4a: a memória escrita do produto (registros + archive/)
 store/                        # T-56 PR 4c: listagens da Play, masters de marca e seus geradores
@@ -47,7 +47,7 @@ cd apps/entrelares_app && fvm flutter run -d web-server --web-port 8080
 # E2E (lote 3): app real em emulador contra o projeto dev — exige a service_role key
 cd apps/entrelares_app && fvm flutter test integration_test/swap_workflow_test.dart \
   --flavor dev --dart-define=E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev>
-# Gate de banco: 237 testes de RLS/RPC/trigger contra o projeto dev, com família
+# Gate de banco: 247 testes de RLS/RPC/trigger contra o projeto dev, com família
 # descartável. Exige a service_role do DEV (nunca a de produção); sem ela a suíte
 # aborta com instruções em vez de rodar pela metade.
 cd packages/entrelares_db_gate && E2E_SUPABASE_SERVICE_ROLE_KEY=<chave dev> fvm dart test
@@ -83,7 +83,7 @@ da suíte web (`E2E-<runId>`, e-mails `@resend.dev`, teardown sempre via
 
 ## Gate de banco (`packages/entrelares_db_gate/`)
 
-**237 testes** sobre RLS, RPCs `SECURITY DEFINER`, triggers e o ledger de cobrança,
+**247 testes** sobre RLS, RPCs `SECURITY DEFINER`, triggers e o ledger de cobrança,
 rodando contra o projeto **dev** real com família descartável. É a camada que prova o
 invariante do produto — *o cliente ESPELHA, o banco IMPÕE* — e veio do `entrelares-app`,
 que está sendo arquivado (ver [`docs/arquivamento-app.md`](docs/arquivamento-app.md)).
@@ -178,6 +178,11 @@ Bilíngue por leitor (PT-BR / EN), portado do app web:
   no idioma do leitor; linhas legadas/payloads desconhecidos caem para o texto armazenado.
   PT-BR é byte-idêntico ao que os triggers gravam (tabela de ~35 casos em
   `notification_renderer_test.dart`).
+- **Push renderiza no SERVIDOR** (F-09): um push não tem dispositivo onde renderizar, e no
+  iOS uma mensagem data-only não tem entrega garantida — então `_shared/push.ts` monta o
+  texto por destinatário, em Deno, a partir de `language_effective`. É duplicação
+  deliberada do catálogo, e `push_notification_mirror_test.dart` compara os dois lados
+  string por string nas duas línguas.
 - **Gate cobrado no fechamento do lote 6:** `catalog_call_sites_test.dart` prova que toda
   chave declarada ou tem call site, ou está classificada (web-only · o app tem frase própria
   em `k_app` · dívida anotada). As listas falham nos DOIS sentidos — uma chave órfã nova
