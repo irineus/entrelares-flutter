@@ -5,6 +5,9 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // F-09 — must come AFTER the Android plugin, and after the Flutter one so
+    // the flavors it resolves google-services.json against already exist.
+    id("com.google.gms.google-services")
 }
 
 // T-55: release signing reads path/passwords from android/key.properties

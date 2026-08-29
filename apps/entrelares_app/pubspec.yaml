@@ -26,7 +26,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 #   +N    — rises on EVERY merge to main, strictly monotonic: Play burns a
 #           versionCode by UPLOAD and never accepts it again (store/README §6).
 # Env.appVersion mirrors this line — env_version_test pins the two together.
-version: 2.1.2+57
+version: 2.2.0+58
 
 environment:
   sdk: ^3.12.2
@@ -98,6 +98,8 @@ dependencies:
   entrelares_db_contracts:
     path: ../../packages/entrelares_db_contracts
   http: ^1.6.0
+  firebase_core: ^4.14.0
+  firebase_messaging: ^16.6.0
 
 dev_dependencies:
   flutter_test:

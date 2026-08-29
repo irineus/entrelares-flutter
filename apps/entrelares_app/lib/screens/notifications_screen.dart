@@ -8,6 +8,7 @@ import 'package:entrelares_db_contracts/models/member.dart';
 import 'package:entrelares_db_contracts/models/swap_request.dart';
 import '../services/custody_data_source.dart';
 import '../services/notification_badge.dart';
+import '../services/push_service.dart';
 import '../widgets/account_button.dart';
 import '../widgets/app_l10n.dart';
 import '../widgets/app_snack.dart';
@@ -22,8 +23,16 @@ class NotificationsScreen extends StatefulWidget {
   final CustodyDataSource dataSource;
   final NotificationBadge badge;
 
+  /// F-09. Null on a build with no push transport at all — the card then says
+  /// so rather than disappearing, because "where are my alerts?" is a question
+  /// a blank space answers badly.
+  final PushService? push;
+
   const NotificationsScreen(
-      {super.key, required this.dataSource, required this.badge});
+      {super.key,
+      required this.dataSource,
+      required this.badge,
+      this.push});
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -206,6 +215,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               onChanged: (v) => setState(() => _tab = v),
             ),
           ),
+          _pushCard(l),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () async {
@@ -242,6 +252,86 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ],
       ),
     );
+  }
+
+  /// F-09 — the push control, and the reason it lives on THIS screen.
+  ///
+  /// The permission dialog is a one-shot resource on Android 13+: it appears
+  /// once per install and a refusal is only undone in Settings. Asking on app
+  /// load spends it on someone who has no idea yet what the product does. Here,
+  /// the person is looking at the list of things they would have been told
+  /// about — the one moment where "get these on your phone" answers a question
+  /// they already have.
+  ///
+  /// Every state renders something, including the two that offer no button.
+  /// A blocked permission and a browser both look identical to a card that
+  /// hides itself: alerts that never come, and no explanation anywhere.
+  Widget _pushCard(Localization l) {
+    final push = widget.push;
+    final state = push?.state ?? PushState.unsupported;
+
+    final (String hint, Widget? action) = switch (state) {
+      PushState.on => (
+          l[KApp.pushHintOn],
+          TextButton(
+              onPressed: () => _setPush(l, on: false),
+              child: Text(l[KApp.pushDisable]))
+        ),
+      PushState.off => (
+          l[KApp.pushHintOff],
+          FilledButton(
+              onPressed: () => _setPush(l, on: true),
+              child: Text(l[KApp.pushEnable]))
+        ),
+      // No button on purpose: the OS will not show the dialog again, so a
+      // button here would do nothing when pressed — the failure that makes an
+      // app look broken while it behaves exactly as designed.
+      PushState.blocked => (l[KApp.pushHintBlocked], null),
+      PushState.unsupported => (l[KApp.pushHintUnsupported], null),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, Spacing.sm),
+      child: AppCard(
+        title: l[KApp.pushTitle],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(hint, style: Theme.of(context).textTheme.bodySmall),
+            if (action != null) ...[
+              const SizedBox(height: Spacing.sm),
+              Align(alignment: Alignment.centerLeft, child: action),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setPush(Localization l, {required bool on}) async {
+    final push = widget.push;
+    if (push == null) return;
+
+    if (on) {
+      final result = await push.enable();
+      if (!mounted) return;
+      setState(() {});
+      // The message reads off the RESULTING state, never off the fact that a
+      // button was pressed: a dialog the person dismissed leaves the state
+      // exactly where it was, and "alerts are on" would be a lie they discover
+      // the next time a swap goes unanswered.
+      showAppSnack(context,
+          result == PushState.on ? l[KApp.pushToastOn] : l[KApp.pushErrEnable],
+          type: result == PushState.on
+              ? AppSnackType.success
+              : AppSnackType.error);
+      return;
+    }
+
+    await push.disable();
+    if (!mounted) return;
+    setState(() {});
+    showAppSnack(context, l[KApp.pushToastOff]);
   }
 
   // Still a ListView: the empty tab has to stay pull-to-refreshable, which is

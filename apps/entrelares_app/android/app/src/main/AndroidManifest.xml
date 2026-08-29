@@ -4,6 +4,13 @@
          symptom is a misleading "Failed host lookup / errno = 7" (F-58 QA,
          pilot lesson 2.1). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- F-09: Android 13+ makes notifications a RUNTIME permission, with the
+         same "denied is expensive" economics the web prompt had — the OS shows
+         the dialog once and a refusal is only reversible in Settings. The app
+         therefore never asks on load: the request rides a gesture, after the
+         person has a reason to want it. Below 33 the grant is implicit, which
+         is why the flow must read the real permission state and not assume. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="${appName}"
         android:name="${applicationName}"
@@ -75,6 +82,14 @@
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <!-- F-09: the channel the push payload names. If the id does not exist
+             on the device, Android 8+ drops the notification WITHOUT an error —
+             the send succeeds, FCM reports delivery and nothing appears. The
+             channel itself is created in MainActivity; this entry is the
+             fallback the SDK uses for any message that names none. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="entrelares_swaps" />
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

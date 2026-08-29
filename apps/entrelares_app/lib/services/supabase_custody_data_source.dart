@@ -882,6 +882,43 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   }
 
   @override
+  Future<void> registerPushToken({
+    required int myProfileId,
+    required String token,
+    required String platform,
+    String? deviceLabel,
+  }) async {
+    // `onConflict: 'token'` and not the primary key: the UNIQUE constraint is
+    // on the token, and the row that already holds it may belong to another
+    // profile (the same phone, a different sign-in). Upserting re-points it,
+    // which is exactly what must happen — the alternative is a 23505 the caller
+    // would have to interpret, or a stale row still receiving the previous
+    // account's notices.
+    await _client.from('push_subscriptions').upsert({
+      'profile_id': myProfileId,
+      'token': token,
+      'platform': platform,
+      'device_label': ?deviceLabel,
+      'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'token');
+  }
+
+  @override
+  Future<void> deletePushToken(String token) async {
+    await _client.from('push_subscriptions').delete().eq('token', token);
+  }
+
+  @override
+  Future<bool> hasPushSubscription(int myProfileId) async {
+    final rows = await _client
+        .from('push_subscriptions')
+        .select('id')
+        .eq('profile_id', myProfileId)
+        .limit(1);
+    return rows.isNotEmpty;
+  }
+
+  @override
   Future<void Function()> watchWorkflowChanges(void Function() onChange,
       {void Function(bool connected)? onStatus}) async {
     final channel = _client
