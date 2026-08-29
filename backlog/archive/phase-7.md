@@ -3593,3 +3593,107 @@ written down to happen at all.
 - `entrelares-site/ROADMAP.md` — L-21's record, closed as absorbed
 - `store/README.md` §1 — the "out of date" note comes down when the frames are current
 - Play Console (owner ops, no code): the `pt-BR` and `en-US` screenshot sets
+
+---
+
+### F-09 — Push notifications for swap requests — DELIVERED
+
+| Field | Value |
+|---|---|
+| **Status** | `done` (29/08/2026) — PR 1 (the rail) in [#109](https://github.com/irineus/entrelares-flutter/pull/109), PR 2 (the Android client) in [#110](https://github.com/irineus/entrelares-flutter/pull/110), PR 3 (the U-23 step + close-out) in this delivery. Shipped in `2.2.0+58`. **Android is live; iOS inherits the rail inside T-40; web push is explicitly NOT in scope** |
+| **Priority** | `low` — kept, and it is the honest label. The Realtime bridge already covers everything that happens while the app is open, so this only reaches the person who is not looking |
+| **Complexity** | `high` — confirmed, but not where the record expected. The transport was the easy half |
+| **Impact** | `medium` |
+| **Roadmap** | Group 5 (polish) |
+| **Repo** | `flutter` |
+
+> **Re-analysed 29/08/2026 before any code, at the owner's request** ("this requirement is a bit
+> old — re-read it against the current app and against push on Android *and* iOS"). The
+> 26/08 rewrite had already replaced the Web Push/VAPID scope with FCM and that direction held.
+> What the re-read changed was the COST, in three places the record had not seen.
+
+**What the re-analysis found**
+
+1. **There is no `apps/entrelares_app/ios/` at all** — the scaffold was never generated (the
+   owner is on Windows). So iOS here is not "harder", it is untestable: no Mac, no Apple
+   Developer Program, no device. iOS became T-40's, and the rail was written iOS-ready instead.
+2. **`_shared/i18n.ts` does not carry the notification catalog.** It exports `swap`, `account`
+   and `authMail`; the ~25-type `NotificationRenderer` catalog lives only in Dart. The record
+   said "assemble the payload with the server-side mirror" as though that mirror existed.
+3. **Wanting iOS *at all* forces the server-side render immediately.** A data-only payload could
+   have reused the Dart renderer with no duplication, but on iOS a silent push is throttled and
+   not guaranteed to arrive — so the only payload that displays with the app dead is one whose
+   text the server already wrote. There is no "start data-only and add iOS later" path that does
+   not rebuild the rail.
+
+**The four decisions locked with the owner (29/08/2026)**
+
+| Question | Decision |
+|---|---|
+| Platforms in this item | **Android now; iOS inside T-40.** The rail is iOS-ready — T-40 adds the APNs key and the token registration, and rewrites nothing |
+| How the text is built | **Server-side, for a SUBSET of types.** A new TS mirror, deliberately small |
+| Push vs e-mail | **Push ADDS; the e-mail is untouched.** The F-38 quota is unchanged. "A live token" is a common lie — uninstalled app, revoked permission, an OEM killing the process — and trading a delivered e-mail for it would lose the notice silently |
+| Firebase boundary | **Two projects (`entrelares-dev` / `entrelares-prod`)**, mirroring the two Supabase projects, so a QA service account cannot reach a production device |
+
+**What shipped**
+
+- **The dispatcher hangs off the single writer.** Every push-worthy moment already writes a
+  `notifications` row — some from SQL triggers, some from the client's own insert — so an
+  `AFTER INSERT` trigger on that table (pg_net → `send-push-notification`) is the one choke point
+  that covers both writers. Push, in-app and e-mail become three renderings of ONE event, and a
+  future writer gets push with nothing to remember.
+- **Ten types push, and the rule is "only what the recipient did NOT just do."** That excludes
+  the self-receipts (`swap_sent`, `revert_sent`, `swap_approved_self`, `revert_approved_self`),
+  which reach a person holding the phone that produced them, and the F-28 family fan-out, which
+  is information rather than a call to act. A mirror test pins those five OUT.
+- **`push_subscriptions` is the only table in the schema that is NOT family-scoped.** A
+  registration token is the capability to interrupt someone's phone, and sharing a family is not
+  consent to hold it — own rows only, with the gate suite proving the UPDATE path (which does not
+  throw; it matches zero rows and answers success, so the assertion is on the ROW).
+- **The permission is spent by a gesture, never by opening the app.** Android 13+ shows the
+  dialog once per install and a refusal is only undone in Settings. `start` runs on every
+  authenticated session and only REPAIRS a registration for someone who already said yes;
+  `enable`, on the Notificações screen, is the only caller that prompts.
+- **Four states, not two.** Collapsing `blocked` into `off` produces a button that does nothing
+  when pressed, because the dialog will not appear — the app looks broken while behaving exactly
+  as designed. `blocked` has no button; it has the sentence that points at Settings.
+- **The U-23 step is platform-conditional, and that is not cosmetic.** The checklist hides itself
+  when everything is done, so a step the web can never finish would pin the card at "3 de 4"
+  forever. `OnboardingSteps.visibleIn` drops it where there is no transport; marking it "done"
+  instead would tell someone they had finished something they never did.
+
+**Two traps that would each have cost a device session**
+
+- **A notification channel that does not exist is dropped silently.** On Android 8+ a payload
+  naming an unknown `channel_id` is discarded by the system with no error: FCM reports delivery,
+  the server logs success, and nothing appears. `entrelares_swaps` is created in `MainActivity`.
+- **`start` awaits its own initialization.** The auth gate is a network round trip and the
+  transport start-up is local, so the ordering "usually" works — and "usually" is how a feature
+  ends up silently off for whoever's transport took a moment longer.
+
+**The web bundle does not carry a transport it cannot use.** Firebase sits behind
+`PushMessaging`, chosen at COMPILE time (the `file_delivery.dart` idiom). Two payoffs: zero
+occurrences of `firebase` in the web `main.dart.js`, and a service that a suite can finally
+drive — `firebase_messaging` is a platform channel with no Android under `flutter test`, so
+before the seam the permission path, the token rotation and the notification tap were
+unreachable by any test.
+
+**Files**
+- `supabase/migrations/20260828120000_f09_push_subscriptions.sql` — table + RLS + dispatcher
+- `supabase/functions/send-push-notification/`, `_shared/push.ts`, `_shared/fcm.ts` (FCM HTTP v1
+  by hand: the v1 API wants a service-account JWT, and `firebase-admin` is a Node tree that does
+  not belong in an Edge Function)
+- `packages/entrelares_core/lib/src/push_enrollment.dart` + suite; `test/mirrors/push_notification_mirror_test.dart`
+- `packages/entrelares_db_gate/test/suites/push_subscriptions.dart`
+- `apps/entrelares_app/lib/services/push_service.dart`, `push_messaging{,_io,_web}.dart` + suite
+- Android: `google-services.json` per flavor, `POST_NOTIFICATIONS`, the channel in `MainActivity`
+- `supabase/README.md` §11 — arming a project, per environment
+
+**Left deliberately open**
+
+- **Web push** — needs its own service worker, and `web/service-worker.js` is the PWA's tombstone
+  that must keep unregistering itself. A design decision, not a flag.
+- **iOS** — T-40. The payload already carries its `apns` block.
+- **Whether push should ever REPLACE the e-mail** — revisit with adoption data, not before.
+- **A real device round.** No gate can prove a push arriving with the app closed; the suites
+  prove everything up to the network.

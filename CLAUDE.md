@@ -52,6 +52,7 @@ before assuming a path.
 | Web channel (stage 4) | **`flutter build web` accepts NO `--flavor`** — on web `appFlavor` is always null, so a flavor-only rule resolves the web build to DEV. Production says so with **`--dart-define=APP_ENV=prod`**, and `web_channel_test` fails the build if that define (or `--no-web-resources-cdn`, which keeps CanvasKit on our own origin) leaves the workflow. Published by the `deploy-web` job of `verify.yml` to Cloudflare Pages project **`entrelares-web`**, behind `needs: verify`, only from `main`, and self-disarming while the CF secrets are absent. Everything in `apps/entrelares_app/web/` is copied verbatim into the build — including `.well-known/assetlinks.json` (the App Link of the INSTALLED app is verified against this host) and `service-worker.js`, which is the **tombstone** of the Blazor PWA's worker: the only thing that reaches an installed PWA is the browser's update check of that exact URL, so the file must never be deleted while a device may still carry the old worker. |
 | Billing | **Two rails, decided by the BUILD** (T-48 redesign, lote 5). The web target sells through the Asaas rail (`billing.enabled`, live in production since 29/07/2026); Android sells through **Play Billing** behind its own switch `billing.store_enabled`, which is PUBLIC and starts `false`. While it is false — or the device has no store, or no product comes back — the store branch shows the **T-38 neutral note**, which is also the fail-closed default. The **store price is Play's** (the product carries it; `app_settings` prices rule the web rail only), and **the client never grants Premium**: the purchase token goes to `billing-store-verify`, which asks the Play Developer API, and the acknowledge to Play happens only after the server accepted. Product ids `premium_monthly`/`premium_annual` are pinned by test — renaming one orphans real purchases. Go-live is console work: [`supabase/README.md`](supabase/README.md) §9-bis. |
 | Visual system | **U-27 (20/08/2026)**: `apps/entrelares_app/lib/theme/tokens.dart` is the ONE place a colour may be written — `no_color_literal_test` fails the build on a `Color(0x` anywhere else in `lib/`. Both themes are hand-written (never `ColorScheme.fromSeed`: seeding tints the greys with the brand indigo and kills the neutral identity), and **dark ships with the tokens**, following the system — a user-facing switch is U-12's. Colour is never the only vector: each calendar slot carries a `SlotPattern` texture too, and the swapped day is amber with a dashed border (web parity), which is what freed the rose `#E11D48` to be a role again. The eleven shared components live in `apps/entrelares_app/lib/widgets/ui/` (barrel `ui.dart`) and encode two conventions: the action pair puts the CONFIRMATION FIRST (the Blazor order — parity with the muscle memory people arrive with) and every field carries a permanent label, which is how WCAG 1.4.11 is met without a heavier border. Loading states are SKELETONS wherever the shape of what is coming is known; a spinner survives only for a button mid-press, a determinate bar, and a wait with no shape (splash, payment return). Type is **Inter**, four static weights subset to `latin` (~96 KB gzip), regenerable with `apps/entrelares_app/tool/subset_inter.py`; the PDF keeps Roboto on purpose (F-33). |
+| Push (F-09) | **FCM, hung off the SINGLE WRITER.** Every push-worthy moment already writes a `notifications` row, so an `AFTER INSERT` trigger on that table (pg_net → `send-push-notification`) is the dispatcher — push, in-app and e-mail are three renderings of ONE event, and a future writer gets push for free. **Ten types only**, and the rule is "push only what the recipient did NOT just do" (the self-receipts and the F-28 fan-out are out, pinned by test). The text is rendered **server-side** per recipient (`_shared/push.ts`), because a push has no device to render on and iOS does not guarantee a data-only message — that duplication of the Dart catalog is deliberate and gated by `push_notification_mirror_test`. `push_subscriptions` is the **only table that is not family-scoped**: a token is the capability to interrupt someone's phone. Armed per environment by Vault secrets + `FCM_SERVICE_ACCOUNT` (runbook §11) and **self-disarming without them**. Android is live; iOS rides T-40; web push is a separate decision (the PWA worker is a tombstone). |
 | Analytics | T-37 via Umami Events API. The website id is PUBLIC and per environment: **dev is empty on purpose** (every call becomes a no-op, so QA never pollutes production statistics); prod carries the product's site. No PII ever — the sanitizer is a pure mirror with its own suite. |
 
 > **Owner directive (18/08/2026), still standing:** parity is the floor, not the ceiling —
@@ -246,6 +247,23 @@ These survived the rewrite because none of them is about the client language.
   hand-written JSON. **When porting a parser, assert against a string captured from the NEW
   platform, never one written from the old contract** (27/08/2026, found by sending one
   invitation on a real device).
+- **An Android notification channel that does not exist swallows the notification, silently.**
+  On Android 8+ a push whose payload names an unknown `channel_id` is dropped by the SYSTEM with
+  no error: FCM reports delivery, the Edge Function logs success, and nothing appears on the
+  phone. Every layer says it worked. The channel (`entrelares_swaps`) is created in
+  `MainActivity.onCreate`, not from Dart, so it exists before a message can arrive at an app that
+  is not running; creating a channel is idempotent, so doing it on every launch costs nothing and
+  removes the ordering question (F-09, 29/08/2026).
+- **A test that picks a date as `now + N days` breaks on the last N days of a month.** The
+  calendar grid renders the CURRENT month only — blanks, then `1..daysInMonth`, with no tail of
+  any neighbour — so a target that rolls into the next month resolves to the same day NUMBER in
+  this one, which is a PAST day, which opens the sheet in read mode. The E2E lane went red on its
+  own at 00:00 UTC on 29/08 with `Bad state: No element` on a chip finder: a symptom that names
+  the widget and hides the cause entirely. It has now happened twice in this product (the Blazor
+  `BulkUiTests` month-shape failure was the first). **Navigate to the target's month; never pass
+  a bare day number.** And when a lane goes red on a change that cannot explain it, re-run the
+  last GREEN sha before reading any code — it separates "my change" from "the calendar" in one
+  command.
 - **Supabase CLI on Windows:** `db dump -f` resolves against the CLI's own cwd — dump to a bare
   filename, then move.
 
@@ -270,9 +288,13 @@ These survived the rewrite because none of them is about the client language.
 ## Build & test
 ```
 cd packages/entrelares_core && fvm dart analyze --fatal-infos && fvm dart test
-# Nesse lane moram os quatro ESPELHOS Dart↔Deno (test/mirrors/, T-56): rótulos de
-# papel em inglês, formato de data dos e-mails, a chave `lang` do redirect de reset e
-# a cobertura de `params` de todo writer de notificação. Leem
+# Nesse lane moram os cinco ESPELHOS Dart↔Deno (test/mirrors/, T-56 + F-09): rótulos
+# de papel em inglês, formato de data dos e-mails, a chave `lang` do redirect de reset,
+# a cobertura de `params` de todo writer de notificação, e o catálogo de push
+# (F-09: o texto do push é montado no servidor, então `_shared/push.ts` duplica de
+# propósito um subconjunto do catálogo Dart — o espelho compara string por string nas
+# duas línguas e exige que o filtro do trigger e o `PUSH_TYPES` nomeiem os mesmos tipos).
+# Leem
 # supabase/functions/_shared/i18n.ts e supabase/migrations — as duplicações que
 # existem de propósito porque Deno não chama Dart. Um espelho que ninguém confere
 # apodrece calado, e é o lane mais barato do run.
@@ -284,7 +306,7 @@ cd apps/entrelares_app && fvm flutter build apk --debug --flavor dev --split-per
 # Canal web: os dois flags NÃO são opcionais — sem o define o build aponta para o
 # banco de QA, e sem o --no-web-resources-cdn o CanvasKit vem do gstatic.
 cd apps/entrelares_app && fvm flutter build web --release --no-web-resources-cdn --dart-define=APP_ENV=prod
-# Gate de banco (237 testes de RLS/RPC/trigger contra o projeto dev), Dart puro
+# Gate de banco (247 testes de RLS/RPC/trigger contra o projeto dev), Dart puro
 # desde o PR 16 do T-56. Exige a service_role do DEV — nunca a de produção. Sem
 # ela a suíte aborta com instruções em vez de rodar pela metade.
 cd packages/entrelares_db_gate && fvm dart analyze --fatal-infos

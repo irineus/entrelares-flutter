@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:entrelares_db_contracts/models/member.dart';
 import 'custody_data_source.dart';
+import 'push_service.dart';
 
 /// U-23 — reads the facts the activation checklist is decided from. Port of
 /// `Entrelares/Services/OnboardingService.cs`.
@@ -14,7 +15,13 @@ import 'custody_data_source.dart';
 class OnboardingService extends ChangeNotifier {
   final CustodyDataSource _dataSource;
 
-  OnboardingService(this._dataSource);
+  /// F-09. Read rather than queried: [PushService.state] already reflects the
+  /// OS permission AND the registration, so the step costs this hot screen
+  /// nothing — and it is more truthful than the row alone, which survives a
+  /// permission revoked in Settings.
+  final PushService? push;
+
+  OnboardingService(this._dataSource, {this.push});
 
   /// Session-scoped, deliberately not persisted: "show it again" is a request
   /// for THIS session, not a new stored preference.
@@ -38,6 +45,9 @@ class OnboardingService extends ChangeNotifier {
     required List<Member> members,
     bool force = false,
   }) async {
+    final pushSupported = push?.supported ?? false;
+    final hasPushEnabled = push?.state == PushState.on;
+
     final dismissed = me.onboardingDismissedAt != null;
     // The whole point of the short-circuit: a dismissed card asks nothing of
     // the network on every calendar open.
@@ -65,6 +75,8 @@ class OnboardingService extends ChangeNotifier {
       hasOpenedSwapExplanation: explained,
       hasTakenPartInASwap: facts.hasTakenPartInASwap,
       checklistDismissed: dismissed,
+      pushSupported: pushSupported,
+      hasPushEnabled: hasPushEnabled,
     );
   }
 

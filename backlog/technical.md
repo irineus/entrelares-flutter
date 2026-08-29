@@ -170,7 +170,7 @@ when revenue starts.
 | **Complexity** | `high` |
 | **Impact** | `medium` |
 | **Roadmap** | Roadmap group 4 (distribution) |
-| **Prerequisites** | Store assets exist (T-38/F-54; **T-57 landed 28/08/2026**, so the listing art is the current app and an App Store listing can be derived from it instead of being born stale); pairs with F-09 (push); Apple Developer Program — **US$99/yr, owner ops** |
+| **Prerequisites** | Store assets exist (T-38/F-54; **T-57 landed 28/08/2026**, so the listing art is the current app and an App Store listing can be derived from it instead of being born stale); **F-09 landed 29/08/2026 with the push rail already iOS-ready** — this item inherits it and adds only the APNs key, the capability and a device round; Apple Developer Program — **US$99/yr, owner ops** |
 
 **Description**
 Put the app on the App Store as a **native Flutter iOS build** (`flutter build ipa`) — the
@@ -187,9 +187,15 @@ same codebase that ships the Android and web channels.
   `flutter build ipa`, signing, upload, one internal TestFlight round. Surfaces the platform
   work — icons, launch screen, `Info.plist` permission strings, the iOS side of
   `url_launcher`/`printing`/share — with zero users affected and before the listing work starts.
-- **Push:** native APNs rides the same `firebase_messaging` wiring F-09 chooses (the plugin
-  carries APNs on iOS) — bringing F-09 forward or shipping iOS without push at first is the
-  same trade-off as before.
+- **Push: the rail is already built and waiting.** F-09 DELIVERED on 29/08/2026 and was
+  deliberately written iOS-ready — the server sends a `notification` payload (the only kind iOS
+  displays with the app dead) with an `apns` block already in it, `push_subscriptions` already
+  accepts `platform = 'ios'`, and `firebase_messaging` carries APNs. What iOS still needs is
+  console work and a device: an APNs auth key (`.p8`) uploaded to the `entrelares-prod` Firebase
+  project, the push capability in the Xcode project, and one real handset to prove delivery.
+  **The reason F-09 stopped at Android is this item:** there is no `apps/entrelares_app/ios/` at
+  all, so iOS push was not merely harder, it was untestable. Shipping iOS without push is still
+  possible and is still a choice; the cost of NOT deferring it is now close to zero.
 - **Billing:** the web-first rail (T-39) is what lets the iOS app stay a "manage your plan on
   the website" client and avoid Apple's IAP cut — re-verify the App Store external-link rules
   at build time. If store-cohort data ever justifies native purchase on iOS, StoreKit via
@@ -404,6 +410,28 @@ Three candidate mechanisms, none of them demonstrated:
    flakiness until somebody plots it against the date.
 3. **An ordinary render/timing race** in `ensureVisible`, which is the dullest explanation and
    therefore the one most likely to be true.
+
+> **HYPOTHESIS 2 IS CONFIRMED — and it was a real, deterministic defect (29/08/2026, found
+> while delivering F-09).** The lane went red on a PR that touched no client code at all. The
+> decisive experiment is the one this record already prescribed, and it took one command: the
+> `web-e2e` job of the last GREEN `main` run was re-run, on the same sha, and **failed** — so the
+> cause was the calendar, not the change.
+>
+> `targetDay` is `DateTime.now() + 3 days`; the grid opens on the CURRENT month and renders
+> blanks then `1..daysInMonth`, with no tail of any neighbouring month. On the last three days of
+> a month the target rolls over: on 29/08 the seeded day was 01/09, and `openDay(1)` found the
+> only cell reading '1' — **01/08, a PAST day**, which opens the sheet in read mode with no chips
+> at all. The symptom was `Bad state: No element` on a `ChoiceChip` finder, which names the
+> widget and hides the cause entirely. The lane had been green until 21:48 on the 28th purely
+> because `now + 3` had not yet crossed a month, and the p1 test carries the same trap with
+> `now + 5`. Fixed in #109: `openDay` takes the DATE and navigates to its month first.
+>
+> **What this changes for the item.** One documented cause of the oscillation is gone, and the
+> precedent the record cited (the Blazor `BulkUiTests` month-shape failure) now has a second
+> instance in the same product — a calendar-shaped failure reads as flakiness twice over.
+> Hypotheses 1 and 3 are untouched and unmeasured; this does not close T-58, whose subject is
+> the guard against a VACUOUS green. It does remove the strongest current argument for
+> re-running until green.
 
 **Why this belongs to T-58 rather than to a new item.** T-58 asks whether the gate can be
 *trusted*, and there are two ways to fail that: it can approve without asserting (the original

@@ -8,6 +8,7 @@
 library;
 
 import 'localization/k.dart';
+import 'localization/k_app.dart';
 
 enum OnboardingStep {
   /// Invite the co-caregiver (F-31's invite loop).
@@ -32,6 +33,18 @@ enum OnboardingStep {
     hintKey: K.onbStepSwapHint,
     doneHintKey: K.onbStepSwapDoneHint,
     actionKey: K.onbStepSwapAction,
+  ),
+
+  /// F-09 — turn on the phone alerts. LAST on purpose: it is the only step
+  /// that asks for something from OUTSIDE the product (an OS permission), and
+  /// it only makes sense once there is a second caregiver who might ask for a
+  /// swap. Offering it first would spend the one-shot Android dialog on
+  /// someone who has not yet seen why they would want it.
+  enablePush(
+    titleKey: KApp.onbStepPushTitle,
+    hintKey: KApp.onbStepPushHint,
+    doneHintKey: KApp.onbStepPushDoneHint,
+    actionKey: KApp.onbStepPushAction,
   );
 
   const OnboardingStep({
@@ -76,6 +89,16 @@ class OnboardingSignals {
   /// This member put the card away (`profiles.onboarding_dismissed_at`).
   final bool checklistDismissed;
 
+  /// F-09: whether this BUILD can push at all. False on the web channel, which
+  /// has no transport — see [visibleIn] for why that has to gate the step and
+  /// not merely grey it out.
+  final bool pushSupported;
+
+  /// F-09: a device is registered AND the OS permits notifications. Real state
+  /// on both halves: a stored flag would keep claiming push was on after the
+  /// permission was revoked in Settings.
+  final bool hasPushEnabled;
+
   const OnboardingSignals({
     this.hasOtherActiveMember = false,
     this.hasOpenInvitation = false,
@@ -83,6 +106,8 @@ class OnboardingSignals {
     this.hasOpenedSwapExplanation = false,
     this.hasTakenPartInASwap = false,
     this.checklistDismissed = false,
+    this.pushSupported = false,
+    this.hasPushEnabled = false,
   });
 
   /// The web's `with { HasAnyPlannedDay = … }` — Home ORs the loaded signal
@@ -94,6 +119,8 @@ class OnboardingSignals {
     bool? hasOpenedSwapExplanation,
     bool? hasTakenPartInASwap,
     bool? checklistDismissed,
+    bool? pushSupported,
+    bool? hasPushEnabled,
   }) =>
       OnboardingSignals(
         hasOtherActiveMember: hasOtherActiveMember ?? this.hasOtherActiveMember,
@@ -103,6 +130,8 @@ class OnboardingSignals {
             hasOpenedSwapExplanation ?? this.hasOpenedSwapExplanation,
         hasTakenPartInASwap: hasTakenPartInASwap ?? this.hasTakenPartInASwap,
         checklistDismissed: checklistDismissed ?? this.checklistDismissed,
+        pushSupported: pushSupported ?? this.pushSupported,
+        hasPushEnabled: hasPushEnabled ?? this.hasPushEnabled,
       );
 }
 
@@ -120,8 +149,27 @@ class OnboardingSignals {
 /// explanation — or, better, by having actually lived a swap request, which is
 /// real state and is why the second signal exists.
 abstract final class OnboardingSteps {
-  /// Every step, in the order the checklist renders them.
+  /// Every step this product has, in the order the checklist renders them.
+  /// Rendering and counting use [visibleIn] instead — see there.
   static const List<OnboardingStep> all = OnboardingStep.values;
+
+  /// The steps that belong on THIS build's checklist.
+  ///
+  /// **Why a step can be absent rather than merely unfinished.** The checklist
+  /// hides itself when everything is done, so a step that CANNOT be finished
+  /// keeps it on screen forever. On the web channel there is no push transport
+  /// at all — [OnboardingStep.enablePush] would sit at "3 de 4" for the rest
+  /// of that person's life, on a card whose whole claim is that it describes
+  /// their family and is nearly done. Greying it out has the same effect on
+  /// the count, which is the number people actually read.
+  ///
+  /// Marking it "done" instead would be worse: it would tell someone they had
+  /// finished something they never did, which is the exact failure the file's
+  /// header rules out.
+  static List<OnboardingStep> visibleIn(OnboardingSignals signals) => [
+        for (final step in all)
+          if (step != OnboardingStep.enablePush || signals.pushSupported) step,
+      ];
 
   static bool isDone(OnboardingStep step, OnboardingSignals signals) =>
       switch (step) {
@@ -139,14 +187,20 @@ abstract final class OnboardingSteps {
 
         OnboardingStep.understandSwaps =>
           signals.hasOpenedSwapExplanation || signals.hasTakenPartInASwap,
+
+        // F-09: real state on both halves — a registered device AND an OS that
+        // still permits notifications. This is the record's own rule for the
+        // step: it closes when a `push_subscriptions` row exists, never when a
+        // sheet was shown.
+        OnboardingStep.enablePush => signals.hasPushEnabled,
       };
 
   /// How many steps are done (the "2 de 3" the card shows).
   static int doneCount(OnboardingSignals signals) =>
-      all.where((step) => isDone(step, signals)).length;
+      visibleIn(signals).where((step) => isDone(step, signals)).length;
 
   static bool allDone(OnboardingSignals signals) =>
-      all.every((step) => isDone(step, signals));
+      visibleIn(signals).every((step) => isDone(step, signals));
 
   /// Whether the card belongs on the calendar screen right now.
   ///

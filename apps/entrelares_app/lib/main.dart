@@ -303,7 +303,8 @@ class _EntrelaresAppState extends State<EntrelaresApp>
                   analytics: _analytics,
                   onboarding: _onboarding,
                   tourKeys: _tourKeys,
-                  onOpenFamily: () => _router.go('/family')),
+                  onOpenFamily: () => _router.go('/family'),
+                  onOpenNotifications: () => _router.go('/notifications')),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -487,7 +488,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     // invite token or profile id can travel with it.
     _router.routeInformationProvider.addListener(_trackPageView);
     _sudo = SudoService(_dataSource);
-    _onboarding = OnboardingService(_dataSource);
+    _onboarding = OnboardingService(_dataSource, push: _push);
     _l = Localization(widget.initialLanguage);
     _openGate();
     _authSub = _client.auth.onAuthStateChange.listen((state) {
