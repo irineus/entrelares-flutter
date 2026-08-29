@@ -818,6 +818,30 @@ class FakeCustodyDataSource implements CustodyDataSource {
         if (resolutionOrigins.containsKey(id)) id: resolutionOrigins[id]!,
     };
   }
+
+  // ── F-09 (unused by the calendar slice, recorded so the fake stays honest) ──
+  final List<String> registeredPushTokens = [];
+  bool pushSubscribed = false;
+
+  @override
+  Future<void> registerPushToken({
+    required int myProfileId,
+    required String token,
+    required String platform,
+    String? deviceLabel,
+  }) async {
+    registeredPushTokens.add(token);
+    pushSubscribed = true;
+  }
+
+  @override
+  Future<void> deletePushToken(String token) async {
+    registeredPushTokens.remove(token);
+    pushSubscribed = registeredPushTokens.isNotEmpty;
+  }
+
+  @override
+  Future<bool> hasPushSubscription(int myProfileId) async => pushSubscribed;
 }
 
 const ana = Member(id: 1, fullName: 'Ana Souza', colorSlot: 1, userId: 'u1');

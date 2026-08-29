@@ -210,6 +210,30 @@ abstract class CustodyDataSource {
   /// bulk PATCH on my unread rows.
   Future<void> markAllNotificationsRead(int myProfileId);
 
+  /// F-09: registers this device's FCM token for [myProfileId], or refreshes
+  /// the `last_seen_at` of a token already registered.
+  ///
+  /// Upsert on the TOKEN, not on the pair: FCM rotates a token on its own
+  /// schedule and hands the same one to whoever signs in next on that device.
+  /// Re-pointing the existing row is what stops the previous account's notices
+  /// from continuing to arrive on a phone that changed hands.
+  Future<void> registerPushToken({
+    required int myProfileId,
+    required String token,
+    required String platform,
+    String? deviceLabel,
+  });
+
+  /// F-09: drops this device's registration — pressed on sign-out, and when
+  /// the person turns push off.
+  Future<void> deletePushToken(String token);
+
+  /// F-09: whether [myProfileId] has ANY device registered. The U-23 step and
+  /// the Notificações switch both read this rather than a stored flag: the
+  /// permission can be revoked in the OS, and a flag would keep claiming push
+  /// was on.
+  Future<bool> hasPushSubscription(int myProfileId);
+
   /// Listens for swap_requests + notifications changes — the lote-3 twin of
   /// [watchChanges] (frozen paint, badge, page refresh). Safe to call from
   /// more than one subscriber. Returns a dispose callback.

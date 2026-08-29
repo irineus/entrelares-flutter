@@ -37,6 +37,7 @@ import 'services/auth_providers.dart';
 import 'services/custody_data_source.dart';
 import 'services/notification_badge.dart';
 import 'services/onboarding_service.dart';
+import 'services/push_service.dart';
 import 'services/session_gate.dart';
 import 'services/store_billing.dart';
 import 'services/sudo_service.dart';
@@ -117,6 +118,10 @@ class _EntrelaresAppState extends State<EntrelaresApp>
   late final SessionGate _gate;
   late final CustodyDataSource _dataSource;
   late final NotificationBadge _badge;
+  // F-09: constructed always, useful only where there is a transport. On the
+  // web it reports `unsupported` and every call is a no-op, so the screens
+  // need no `kIsWeb` branch of their own.
+  late final PushService _push;
 
   /// U-28 — who is signed in, published by the screens that load the member
   /// list and read by the account button in every tab's app bar.
@@ -368,7 +373,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
             GoRoute(
               path: '/notifications',
               builder: (_, _) => NotificationsScreen(
-                  dataSource: _dataSource, badge: _badge),
+                  dataSource: _dataSource, badge: _badge, push: _push),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -462,6 +467,21 @@ class _EntrelaresAppState extends State<EntrelaresApp>
             environmentTitlePrefix(isProduction: Env.current.isProduction),
         analytics: _analytics);
     _badge = NotificationBadge(_dataSource);
+    _push = PushService(_dataSource);
+    // F-09: brings the transport up, and never fatally. A build whose flavor
+    // carries no Firebase config — or a device without the services it needs —
+    // simply has no push; the product's whole job works without it, so this
+    // must not be allowed to take the boot with it. On the web the transport is
+    // a stub that answers "no" to everything, so there is no `kIsWeb` branch
+    // here or in any screen.
+    unawaited(_push.initialize());
+    // A tapped notification lands on the list it came from. Deliberately not
+    // the day itself: the payload names an event, and the swap it refers to
+    // may already have been answered from the other phone — Notificações is
+    // the one screen that is truthful whatever happened in between.
+    _push.onOpen = (_) {
+      if (_phase == _AuthPhase.authed) _router.go('/notifications');
+    };
     // T-37: a pageview per navigation, the app's answer to the web's
     // `OnLocationChanged`. The URL is sanitized by the pure mirror, so no
     // invite token or profile id can travel with it.
@@ -514,6 +534,7 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     _onboarding.dispose();
     _sudo.dispose();
     _badge.dispose();
+    _push.dispose();
     _refresh.dispose();
     super.dispose();
   }
@@ -547,12 +568,28 @@ class _EntrelaresAppState extends State<EntrelaresApp>
       // The bell badge lives with the authenticated phase (count + its
       // workflow Realtime trigger).
       _badge.start();
+      // F-09: reads the REAL permission and repairs a registration for someone
+      // who already said yes. Never prompts — the dialog is spent by a gesture
+      // on the Notificações screen, not by opening the app.
+      unawaited(_startPush());
     } else {
       _badge.stop();
+      unawaited(_push.stop());
       _inactivityTimer?.cancel();
       _inactivityTimer = null;
     }
     _refresh.ping();
+  }
+
+  /// F-09 — needs the profile id, which the phase transition does not carry.
+  /// A failure here is silent by design: push is an extra channel, and the
+  /// session must not depend on it.
+  Future<void> _startPush() async {
+    try {
+      final me = await _dataSource.fetchOwnProfile();
+      if (me == null || _phase != _AuthPhase.authed) return;
+      await _push.start(me.id);
+    } catch (_) {/* the notification and its e-mail still arrive */}
   }
 
   void _checkInactivity() {

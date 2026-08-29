@@ -121,6 +121,18 @@ abstract final class KApp {
   static const String profLoginMethodGoogle = 'app.prof.loginMethodGoogle';
   static const String profLoginMethodNote = 'app.prof.loginMethodNote';
 
+  // ── F-09 push (the Notificações control) ──
+  static const String pushTitle = 'app.push.title';
+  static const String pushHintOff = 'app.push.hintOff';
+  static const String pushHintOn = 'app.push.hintOn';
+  static const String pushHintBlocked = 'app.push.hintBlocked';
+  static const String pushHintUnsupported = 'app.push.hintUnsupported';
+  static const String pushEnable = 'app.push.enable';
+  static const String pushDisable = 'app.push.disable';
+  static const String pushToastOn = 'app.push.toastOn';
+  static const String pushToastOff = 'app.push.toastOff';
+  static const String pushErrEnable = 'app.push.errEnable';
+
   /// See `K.allKeys`.
   static const List<String> allKeys = [
     sessionRestoredExpired,
@@ -177,6 +189,16 @@ abstract final class KApp {
     profLoginMethod,
     profLoginMethodGoogle,
     profLoginMethodNote,
+    pushTitle,
+    pushHintOff,
+    pushHintOn,
+    pushHintBlocked,
+    pushHintUnsupported,
+    pushEnable,
+    pushDisable,
+    pushToastOn,
+    pushToastOff,
+    pushErrEnable,
   ];
 }
 
@@ -257,6 +279,24 @@ abstract final class StringsAppPtBr {
     KApp.profLoginMethodGoogle: 'Conta Google',
     KApp.profLoginMethodNote:
         'Você entra com sua conta Google — não há senha para alterar aqui.',
+    KApp.pushTitle: 'Avisos no celular',
+    KApp.pushHintOff:
+        'Receba um aviso quando alguém pedir uma troca ou responder a sua — '
+            'mesmo com o app fechado.',
+    KApp.pushHintOn: 'Este aparelho recebe avisos de trocas e prazos.',
+    KApp.pushHintBlocked:
+        'As notificações estão bloqueadas para o Entrelares nas configurações '
+            'do seu aparelho. Libere-as por lá para voltar a receber avisos.',
+    KApp.pushHintUnsupported:
+        'Avisos no celular funcionam no aplicativo instalado. Aqui no '
+            'navegador, você continua vendo tudo nesta tela e por e-mail.',
+    KApp.pushEnable: 'Ativar avisos',
+    KApp.pushDisable: 'Desativar',
+    KApp.pushToastOn: 'Avisos ativados neste aparelho.',
+    KApp.pushToastOff: 'Avisos desativados neste aparelho.',
+    KApp.pushErrEnable:
+        'Não foi possível ativar os avisos agora. Você continua recebendo '
+            'tudo nesta tela e por e-mail.',
   };
 }
 
@@ -336,5 +376,23 @@ abstract final class StringsAppEn {
     KApp.profLoginMethodNote:
         'You sign in with your Google account — there is no password to '
             'change here.',
+    KApp.pushTitle: 'Phone alerts',
+    KApp.pushHintOff:
+        'Get an alert when someone asks for a swap, or answers yours — even '
+            'with the app closed.',
+    KApp.pushHintOn: 'This device receives swap and deadline alerts.',
+    KApp.pushHintBlocked:
+        'Notifications are blocked for Entrelares in your device settings. '
+            'Allow them there to start receiving alerts again.',
+    KApp.pushHintUnsupported:
+        'Phone alerts work in the installed app. Here in the browser you '
+            'still see everything on this screen and by e-mail.',
+    KApp.pushEnable: 'Turn alerts on',
+    KApp.pushDisable: 'Turn off',
+    KApp.pushToastOn: 'Alerts are on for this device.',
+    KApp.pushToastOff: 'Alerts are off for this device.',
+    KApp.pushErrEnable:
+        'Could not turn alerts on right now. You still get everything on this '
+            'screen and by e-mail.',
   };
 }

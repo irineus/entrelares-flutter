@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "51960618124",
+    "project_id": "entrelares-dev",
+    "storage_bucket": "entrelares-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:51960618124:android:88c998a8647c0d471dafa9",
+        "android_client_info": {
+          "package_name": "com.entrelares.flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDdOF_mrYdpuDw6Z1hpcuLC9_TwbzNQ_8g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
