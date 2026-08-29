@@ -777,3 +777,73 @@ value alone, and the eventual join lands the other parent in a working, populate
 the strongest invite the app can make. Every workflow invariant (two-party approval, scenario
 C prohibition) survives untouched because the pending member simply cannot be a workflow party.
 
+
+---
+
+### F-59 — Can push REPLACE the e-mail? (measure first, then decide)
+
+| Field | Value |
+|---|---|
+| **Status** | `pending` |
+| **Priority** | `low` |
+| **Complexity** | `medium` |
+| **Impact** | `medium` |
+| **Roadmap** | Roadmap group 4 (distribution), immediately after **T-62** — the three push cards run in sequence: iOS (**T-40**) → web (**T-62**) → this one. *(The group is about SEQUENCE, not about this being distribution work: it has to come after both channels exist, or it would be decided on a third of the evidence.)* |
+| **Depends on** | **F-09** (the push rail, delivered 29/08/2026), **F-38** (the e-mail quota this would relieve), **T-40**/**T-62** (a decision taken with only Android data would be re-taken twice) |
+| **Repo** | `flutter` |
+
+**Description**
+F-09 shipped push as an **addition**: every event that pushed also kept sending its e-mail, and
+the F-38 quota was left untouched. That was a deliberate choice with a stated reason, and this
+item is where the choice gets revisited — **with data, which does not exist yet.**
+
+> **Why F-09 refused to decide it (owner, 29/08/2026).** "There is a live token" is one of the
+> most common lies in mobile: the app was uninstalled, the OS permission was revoked in Settings,
+> an OEM battery manager killed the process, the token rotated between the read and the send.
+> Trading a delivered e-mail for a push that may never arrive loses the notice **silently**, and
+> the notices in question are two-party workflow deadlines. Getting this wrong does not degrade
+> the product — it makes a caregiver miss a day.
+
+**The first half is measurement, not policy.** Today `send-push-notification` returns
+`{sent, retired, failed}` to a caller that is a database trigger, which discards it. Nothing is
+stored, so nobody can currently answer the questions this decision needs:
+
+- what share of active families have **at least one** registered device, per caregiver — the
+  relevant unit is the RECIPIENT, since one parent may have push and the other may not;
+- for a given pushable event, whether FCM actually accepted the message;
+- how often a token is retired (`UNREGISTERED`) relative to how often it is used — the empirical
+  size of the "live token" lie above.
+
+So the item starts by recording a delivery outcome somewhere queryable, then runs long enough to
+be worth reading.
+
+**Then the decision, and the option space is wider than replace/don't.**
+
+1. **Stop counting push-covered events against the F-38 quota, but keep sending both.** The
+   cheapest win with no delivery risk at all: the quota exists because e-mail has a per-message
+   cost, and it is the CAP that hurts a free family, not the sending. Likely the right first
+   answer, and it needs no reliability argument.
+2. **Replace per recipient, fail-open.** No token, permission revoked, or FCM refusing → the
+   e-mail goes. Requires the measurement above to size the fail-open rate honestly.
+3. **Let the person choose**, on the Notificações screen. Costs a persisted preference and a new
+   path to test, for a saving nobody has measured — worth considering only after (1) and (2).
+
+**Hard constraints on any answer**
+- **Per RECIPIENT, never per event.** A swap is two-party; suppressing one side's e-mail because
+  the OTHER side has push is the failure mode to design against.
+- **Fail OPEN, always.** Every unknown resolves to sending the e-mail.
+- **Never silent for both channels.** In-app is not a substitute: it only reaches someone already
+  looking, which is precisely the person who does not need to be told.
+
+**Justification**
+The F-38 cap (100 transactional e-mails / family / month) exists because e-mail is the scarce
+channel, and push has no per-message cost. There is real money and real free-tier headroom on the
+table. But it is also the one place where an optimisation can make the product quietly fail at
+the thing it exists for, so it earns a record of its own instead of a follow-up line — and it
+earns being decided on evidence rather than on the plausibility of "they have the app installed".
+
+**Files affected**
+- `supabase/functions/send-push-notification/` — record the delivery outcome
+- New migration — wherever that outcome lives, and its retention (S-13 applies)
+- `supabase/migrations/*` — the F-38 counter, if option 1 or 2 wins
+- `packages/entrelares_core` — the per-recipient rule, as a pure mirror with its own suite

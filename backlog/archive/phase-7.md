@@ -3718,9 +3718,14 @@ for the device round being part of the item and not a follow-up.**
 **Left deliberately open**
 
 - **Web push** — needs its own service worker, and `web/service-worker.js` is the PWA's tombstone
-  that must keep unregistering itself. A design decision, not a flag.
+  that must keep unregistering itself. A design decision, not a flag. **Now T-62** (29/08/2026).
 - **iOS** — T-40. The payload already carries its `apns` block.
 - **Whether push should ever REPLACE the e-mail** — revisit with adoption data, not before.
+  **Now F-59** (29/08/2026), whose first half is the measurement that data requires: the
+  dispatcher currently returns its outcome to a trigger that discards it.
+
+The three run in sequence in roadmap group 4: **T-40** (iOS) → **T-62** (web) → **F-59** (the
+e-mail rebalance, which would be decided on a third of the evidence if it came first).
 - **A second device round after the two fixes above** — the icon and the landing tab were found
   by looking, and only looking can confirm them. *(Done the same day: the icon reads as the mark
   and the receipt lands on Histórico; the revert flow was exercised end to end in both
