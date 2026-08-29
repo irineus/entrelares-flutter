@@ -3600,7 +3600,7 @@ written down to happen at all.
 
 | Field | Value |
 |---|---|
-| **Status** | `done` (29/08/2026) — PR 1 (the rail) in [#109](https://github.com/irineus/entrelares-flutter/pull/109), PR 2 (the Android client) in [#110](https://github.com/irineus/entrelares-flutter/pull/110), PR 3 (the U-23 step + close-out) in this delivery. Shipped in `2.2.0+58`. **Android is live; iOS inherits the rail inside T-40; web push is explicitly NOT in scope** |
+| **Status** | `done` (29/08/2026) — PR 1 (the rail) in [#109](https://github.com/irineus/entrelares-flutter/pull/109), PR 2 (the Android client) in [#110](https://github.com/irineus/entrelares-flutter/pull/110), PR 3 (the U-23 step, the two device-round fixes and the close-out) in [#111](https://github.com/irineus/entrelares-flutter/pull/111). Shipped in `2.3.0+59`. **Android is live; iOS inherits the rail inside T-40; web push is explicitly NOT in scope** |
 | **Priority** | `low` — kept, and it is the honest label. The Realtime bridge already covers everything that happens while the app is open, so this only reaches the person who is not looking |
 | **Complexity** | `high` — confirmed, but not where the record expected. The transport was the easy half |
 | **Impact** | `medium` |
@@ -3722,4 +3722,6 @@ for the device round being part of the item and not a follow-up.**
 - **iOS** — T-40. The payload already carries its `apns` block.
 - **Whether push should ever REPLACE the e-mail** — revisit with adoption data, not before.
 - **A second device round after the two fixes above** — the icon and the landing tab were found
-  by looking, and only looking can confirm them.
+  by looking, and only looking can confirm them. *(Done the same day: the icon reads as the mark
+  and the receipt lands on Histórico; the revert flow was exercised end to end in both
+  directions.)*
