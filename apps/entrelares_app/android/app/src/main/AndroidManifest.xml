@@ -82,6 +82,19 @@
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <!-- F-09 — the status-bar icon, and it is NOT a nicety. Android renders a
+             notification's small icon as a SILHOUETTE: it keeps the alpha channel
+             and throws the colours away. With no icon declared the SDK falls back
+             to the launcher icon, which flattens into a featureless white blob —
+             exactly what a real device showed on the first push (29/08/2026).
+             `ic_stat_entrelares` is a white-on-transparent glyph generated from
+             the same geometry as every other icon (`store/brand-icons.py`). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_entrelares" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
         <!-- F-09: the channel the push payload names. If the id does not exist
              on the device, Android 8+ drops the notification WITHOUT an error —
              the send succeeds, FCM reports delivery and nothing appears. The

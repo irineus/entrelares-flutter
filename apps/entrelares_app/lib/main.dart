@@ -373,8 +373,16 @@ class _EntrelaresAppState extends State<EntrelaresApp>
           StatefulShellBranch(routes: [
             GoRoute(
               path: '/notifications',
-              builder: (_, _) => NotificationsScreen(
-                  dataSource: _dataSource, badge: _badge, push: _push),
+              builder: (_, state) => NotificationsScreen(
+                  dataSource: _dataSource,
+                  badge: _badge,
+                  push: _push,
+                  landing: switch (state.uri.queryParameters['tab']) {
+                    'incoming' => NotificationLanding.incoming,
+                    'history' => NotificationLanding.history,
+                    _ => null,
+                  },
+                  landingNonce: state.uri.queryParameters['n']),
             ),
           ]),
           StatefulShellBranch(routes: [
@@ -480,8 +488,20 @@ class _EntrelaresAppState extends State<EntrelaresApp>
     // the day itself: the payload names an event, and the swap it refers to
     // may already have been answered from the other phone — Notificações is
     // the one screen that is truthful whatever happened in between.
-    _push.onOpen = (_) {
-      if (_phase == _AuthPhase.authed) _router.go('/notifications');
+    _push.onOpen = (data) {
+      if (_phase != _AuthPhase.authed) return;
+      // The tab is chosen from the notice's TYPE (PushRouting): a receipt lands
+      // on Histórico, which always holds the row that was tapped, while a
+      // request awaiting this person lands on "Para você". The notification id
+      // rides along so a SECOND tap re-applies the tab — the screen's State
+      // survives inside the shell branch.
+      final landing = PushRouting.landingFor(data['type']);
+      final query = {
+        'tab': landing == NotificationLanding.incoming ? 'incoming' : 'history',
+        if ((data['notificationId'] ?? '').isNotEmpty)
+          'n': data['notificationId']!,
+      };
+      _router.go(Uri(path: '/notifications', queryParameters: query).toString());
     };
     // T-37: a pageview per navigation, the app's answer to the web's
     // `OnLocationChanged`. The URL is sanitized by the pure mirror, so no

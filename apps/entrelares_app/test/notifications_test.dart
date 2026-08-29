@@ -18,16 +18,24 @@ import 'frozen_day_test.dart' show swapReq;
 final pt = Localization(AppLanguage.ptBr);
 
 Widget notifApp(FakeCustodyDataSource ds, NotificationBadge badge,
-        {AppLanguage language = AppLanguage.ptBr}) =>
+        {AppLanguage language = AppLanguage.ptBr,
+        NotificationLanding? landing,
+        String? landingNonce}) =>
     AppL10n(
       l: Localization(language),
       setLanguage: (_) async {},
       child: MaterialApp(
-        home: NotificationsScreen(dataSource: ds, badge: badge),
+        home: NotificationsScreen(
+            dataSource: ds,
+            badge: badge,
+            landing: landing,
+            landingNonce: landingNonce),
       ),
     );
 
 void main() {
+  _landingTests();
+
   testWidgets('opening the page marks everything read and shows the '
       'incoming requests', (tester) async {
     final ds = FakeCustodyDataSource(members: [ana, bruno], days: [])
@@ -172,5 +180,85 @@ void main() {
     await tester.pump(const Duration(seconds: 100));
     await tester.pumpAndSettle();
     expect(ds.monthFetches, greaterThan(afterFirstPoll));
+  });
+}
+
+// ── F-09: where a tapped push lands ──────────────────────────────────────────
+//
+// Found on the first real device round (29/08/2026): tapping "Troca aprovada"
+// opened the page on "Para você", which lists OPEN requests and is therefore
+// EMPTY for exactly that notice — the person taps a notification and lands on
+// "nada pendente para você", which reads as the app having lost what it just
+// told them. `PushRouting` decides the tab; these prove the screen obeys it.
+void _landingTests() {
+  testWidgets('a receipt lands on Histórico, where its row always is',
+      (tester) async {
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: [])
+      ..notifications = [
+        AppNotification(
+          id: 1,
+          recipientProfileId: ana.id,
+          type: 'swap_approved',
+          title: 'Troca aprovada! ✅',
+          message: 'Bruno Lima aceitou ficar com a criança no dia 31/08/2026.',
+          createdAt: DateTime.now().toIso8601String(),
+        ),
+      ];
+    final badge = NotificationBadge(ds);
+
+    await tester.pumpWidget(notifApp(ds, badge,
+        landing: NotificationLanding.history, landingNonce: '1'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('aceitou ficar com a criança'), findsOneWidget,
+        reason: 'the tapped notice must be on screen, not one tab away');
+  });
+
+  testWidgets('a request awaiting me lands on Para você', (tester) async {
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: [])
+      ..pendingForMe = [swapReq(10, dayOfMonth(today.day))];
+    final badge = NotificationBadge(ds);
+
+    await tester.pumpWidget(notifApp(ds, badge,
+        landing: NotificationLanding.incoming, landingNonce: '2'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(pt[K.notifBtnApprove]), findsOneWidget);
+  });
+
+  testWidgets('a SECOND tap re-applies the tab', (tester) async {
+    // The screen lives in a shell branch, so its State survives the second
+    // navigation. Without the nonce, someone who taps a notice, browses to
+    // another tab, then taps a second notice of the same kind would stay put.
+    final ds = FakeCustodyDataSource(members: [ana, bruno], days: [])
+      ..pendingForMe = [swapReq(10, dayOfMonth(today.day))]
+      ..notifications = [
+        AppNotification(
+          id: 7,
+          recipientProfileId: ana.id,
+          type: 'swap_approved',
+          title: 'Troca aprovada! ✅',
+          message: 'Bruno Lima aceitou ficar com a criança no dia 31/08/2026.',
+          createdAt: DateTime.now().toIso8601String(),
+        ),
+      ];
+    final badge = NotificationBadge(ds);
+
+    await tester.pumpWidget(notifApp(ds, badge,
+        landing: NotificationLanding.history, landingNonce: '7'));
+    await tester.pumpAndSettle();
+
+    // The person wanders back to the incoming tab by hand.
+    // The label carries its count once something is pending — "Para você (1)".
+    await tester.tap(find.text('${pt[K.notifTabIncoming]} (1)'));
+    await tester.pumpAndSettle();
+    expect(find.text(pt[K.notifBtnApprove]), findsOneWidget);
+
+    // A second receipt arrives and is tapped: same landing, new notification.
+    await tester.pumpWidget(notifApp(ds, badge,
+        landing: NotificationLanding.history, landingNonce: '8'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('aceitou ficar com a criança'), findsOneWidget);
   });
 }

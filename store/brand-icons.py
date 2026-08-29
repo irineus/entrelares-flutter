@@ -29,6 +29,9 @@ Outputs:  apps/entrelares_app/web/favicon.png                    (96, squircle)
               FOREGROUND: transparent, mark inside the 66% safe zone)
           apps/entrelares_app/assets/brand/emblema-monochrome.png (512, the
               Android 13 themed-icon glyph: white alpha shape)
+          apps/entrelares_app/android/.../res/drawable-*/ic_stat_entrelares.png
+              (F-09: the Android status-bar icon, 5 densities — white glyph on
+              transparency, because Android silhouettes the small icon)
           store/brand-calendario.svg                             (vector source)
           store/store_icon.png                                   (512, the Play
               LISTING icon — full-bleed indigo, mark at 60% so Play's own
@@ -207,6 +210,25 @@ def monochrome(size: int) -> Image.Image:
     _centred_mark(d, size * SS, 0.46, monochrome=True)
     return _finish(img, size)
 
+def notification(size: int) -> Image.Image:
+    """F-09 — the Android status-bar icon: white glyph on transparency.
+
+    This one is NOT a nicety. Android renders a notification's small icon as a
+    SILHOUETTE — it keeps the alpha channel and throws the colours away — so an
+    app that ships none gets its launcher icon flattened into a featureless
+    blob. That is what a real device showed on the first push (29/08/2026): a
+    white circle where the mark should be.
+
+    The mark fills the box (0.92, against `monochrome`'s 0.46) because a status
+    bar icon has no safe zone to respect — the system gives it its own padding.
+    It reads from xhdpi up; at mdpi the day cells merge, which is accepted:
+    `minSdk` is 26 and a device that low-density is not in this product's field.
+    """
+    img, d = _canvas(size)
+    _centred_mark(d, size * SS, 0.92, monochrome=True)
+    return _finish(img, size)
+
+
 def write_svg(path: Path, size: int = 1024) -> None:
     """The vector source: same geometry, same tokens, hand-editable."""
     w = size * 0.66
@@ -264,5 +286,15 @@ if __name__ == "__main__":
     print("ok emblema-monochrome.png")
     store_listing(512).save(ROOT / "store" / "store_icon.png", optimize=True)
     print("ok store_icon.png")
+    # F-09: the status-bar icon, one file per density. Android picks by density
+    # and silhouettes whatever it finds, so shipping all five is what keeps the
+    # mark from being resampled into mush on the phone that matters.
+    res = APP / "android" / "app" / "src" / "main" / "res"
+    for bucket, px in (("mdpi", 24), ("hdpi", 36), ("xhdpi", 48),
+                       ("xxhdpi", 72), ("xxxhdpi", 96)):
+        out = res / f"drawable-{bucket}" / "ic_stat_entrelares.png"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        notification(px).save(out, optimize=True)
+    print("ok ic_stat_entrelares.png (5 densities)")
     write_svg(ROOT / "store" / "brand-calendario.svg")
     print("ok brand-calendario.svg")

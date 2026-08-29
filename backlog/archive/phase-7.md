@@ -3689,11 +3689,37 @@ unreachable by any test.
 - Android: `google-services.json` per flavor, `POST_NOTIFICATIONS`, the channel in `MainActivity`
 - `supabase/README.md` §11 — arming a project, per environment
 
+**The device round found two things no gate could (29/08/2026, owner, dev flavour on a real
+handset + an emulator as the second caregiver).** Push itself worked first try, in both
+directions, with the app killed. Both findings were about what happens AFTER it arrives:
+
+1. **The notification wore a featureless white blob instead of the mark.** Not an emulator
+   artifact — Android renders a notification's small icon as a **silhouette**, keeping the alpha
+   channel and discarding the colours, so an app that declares none gets its full-colour launcher
+   icon flattened. Fixed with a white-on-transparent glyph at five densities, generated from the
+   same geometry as every other icon (`store/brand-icons.py`), plus
+   `default_notification_color` so the silhouette carries the brand indigo instead of the
+   system's grey. It reads from xhdpi up; at mdpi the day cells merge, which is accepted —
+   `minSdk` is 26 and that density is not in this product's field.
+2. **A receipt landed on an empty screen.** Tapping "Troca aprovada" opened Notificações on
+   "Para você", which lists OPEN requests — and the request it was about had just been closed.
+   The person taps a notice and arrives at *"nada pendente para você"*, which reads as the app
+   having lost what it just told them. The tab is now chosen from the notice's TYPE
+   (`PushRouting`): a receipt lands on **Histórico**, which is the notification list itself and
+   therefore always holds the row that was tapped, while a request awaiting this person — and
+   `auto_reminder`, the most deadline-bound notice the product sends — stays on "Para você".
+   Enviadas was considered and rejected: it holds only requests this person OPENED, so it is
+   empty for a notice about somebody else's request or about a day resolved automatically.
+
+Both were invisible to every suite by construction: one is how the OS draws a payload, the other
+is which tab a running app selects after a tap that no test can perform. **This is the argument
+for the device round being part of the item and not a follow-up.**
+
 **Left deliberately open**
 
 - **Web push** — needs its own service worker, and `web/service-worker.js` is the PWA's tombstone
   that must keep unregistering itself. A design decision, not a flag.
 - **iOS** — T-40. The payload already carries its `apns` block.
 - **Whether push should ever REPLACE the e-mail** — revisit with adoption data, not before.
-- **A real device round.** No gate can prove a push arriving with the app closed; the suites
-  prove everything up to the network.
+- **A second device round after the two fixes above** — the icon and the landing tab were found
+  by looking, and only looking can confirm them.

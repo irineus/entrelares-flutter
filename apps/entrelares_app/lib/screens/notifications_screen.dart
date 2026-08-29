@@ -28,11 +28,22 @@ class NotificationsScreen extends StatefulWidget {
   /// a blank space answers badly.
   final PushService? push;
 
+  /// F-09: which tab a TAPPED notification asked for ([PushRouting]).
+  final NotificationLanding? landing;
+
+  /// The tapped notification's id. It exists only to make the landing apply
+  /// AGAIN: this screen lives in a shell branch, so its State survives a second
+  /// navigation, and comparing the landing alone would silently ignore a second
+  /// tap that wants the same tab the person has since navigated away from.
+  final String? landingNonce;
+
   const NotificationsScreen(
       {super.key,
       required this.dataSource,
       required this.badge,
-      this.push});
+      this.push,
+      this.landing,
+      this.landingNonce});
 
   @override
   State<NotificationsScreen> createState() => _NotificationsScreenState();
@@ -87,7 +98,29 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   void initState() {
     super.initState();
+    _applyLanding();
     _init();
+  }
+
+  @override
+  void didUpdateWidget(NotificationsScreen old) {
+    super.didUpdateWidget(old);
+    if (widget.landingNonce != old.landingNonce) _applyLanding();
+  }
+
+  /// F-09 — a tapped notification chooses the tab.
+  ///
+  /// Without this the tap lands on "Para você", which lists OPEN requests, and
+  /// a notice saying a swap was APPROVED is about a request that is now closed
+  /// — so the person taps the notification and arrives at "nada pendente para
+  /// você", which reads as the app having lost what it just told them.
+  void _applyLanding() {
+    final landing = widget.landing;
+    if (landing == null) return;
+    _tab = switch (landing) {
+      NotificationLanding.incoming => _Tab.incoming,
+      NotificationLanding.history => _Tab.history,
+    };
   }
 
   @override

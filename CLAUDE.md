@@ -254,6 +254,12 @@ These survived the rewrite because none of them is about the client language.
   `MainActivity.onCreate`, not from Dart, so it exists before a message can arrive at an app that
   is not running; creating a channel is idempotent, so doing it on every launch costs nothing and
   removes the ordering question (F-09, 29/08/2026).
+- **Android draws a notification's small icon as a SILHOUETTE.** It keeps the alpha channel and
+  throws the colours away, so an app that declares no notification icon gets its full-colour
+  launcher icon flattened into a featureless blob. Declare
+  `com.google.firebase.messaging.default_notification_icon` (white glyph on transparency, one
+  file per density) and `default_notification_color`, or the brand arrives on the phone as a
+  white circle (F-09, found on the first device round, 29/08/2026).
 - **A test that picks a date as `now + N days` breaks on the last N days of a month.** The
   calendar grid renders the CURRENT month only — blanks, then `1..daysInMonth`, with no tail of
   any neighbour — so a target that rolls into the next month resolves to the same day NUMBER in
