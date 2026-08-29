@@ -83,14 +83,32 @@ class PushService extends ChangeNotifier {
 
     try {
       final permission = await _messaging.permission();
-      var hasRow = await _dataSource.hasPushSubscription(profileId);
+
+      // The token is read FIRST, and unconditionally, because it is what
+      // identifies this DEVICE — and every question below is about this
+      // device, never about the profile.
+      //
+      // Two silent breaks came from not holding it here. [stop] unregisters by
+      // token, so a session that found its row already in place left `_token`
+      // null and signed out WITHOUT dropping the registration: the phone stayed
+      // pointed at the account that just left, and the next account on it
+      // collided with that row. And asking "does this profile have a device?"
+      // instead of "is THIS device registered?" answers yes on a second phone
+      // that never registered, so the repair below never runs for it.
+      final token = _token = await _deviceToken();
+
+      var hasRow = token != null &&
+          await _dataSource.isDeviceRegistered(
+            myProfileId: profileId,
+            token: token,
+          );
 
       if (PushEnrollment.shouldRegisterSilently(
         platformSupported: true,
         permissionGranted: permission == PushPermission.granted,
         hasSubscription: hasRow,
       )) {
-        hasRow = await _register(profileId);
+        hasRow = await _register(profileId, token: token);
       }
 
       _set(_resolve(permission, hasRow));
@@ -118,6 +136,9 @@ class PushService extends ChangeNotifier {
     _profileId = null;
     _set(_messaging.supported ? PushState.off : PushState.unsupported);
 
+    // Null only when this device could not produce a token at all, which is
+    // also the only case in which it cannot be registered. [start] fills it on
+    // every authenticated session, including the one that changed nothing.
     if (token == null) return;
     try {
       await _dataSource.deletePushToken(token);
@@ -175,16 +196,34 @@ class PushService extends ChangeNotifier {
         hasSubscription: hasSubscription,
       );
 
-  Future<bool> _register(int profileId) async {
-    final token = await _messaging.token();
-    if (token == null) return false;
-    _token = token;
+  Future<bool> _register(int profileId, {String? token}) async {
+    final resolved = token ?? await _deviceToken();
+    if (resolved == null) return false;
+    _token = resolved;
     await _dataSource.registerPushToken(
       myProfileId: profileId,
-      token: token,
+      token: resolved,
       platform: _messaging.platformName,
     );
     return true;
+  }
+
+  /// This device's registration token, or null when the transport cannot
+  /// produce one right now.
+  ///
+  /// Never throws, and never prompts. Asking for a token is not asking for the
+  /// permission — the transport hands one out before, and independently of, any
+  /// dialog — but it CAN refuse (a device with no Play Services, an offline
+  /// first run, iOS before its own registration completes). A refusal here is
+  /// the difference between "push is off" and a session that failed to start,
+  /// and only the first of those is true.
+  Future<String?> _deviceToken() async {
+    try {
+      return await _messaging.token();
+    } catch (error) {
+      debugPrint('[push] the transport gave no token: $error');
+      return null;
+    }
   }
 
   Future<void> _listen() async {

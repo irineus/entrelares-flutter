@@ -228,11 +228,19 @@ abstract class CustodyDataSource {
   /// the person turns push off.
   Future<void> deletePushToken(String token);
 
-  /// F-09: whether [myProfileId] has ANY device registered. The U-23 step and
-  /// the Notificações switch both read this rather than a stored flag: the
-  /// permission can be revoked in the OS, and a flag would keep claiming push
-  /// was on.
-  Future<bool> hasPushSubscription(int myProfileId);
+  /// F-09: whether THIS DEVICE — the one holding [token] — is registered for
+  /// [myProfileId]. Read rather than a stored flag: the permission can be
+  /// revoked in the OS, and a flag would keep claiming push was on.
+  ///
+  /// **Keyed on the token, not on the profile alone**, and the difference is a
+  /// silent break. "Does this profile have any device?" answers yes on a
+  /// SECOND phone that has never registered, so the control reads `on` while
+  /// nothing was ever sent to that device — and the silent repair in
+  /// [PushService.start] never runs, because it believes the work is done.
+  Future<bool> isDeviceRegistered({
+    required int myProfileId,
+    required String token,
+  });
 
   /// Listens for swap_requests + notifications changes — the lote-3 twin of
   /// [watchChanges] (frozen paint, badge, page refresh). Safe to call from

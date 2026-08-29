@@ -894,6 +894,12 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
     // which is exactly what must happen — the alternative is a 23505 the caller
     // would have to interpret, or a stale row still receiving the previous
     // account's notices.
+    //
+    // The re-point across profiles is the DATABASE's, not this statement's: a
+    // `DO UPDATE` over someone else's row is refused by RLS, correctly, and for
+    // a whole day in production it was. The `push_subscriptions_claim_token`
+    // trigger clears the previous holder before the INSERT, so this call never
+    // reaches the UPDATE branch unless the row is already yours.
     await _client.from('push_subscriptions').upsert({
       'profile_id': myProfileId,
       'token': token,
@@ -909,11 +915,18 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
   }
 
   @override
-  Future<bool> hasPushSubscription(int myProfileId) async {
+  Future<bool> isDeviceRegistered({
+    required int myProfileId,
+    required String token,
+  }) async {
+    // Both columns, though RLS already hides another profile's row: a filter
+    // that only works because a policy is doing half of it breaks the day the
+    // policy is read as redundant and simplified away.
     final rows = await _client
         .from('push_subscriptions')
         .select('id')
         .eq('profile_id', myProfileId)
+        .eq('token', token)
         .limit(1);
     return rows.isNotEmpty;
   }
