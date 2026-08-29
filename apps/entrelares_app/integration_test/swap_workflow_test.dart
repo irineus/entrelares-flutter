@@ -99,7 +99,30 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 15));
   }
 
-  Future<void> openDay(WidgetTester tester, int day) async {
+  /// Opens [target]'s day sheet, advancing the calendar to its MONTH first.
+  ///
+  /// Taking a full date rather than a day NUMBER is the whole fix. The lane's
+  /// target is `now + 3 days`, the grid opens on the current month, and it
+  /// renders blanks then `1..daysInMonth` — no tail of any neighbouring month.
+  /// So on the last three days of any month the target rolls over: on
+  /// 29/08/2026 the seeded day was 01/09 and `openDay(1)` found exactly one
+  /// cell reading '1' — **01/08**, a PAST day, which opens the sheet in READ
+  /// mode with no chips at all. The failure surfaced as "Bad state: No element"
+  /// on a ChoiceChip finder, which names the widget and hides the cause, and
+  /// the lane was green until 21:48 on the 28th purely because `now + 3` had
+  /// not yet crossed a month.
+  ///
+  /// The same trap is waiting for every future date this file picks, so the
+  /// navigation lives HERE and not at the call sites.
+  Future<void> openDay(WidgetTester tester, DateTime target) async {
+    final now = DateTime.now();
+    final monthsAhead =
+        (target.year - now.year) * 12 + (target.month - now.month);
+    for (var i = 0; i < monthsAhead; i++) {
+      await tester.tap(find.byTooltip(l[K.calNextMonth]));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+    }
+
     // SCOPED to the month grid, and that is the whole point. `find.text('28')`
     // over the entire tree also matches the day number wherever else it is
     // printed — the next-handoff card, the upcoming list — and those grow as
@@ -107,11 +130,11 @@ void main() {
     // mid-test. It changed here: the founder's tap landed on the grid, and the
     // member's, with a pending request on screen, did not.
     //
-    // `.last` INSIDE the grid is still right: a month grid also draws the tail
-    // of the previous month, so '28' can legitimately appear twice, and the
-    // second one is this month's.
+    // `.last` INSIDE the grid stays, as the belt to that brace: within one
+    // month's GridView the day number is unique, so it selects the only match.
     final cell = find
-        .descendant(of: find.byType(GridView), matching: find.text('$day'))
+        .descendant(
+            of: find.byType(GridView), matching: find.text('${target.day}'))
         .last;
     await tester.ensureVisible(cell);
     await tester.pumpAndSettle();
@@ -127,7 +150,7 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget,
         reason: 'the founder should land on the authenticated shell');
 
-    await openDay(tester, targetDay.day);
+    await openDay(tester, targetDay);
     final memberChip =
         find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').first);
     await tester.ensureVisible(memberChip.last);
@@ -162,7 +185,7 @@ void main() {
     await bootApp(tester);
     await signIn(tester, family.member.email);
 
-    await openDay(tester, targetDay.day);
+    await openDay(tester, targetDay);
     // The `reason` carries the DIAGNOSIS, not just the claim. Two runs died
     // here saying only "found 0 widgets", which names the symptom and hides
     // every candidate cause: the request may have resolved, the tap may have
@@ -211,7 +234,7 @@ void main() {
 
     await bootApp(tester);
     await signIn(tester, family.founder.email);
-    await openDay(tester, day.day);
+    await openDay(tester, day);
     final memberChip =
         find.widgetWithText(ChoiceChip, family.member.fullName.split(' ').first);
     await tester.ensureVisible(memberChip.last);

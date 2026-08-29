@@ -198,6 +198,7 @@ npx supabase functions deploy billing-checkout     --project-ref <project-ref>
 | `register-invitee` | F-15 invite sign-up: `admin.createUser` + profile/family wiring for a user joining via an invitation link (first casualty if the JWT key is on ES256 — see S-16) |
 | `elevate` | S-10 sudo elevation: mints a short-lived admin-mode token for the guarded destructive actions |
 | `purge-deleted` | S-11 cron worker: hard-deletes accounts (and families) past their 30-day grace. Also carries the retention/notice duties added since: `purge_old_notifications` (S-13, read notices > 6 months), **`purge_stale_invitations`** (S-15/A-4, never-accepted invitations > 30 days — what makes the invite e-mail's purge promise true) and **`billing_grace_warnings_due`** (S-15/B-3, warns admins by e-mail before the Premium grace expires; the RPC writes the in-app notice, the e-mail here is the best-effort twin) |
+| `send-push-notification` | F-09: the push dispatcher. Fired by an AFTER INSERT trigger on `notifications` (pg_net, hence `--no-verify-jwt` and the secret key on `apikey`), so push, in-app and e-mail are three renderings of ONE event. Pushes ten types only — the rule is "push only what the recipient did not just do" — renders the copy per recipient from `_shared/push.ts` in that reader's language, and deletes the tokens FCM retires. **Fails closed and quiet on every branch**: no `FCM_SERVICE_ACCOUNT`, no device, or an unrenderable payload each answer 200 with a reason (arming: section 11) |
 | `send-account-email` | S-11 account-lifecycle e-mails (deletion scheduled/cancelled, family-deletion consent); mirrors the F-20 priority tag in `America/Sao_Paulo`. S-15/B-3 added `premium_grace_ending` — the only type that e-mails ONLY the subject (a family admin), since billing is admin-only |
 
 | `billing-webhook` | T-39: receives Asaas events (auth = the `ASAAS_WEBHOOK_TOKEN` shared secret in `asaas-access-token`, hence `--no-verify-jwt`). **Idempotent by the provider's event id** — a redelivery is recorded and ignored — and applies every effect through `set_family_plan`, adopting the subscription created by the payment link (`externalReference family:<id>`, link-id fallback) |
@@ -1840,3 +1841,104 @@ o segredo HS256 pode ser revogado na página JWT Keys — e a própria plataform
 **exige** essa ordem, porque `anon`/`service_role` são JWTs assinados por ele.
 Espere ao menos **1h15** após a rotação antes de revogar (o access token dura 1h;
 revogar antes desloga quem estiver com sessão ativa).
+
+---
+
+## 11. Push notifications go-live (F-09) — arming a project to push
+
+> **The rail ships DARK, on purpose.** The trigger, the table and the Edge Function are
+> deployed by CI to both projects, and on a project without the secrets below every one of
+> them returns without doing anything. Nothing here is a prerequisite for merging F-09 —
+> it is what turns the rail on, per environment, and dev should be armed first because
+> that is where a real device can be pointed at it without a user noticing.
+
+**Order matters in one place only:** `FCM_SERVICE_ACCOUNT` must exist on a project **before**
+its `google-services.json` reaches a build that real people run. The reverse — an app that
+registers tokens against a project whose function cannot send — is harmless (rows accumulate,
+nothing is delivered); the same shape as the S-16 ordering rule, for the same reason.
+
+### 11.1 One Firebase project per environment
+
+Two projects, mirroring the two Supabase projects — **not** one project with two Android
+apps. The boundary is the point: a single project means a single service account, so a bug
+in a QA run can push to production devices, which is exactly what the build flavors exist to
+prevent.
+
+1. [console.firebase.google.com](https://console.firebase.google.com) → **Add project**.
+   Suggested names: `entrelares-dev` and `entrelares-prod`. Google Analytics is not needed
+   (T-37 already owns analytics, and it is Umami).
+2. In each project → **Add app → Android**, with the flavor's `applicationId`:
+   - dev project → `com.entrelares.flutter`
+   - prod project → `com.entrelares.app`
+3. Download each `google-services.json`. They are **public client config** (rule 1: the file
+   carries no secret) and are committed in the app PR under
+   `apps/entrelares_app/android/app/src/dev/` and `.../src/prod/`.
+4. **SHA-1 fingerprints are not needed for messaging** — they are a Google-sign-in concern,
+   and F-57 already handles that through Supabase, not Firebase.
+
+### 11.2 The service account, per project
+
+FCM's HTTP v1 API authenticates with a service account, not a server key (the legacy key API
+was retired in 2024).
+
+1. Firebase Console → ⚙️ **Project settings → Service accounts → Generate new private key**.
+   A JSON file downloads. **It is a real secret** — never commit it.
+2. Supabase Dashboard (the MATCHING project) → **Edge Functions → Secrets** → add
+   `FCM_SERVICE_ACCOUNT` with the **entire JSON file contents** as the value, on one line.
+3. Redeploy is not required — Edge Function secrets are read at invocation.
+
+Check it landed, from either project (the empty POST is the same warm-up the deploy pipeline
+sends, and it answers with the arming state instead of doing work):
+
+```
+curl -s -X POST -H "apikey: <secret key>" \
+  https://<ref>.supabase.co/functions/v1/send-push-notification
+```
+
+`{"skipped":"no notification_id","configured":true}` — `configured:false` means the secret is
+missing or is not valid JSON with `client_email`, `private_key` and `project_id`.
+
+### 11.3 The two Vault secrets the trigger reads
+
+The dispatcher trigger runs inside Postgres, which knows neither the project's own URL nor
+any API key. Both come from Vault, and **either one missing disarms the trigger silently** —
+which is what makes this migration safe to apply to an unarmed project.
+
+`secret_key` already exists on both projects (section 10.4, for the crons). Only the base URL
+is new. In the **SQL Editor**:
+
+```sql
+select vault.create_secret(
+  'https://<ref>.supabase.co/functions/v1', 'functions_base_url');
+```
+
+No trailing slash — the trigger appends `/send-push-notification`. Confirm both are present:
+
+```sql
+select name from vault.secrets where name in ('secret_key', 'functions_base_url');
+```
+
+### 11.4 Verify end to end
+
+With a device registered (the app writes its own `push_subscriptions` row after the user
+grants the permission), have the other caregiver open a swap request on the dev project. The
+push should arrive within a couple of seconds. When it does not, read in this order:
+
+```sql
+-- 1. Did the trigger fire and get a 2xx back? (pg_net keeps its own log)
+select id, status_code, error_msg, created
+from net._http_response order by created desc limit 5;
+
+-- 2. Is there a device at all?
+select profile_id, platform, created_at from public.push_subscriptions;
+```
+
+Then the function's own logs (Dashboard → Edge Functions → `send-push-notification`), which
+name every refusal explicitly: `FCM_SERVICE_ACCOUNT not set`, `no registered device`,
+`payload could not be rendered`, `type … is not pushable`.
+
+> **A token that stops working is not a bug to chase.** FCM retires tokens on uninstall and
+> on its own rotation schedule, and answers `UNREGISTERED`; the function deletes those rows,
+> and the app registers a fresh token on its next start. An empty `push_subscriptions` for a
+> profile means that person has not granted the permission on any device — the notification
+> and its e-mail still reached them.
