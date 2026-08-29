@@ -820,8 +820,17 @@ class FakeCustodyDataSource implements CustodyDataSource {
   }
 
   // ── F-09 (unused by the calendar slice, recorded so the fake stays honest) ──
+  /// The registry, keyed the way the real table is: on the TOKEN. A device
+  /// appears at most once however many times it registers, which is the
+  /// UNIQUE constraint the server carries — a fake that allowed the same
+  /// token twice would make a repair look like a leak.
   final List<String> registeredPushTokens = [];
-  bool pushSubscribed = false;
+
+  /// Every token [isDeviceRegistered] was asked about, in order. Recorded so a
+  /// suite can pin WHICH question was asked: "is this device registered?" and
+  /// "does this profile have any device?" are answered identically on the
+  /// first phone and differently on the second.
+  final List<String> deviceChecks = [];
 
   @override
   Future<void> registerPushToken({
@@ -830,18 +839,25 @@ class FakeCustodyDataSource implements CustodyDataSource {
     required String platform,
     String? deviceLabel,
   }) async {
-    registeredPushTokens.add(token);
-    pushSubscribed = true;
+    if (!registeredPushTokens.contains(token)) registeredPushTokens.add(token);
   }
 
   @override
   Future<void> deletePushToken(String token) async {
     registeredPushTokens.remove(token);
-    pushSubscribed = registeredPushTokens.isNotEmpty;
   }
 
+  /// Keyed on the token alone: this fake serves one profile, and the server's
+  /// own answer for another profile's device is `false` either way — RLS hides
+  /// the row, so there is nothing to model.
   @override
-  Future<bool> hasPushSubscription(int myProfileId) async => pushSubscribed;
+  Future<bool> isDeviceRegistered({
+    required int myProfileId,
+    required String token,
+  }) async {
+    deviceChecks.add(token);
+    return registeredPushTokens.contains(token);
+  }
 }
 
 const ana = Member(id: 1, fullName: 'Ana Souza', colorSlot: 1, userId: 'u1');

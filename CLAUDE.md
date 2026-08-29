@@ -260,6 +260,31 @@ These survived the rewrite because none of them is about the client language.
   `com.google.firebase.messaging.default_notification_icon` (white glyph on transparency, one
   file per density) and `default_notification_color`, or the brand arrives on the phone as a
   white circle (F-09, found on the first device round, 29/08/2026).
+- **An upsert's conflict branch is an UPDATE, and RLS judges it by the row that is ALREADY
+  there.** `INSERT … ON CONFLICT DO UPDATE` looks like one statement with one policy behind it;
+  it is not. When the conflicting row belongs to someone else, the UPDATE policy's `USING` is
+  evaluated against THAT row, fails, and Postgres answers `new row violates row-level security
+  policy (USING expression)` — the `(USING expression)` suffix is how you tell this apart from a
+  plain `WITH CHECK` refusal on an INSERT, and it is worth grepping for by name. It cost a day
+  of production on F-09: the app upserted a device token on `onConflict: 'token'` to move a
+  handset between accounts, which is a normal thing for one family sharing one telephone, and
+  every attempt was refused. **If a write must legitimately displace another profile's row,
+  neither the client nor the policy can do it** — clear the old row from a `SECURITY DEFINER`
+  trigger or RPC, so the INSERT stands alone and its `WITH CHECK` still applies (29/08/2026).
+- **A test that asserts the refusal of a statement the app never sends is green about nothing.**
+  The db-gate pinned that a plain INSERT of a token held by someone else is rejected — correct,
+  and beside the point: production sends an UPSERT, whose failure mode is the gotcha above and
+  which no suite touched. This is the `translateSaveError` trap in a second language six days
+  later, so it is the pattern and not the incident that matters: **write the gate against the
+  CALL the product makes** — copy the statement out of the data source, don't paraphrase it into
+  the shape that is easiest to assert (F-09, 29/08/2026).
+- **"Does this profile have a device?" and "is THIS device registered?" differ on the second
+  device, and only there.** F-09 asked the first and meant the second: a second handset found a
+  row belonging to the first, concluded the work was done, never registered itself, and showed
+  the control as `on` while the server had never heard of it. The same confusion made sign-out
+  unregister nothing — the token was never read on a session that had nothing to repair, and the
+  handset stayed pointed at the account that had just left. **Anything keyed to a device must be
+  keyed to that device's token**, on the query and in the field the sign-out path reads.
 - **A test that picks a date as `now + N days` breaks on the last N days of a month.** The
   calendar grid renders the CURRENT month only — blanks, then `1..daysInMonth`, with no tail of
   any neighbour — so a target that rolls into the next month resolves to the same day NUMBER in

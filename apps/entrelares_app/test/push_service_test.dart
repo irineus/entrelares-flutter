@@ -20,6 +20,10 @@ class FakeMessaging implements PushMessaging {
   int permissionRequests = 0;
   int deletedTokens = 0;
 
+  /// A transport that refuses to hand out a token: no Play Services, an
+  /// offline first run, iOS before its own registration completes.
+  bool tokenThrows = false;
+
   final _refresh = StreamController<String>.broadcast();
   final _opened = StreamController<Map<String, String>>.broadcast();
   Map<String, String>? launchMessage;
@@ -47,7 +51,10 @@ class FakeMessaging implements PushMessaging {
   }
 
   @override
-  Future<String?> token() async => nextToken;
+  Future<String?> token() async {
+    if (tokenThrows) throw StateError('SERVICE_NOT_AVAILABLE');
+    return nextToken;
+  }
 
   @override
   Future<void> deleteToken() async => deletedTokens++;
@@ -213,6 +220,61 @@ void main() {
       // would keep delivering the previous account's notices.
       expect(data.registeredPushTokens, isEmpty);
       expect(push.state, PushState.off);
+    });
+
+    test('sign-out still unregisters after a session that changed nothing',
+        () async {
+      // The state this app is in on EVERY launch after the first: the device is
+      // already registered, so `start` has nothing to repair.
+      data.registeredPushTokens.add('tok-1');
+      final messaging = FakeMessaging(current: PushPermission.granted);
+      final push = serviceWith(messaging);
+
+      await push.start(7);
+      expect(push.state, PushState.on);
+      expect(data.registeredPushTokens, ['tok-1'], reason: 'nothing to repair');
+
+      await push.stop();
+
+      // The defect this pins, measured in production on 29/08/2026: a session
+      // that found its row in place never learned the token, so sign-out
+      // dropped NOTHING and the phone stayed pointed at the account that just
+      // left. The next account to sign in on that phone then asked the server
+      // to re-point a row it did not own, and was refused by RLS — the neutral
+      // "não foi possível ativar os avisos agora", forever, on that device.
+      expect(data.registeredPushTokens, isEmpty);
+    });
+
+    test('a second device registers though the profile already has one',
+        () async {
+      // The other phone's row. The question "does this PROFILE have a device?"
+      // answers yes here and stops — which is how a second device ends up
+      // showing `on` while the server was never told it exists.
+      data.registeredPushTokens.add('tok-outro-aparelho');
+      final messaging = FakeMessaging(current: PushPermission.granted);
+      final push = serviceWith(messaging); // this device is `tok-1`
+
+      await push.start(7);
+
+      expect(data.deviceChecks, ['tok-1'],
+          reason: 'the question must be about THIS device');
+      expect(data.registeredPushTokens, ['tok-outro-aparelho', 'tok-1']);
+      expect(push.state, PushState.on);
+    });
+
+    test('a transport that refuses a token leaves the control off, not broken',
+        () async {
+      final messaging = FakeMessaging(current: PushPermission.granted)
+        ..tokenThrows = true;
+      final push = serviceWith(messaging);
+
+      // Reading the token moved to the top of `start`, so a transport that
+      // throws there would take the whole authenticated session's push state
+      // down with it. "Push is off" is the truth; "start failed" is not.
+      await push.start(7);
+
+      expect(push.state, PushState.off);
+      expect(data.registeredPushTokens, isEmpty);
     });
 
     test('turning it off drops the row AND the transport token', () async {

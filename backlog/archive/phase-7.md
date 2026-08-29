@@ -3730,3 +3730,46 @@ e-mail rebalance, which would be decided on a third of the evidence if it came f
   by looking, and only looking can confirm them. *(Done the same day: the icon reads as the mark
   and the receipt lands on Histórico; the revert flow was exercised end to end in both
   directions.)*
+
+**Post-delivery defect — one telephone, two accounts (fixed 29/08/2026, same day)**
+
+The owner could not enable push on the product's FIRST account while a second account on the
+same handset had just enabled it fine. Production log, eight refusals in ninety seconds:
+
+```
+new row violates row-level security policy (USING expression) for table "push_subscriptions"
+```
+
+`registerPushToken` upserts on the token, because the row holding it may belong to another
+profile — the same phone, a different sign-in. But the conflict branch of an upsert is a real
+UPDATE, and `push_subscriptions_update_own`'s `USING` requires the row to be **yours already**.
+It was not. The re-point the code's own comment promised was never possible, and the account's
+age had nothing to do with it: it was simply the SECOND to ask for that handset's token. In the
+opposite order the test account would have been the broken one.
+
+**Three defects, one path.** The refusal above was only the visible one.
+
+1. The upsert had no way to claim a token held by another profile. Fixed in the DATABASE —
+   `push_subscriptions_claim_token`, a `BEFORE INSERT` that clears the previous holder so the
+   INSERT never reaches the UPDATE branch. It had to be the database: `2.3.0+59` was already on
+   handsets and cannot call an RPC that did not exist when it was compiled.
+2. **`stop()` was a no-op after any restart.** `_token` was only set by `_register`, which
+   `start()` skips when a row already exists — so signing out dropped nothing and left the
+   handset pointed at the account that had just left. That stale row is what the next account
+   collided with. `start()` now reads the token first, always.
+3. **`hasPushSubscription` asked about the PROFILE, not the device.** A second handset saw
+   "this profile has a device", never registered itself, and displayed `on` while the server had
+   never heard of it. It is `isDeviceRegistered(profileId, token)` now.
+
+**Why the gate was green through all of it.** `push_subscriptions.dart` asserted that a plain
+INSERT of a held token is refused — true, and a statement the app never sends. The shape
+production actually uses, the upsert, was never exercised. Exactly the `translateSaveError`
+trap, six days later and in a different language: *a test that encodes a call the product does
+not make is green about nothing.* The suite now drives the upsert, pins the trigger's blast
+radius to the single row it may delete, and pins that re-registering your OWN device still takes
+the UPDATE branch and keeps its `created_at`.
+
+**The capability this grants, said out loud:** whoever presents a token claims that handset. One
+family sharing one telephone is the ordinary case in this product, not the attack — and holding
+the token IS being the device. It is strictly narrower than the alternative of loosening the
+UPDATE policy, which a single WHERE-less statement could have used to sweep the whole registry.

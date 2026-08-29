@@ -13,6 +13,17 @@ import '_helpers.dart';
 /// so the policies are OWN ROWS ONLY, and these tests exist to keep a future
 /// "make it consistent with the rest" refactor from quietly widening them.
 ///
+/// **The one deliberate exception, and it is worth stating plainly: whoever
+/// PRESENTS a token claims that device.** Registering a token another profile
+/// holds moves it, deleting their row — the `push_subscriptions_claim_token`
+/// trigger. That is not a hole in the rule above, it IS the rule: a token
+/// identifies a telephone, and one family sharing one telephone is the common
+/// case here, not the attack. Holding the token is being the device. So the
+/// two tests below that refuse a direct UPDATE and a direct DELETE are not
+/// pinning "another caregiver's row is unreachable" — they pin the SHAPE:
+/// nothing may sweep rows it cannot name, which is what a `USING (true)` on
+/// the UPDATE policy would have allowed with a single WHERE-less statement.
+///
 /// The second half covers the dispatcher trigger. It fires on every
 /// notification INSERT and, on a project with no Vault secrets, must do
 /// nothing at all — quietly, without taking the INSERT down with it. That is
@@ -117,17 +128,106 @@ void pushSubscriptionsTests(GateFixture fx) {
       expect(gone, isEmpty);
     });
 
-    test('the same token cannot be registered twice', () async {
+    test('a device that changes accounts moves to the new one', () async {
       final token = await registerFor(fx.member, fx.memberProfile.id);
 
-      // UNIQUE on the token, not on (profile, token): a device belongs to one
-      // account at a time, and a token that moved to another sign-in must not
-      // leave the old row behind to receive the previous user's notices.
-      await expectRejected(() => fx.founder.from('push_subscriptions').insert({
-            'profile_id': fx.founderProfile.id,
-            'token': token,
-            'platform': 'android',
-          }));
+      // THE SHAPE THE APP ACTUALLY SENDS. `registerPushToken` upserts on the
+      // token, because the row that holds it may belong to another profile —
+      // the same phone, a different sign-in, which in this product is the
+      // ordinary case of one family sharing one telephone.
+      //
+      // For a day in production this raised `new row violates row-level
+      // security policy (USING expression)`: the conflict took the DO UPDATE
+      // branch, and the UPDATE policy's USING requires the row to be yours
+      // ALREADY. The `push_subscriptions_claim_token` trigger clears the
+      // previous holder first, so the INSERT stands on its own — and its WITH
+      // CHECK still refuses any profile_id but the caller's.
+      await fx.founder.from('push_subscriptions').upsert({
+        'profile_id': fx.founderProfile.id,
+        'token': token,
+        'platform': 'android',
+      }, onConflict: 'token');
+
+      final rows = (await fx.service
+              .from('push_subscriptions')
+              .select('profile_id')
+              .eq('token', token))
+          .cast<Map<String, dynamic>>();
+
+      // One row, and it belongs to whoever signed in last. Two rows would mean
+      // the previous account keeps receiving its notices on a phone it no
+      // longer has.
+      expect(rows, hasLength(1));
+      expect(rows.single['profile_id'], fx.founderProfile.id);
+    });
+
+    test('a plain INSERT of a held token claims it just the same', () async {
+      // Same rule, reached without the upsert: the trigger is on the INSERT,
+      // not on the statement's shape, so a caller that never learned about
+      // `onConflict` cannot end up with a 23505 either.
+      final token = await registerFor(fx.member, fx.memberProfile.id);
+
+      await fx.founder.from('push_subscriptions').insert({
+        'profile_id': fx.founderProfile.id,
+        'token': token,
+        'platform': 'android',
+      });
+
+      final rows = await fx.service
+          .from('push_subscriptions')
+          .select('profile_id')
+          .eq('token', token);
+      expect(rows, hasLength(1));
+      expect((rows.single)['profile_id'], fx.founderProfile.id);
+    });
+
+    test('claiming a token does not touch the rest of the previous owner',
+        () async {
+      // The blast radius of the trigger, pinned: it may delete ONE row, the one
+      // holding the token being claimed. A `DELETE ... WHERE token = NEW.token`
+      // that lost its WHERE would empty the registry of every family at once,
+      // and nothing else in this suite would notice.
+      final kept = await registerFor(fx.member, fx.memberProfile.id);
+      final claimed = await registerFor(fx.member, fx.memberProfile.id);
+
+      await fx.founder.from('push_subscriptions').upsert({
+        'profile_id': fx.founderProfile.id,
+        'token': claimed,
+        'platform': 'android',
+      }, onConflict: 'token');
+
+      final survivors = await tokensOf(fx.memberProfile.id);
+      expect(survivors.map((r) => r['token']), contains(kept));
+      expect(survivors.map((r) => r['token']), isNot(contains(claimed)));
+    });
+
+    test('re-registering your own device keeps the row it already had',
+        () async {
+      // The common path — the app repairing its registration on every session.
+      // It must take the DO UPDATE branch (the row is already yours, so RLS
+      // allows it) and NOT be deleted and reinserted: `created_at` is when this
+      // device enrolled, and the trigger must leave your own row alone.
+      final token = await registerFor(fx.member, fx.memberProfile.id);
+      final before = (await fx.service
+              .from('push_subscriptions')
+              .select('id, created_at')
+              .eq('token', token))
+          .single;
+
+      await fx.member.from('push_subscriptions').upsert({
+        'profile_id': fx.memberProfile.id,
+        'token': token,
+        'platform': 'android',
+        'last_seen_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'token');
+
+      final after = (await fx.service
+              .from('push_subscriptions')
+              .select('id, created_at')
+              .eq('token', token))
+          .single;
+      expect(after['id'], before['id']);
+      expect(after['created_at'], before['created_at']);
     });
 
     test('an unknown platform is refused', () async {

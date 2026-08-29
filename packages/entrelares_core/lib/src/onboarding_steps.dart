@@ -190,8 +190,8 @@ abstract final class OnboardingSteps {
 
         // F-09: real state on both halves — a registered device AND an OS that
         // still permits notifications. This is the record's own rule for the
-        // step: it closes when a `push_subscriptions` row exists, never when a
-        // sheet was shown.
+        // step: it closes when THIS DEVICE has a `push_subscriptions` row,
+        // never when a sheet was shown.
         OnboardingStep.enablePush => signals.hasPushEnabled,
       };
 
