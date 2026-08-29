@@ -41,6 +41,7 @@ import 'suites/platform_operator.dart';
 import 'suites/premium_entitlement.dart';
 import 'suites/profile_language.dart';
 import 'suites/profile_self_service.dart';
+import 'suites/push_subscriptions.dart';
 import 'suites/reconsent_gate.dart';
 import 'suites/register_invitee.dart';
 import 'suites/resolution_log_link.dart';
@@ -112,6 +113,7 @@ void main() {
   appSettingsTests(fx);
   edgeFunctionAuthTests(fx);
   notificationParamsTests(fx);
+  pushSubscriptionsTests(fx);
   emailQuotaGateTests(fx);
   testRecipientSuppressionTests(fx);
   e2eDateAllocatorTests(fx);
