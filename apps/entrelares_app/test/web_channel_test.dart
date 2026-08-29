@@ -257,6 +257,78 @@ void main() {
       expect(workflow, contains('--no-web-resources-cdn'));
     });
 
+    // ── The docs-only skip, and the two assumptions holding it up ────────────
+    //
+    // Since 29/08/2026 a change touching ONLY markdown runs no jobs at all
+    // (`paths-ignore`). The saving is `db-gate`'s repo-wide serialized queue and
+    // `web-e2e`'s throwaway family on the shared dev project, neither of which
+    // proves anything about a paragraph. Both tests below exist because the
+    // filter is only safe while its premises hold, and a premise nobody checks
+    // is how a gate quietly stops gating.
+
+    test('a markdown-only change skips the run', () {
+      // Pinned so the filter cannot be dropped by accident: without it, every
+      // backlog edit takes a slot in a queue that evicts a third claimant.
+      expect(workflow, contains("paths-ignore: ['**/*.md']"),
+          reason: 'docs-only changes must not spend the gate');
+    });
+
+    test('no suite reads a markdown file', () {
+      // The premise of the filter. The moment a test asserts something about a
+      // `.md` — the runbook, a backlog record — that test silently stops running
+      // for exactly the changes it exists to watch: a vacuous green, which is
+      // what T-58 is about. If this fails, either drop the `.md` read or narrow
+      // `paths-ignore` to exclude the file being read.
+      final roots = [
+        Directory('test'),
+        Directory('../../packages/entrelares_core/test'),
+        Directory('../../packages/entrelares_db_gate/test'),
+        Directory('integration_test'),
+      ];
+      final offenders = <String>[];
+      for (final root in roots) {
+        if (!root.existsSync()) continue;
+        for (final file in root
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((f) => f.path.endsWith('.dart'))
+            // This file itself, which names the extension in order to LOOK for
+            // it — it never reads a `.md`'s contents, and there are none under
+            // `web/` for it to read.
+            .where((f) => !f.path.endsWith('web_channel_test.dart'))) {
+          // A `.md` inside a STRING LITERAL is the only way a suite can reach
+          // one; mentions in prose are free and must not fail this, which is
+          // why the comment lines come out first.
+          final code = file
+              .readAsLinesSync()
+              .where((line) => !line.trimLeft().startsWith('//'))
+              .join('\n');
+          if (RegExp(r'''['"][^'"\n]*\.md['"]''').hasMatch(code)) {
+            offenders.add(file.path);
+          }
+        }
+      }
+      expect(offenders, isEmpty,
+          reason: 'these suites read a .md, which paths-ignore would stop '
+              'running: ${offenders.join(', ')}');
+    });
+
+    test('nothing published on the web channel is markdown', () {
+      // The other premise. Everything under `web/` is copied VERBATIM into the
+      // build, so a `.md` there would be user-facing — and a change to it would
+      // skip the deploy that should have published it.
+      final web = Directory('web');
+      final markdown = web
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.md'))
+          .map((f) => f.path)
+          .toList();
+      expect(markdown, isEmpty,
+          reason: 'a .md under web/ is published, so it cannot be treated as '
+              'documentation by paths-ignore: ${markdown.join(', ')}');
+    });
+
     test('publishing waits for EVERY gate, and only from main', () {
       final job = workflow.substring(workflow.indexOf('  deploy-web:'));
       // The gate stopped being a single job on 24/08/2026, when the database

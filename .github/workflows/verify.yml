@@ -12,10 +12,36 @@
 # a schedule and on demand; an APK comes from workflow_dispatch.
 name: verify
 
+# A change that touches ONLY markdown runs nothing (`paths-ignore`, 29/08/2026).
+# The saving is not the three minutes of `verify`: it is `db-gate`, which holds a
+# REPO-WIDE serialized concurrency group, so a docs PR sitting in that queue is
+# what makes a third claimant get evicted (the episode `CLAUDE.md` documents) —
+# and `web-e2e`, which spins a throwaway family on the shared dev project to
+# prove nothing about a paragraph.
+#
+# Two things make this safe, and both are guarded rather than assumed, in
+# `web_channel_test.dart` next to the other assertions about this file:
+#   1. NO suite reads a `.md`. The moment one does, this filter would make it a
+#      test that silently stops running — the vacuous green T-58 exists about.
+#      A test asserts that no suite reads one.
+#   2. NOTHING under `apps/entrelares_app/web/` is markdown. Everything there is
+#      copied verbatim into the published build, so a `.md` in that directory
+#      WOULD be user-facing and must not skip the deploy.
+#
+# `schedule` and `workflow_dispatch` carry no path filter, so the daily E2E lane
+# and any manual run are unaffected — that is also the escape hatch for forcing
+# a full run over a docs-only branch.
+#
+# Note this repo has neither branch protection nor a ruleset (checked
+# 29/08/2026). If `verify` is ever made a REQUIRED check, revisit: a workflow
+# that never runs reports no status, and a docs-only PR would sit unmergeable.
+
 on:
   push:
     branches: [main]
+    paths-ignore: ['**/*.md']
   pull_request:
+    paths-ignore: ['**/*.md']
   # T-53 lote 3: the E2E lane runs on a schedule, not on every push — an
   # emulator run costs ~10-15 min of the account-wide 2000 min/mo (the same
   # constraint that keeps the APK build out of the gate). 06:10 UTC daily.
