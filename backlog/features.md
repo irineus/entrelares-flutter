@@ -847,3 +847,80 @@ earns being decided on evidence rather than on the plausibility of "they have th
 - New migration — wherever that outcome lives, and its retention (S-13 applies)
 - `supabase/migrations/*` — the F-38 counter, if option 1 or 2 wins
 - `packages/entrelares_core` — the per-recipient rule, as a pure mirror with its own suite
+
+---
+
+### F-60 — The auto-approval deadline the notice promises must be the one the request has
+
+| Field | Value |
+|---|---|
+| **Status** | `pending` |
+| **Priority** | `medium` |
+| **Complexity** | `low` |
+| **Impact** | `medium` |
+| **Roadmap** | Roadmap group 5 (progressive enhancement & polish), next to **U-26** — the same shape of defect: the mechanism works, the text the reader gets does not. It needs no other item first |
+| **Depends on** | **F-24** (the 48h auto-approval this describes), **U-13/U-24** (any new sentence is bilingual and its params ISO), **F-09** (the same sentence is also a push, rendered server-side) |
+| **Repo** | `flutter` |
+
+**Description**
+F-24's clock is anchored on the DAY, not on the request:
+`expiry = schedule_date + COALESCE(proposed_handoff_time, '00:00')` in `America/Sao_Paulo`,
+reminder at `expiry + 24h`, auto-approval at `expiry + 48h`. The anchor itself is right — the
+deadline that matters to a two-party workflow is the day being decided, not when someone happened
+to ask. **The sentences are what is wrong: they describe a window measured from the request.**
+
+Both readings fail, in opposite directions:
+
+- **A request made well ahead of the day.** "Será aprovada automaticamente em 24h se não houver
+  resposta" reaches someone who has had, and still has, a week. The nudge lands days after the
+  request and names a window that never applied to it.
+- **A request made on the day itself, after its handoff hour** — which is legal, and is how this
+  was found. Production request #32 (31/08, no handoff, so expiry was 00:00 of that day) was
+  created at 16:20 BRT and got its "expires in 24h" reminder **7h48 later**, at 00:00 of 01/09,
+  with auto-approval falling at 00:00 of 02/09. The target had ~31h, not the 48h the message
+  promised, and the reminder arrived while the request was eight hours old. Nothing malfunctioned;
+  the copy simply describes a different rule from the one running.
+
+The floor case is a same-day request with no handoff time, created just before midnight: the
+target gets ~24h, and the reminder fires within the hour — the nudge and the request effectively
+arrive together. (A request cannot be opened for an already-past day — the day sheet opens
+read-only — so the window cannot shrink below that.)
+
+**The option space**
+
+1. **Keep the anchor, state the INSTANT.** "Será aprovada automaticamente em 02/09 às 00:00 se não
+   houver resposta", rendered from the anchor already computed. No rule change, honest in every
+   case, and strictly more useful than a relative window: the reader gets a date they can act on
+   instead of arithmetic they cannot check. *Recommended first move.*
+2. **Anchor on `GREATEST(expiry, created_at)`.** Guarantees a real 24h/48h to every target,
+   whatever time the request was made. A rule change, and it needs an answer for what "the day is
+   already over" means — a swap decided three days after the fact is a different product question
+   from one decided before it.
+3. **Surface the deadline in the app**, on the frozen-day panel and the Avisos card, not only in
+   the e-mail and the push. Cheap, and it is where the person actually is when they hesitate.
+
+Option 1 and option 3 are the same sentence rendered twice and could travel together; option 2 is
+a separate decision that should not be smuggled in with a copy fix.
+
+**Hard constraints on any answer**
+- The instant is **rendered per reader** (U-13) with **ISO params** (U-24) — a date formatted into
+  the stored `message` is the mistake U-24 exists to prevent.
+- Whatever the sentence becomes, `supabase/functions/_shared/push.ts` carries a deliberate
+  duplicate of it and `push_notification_mirror_test` compares them string by string, in both
+  languages. The e-mail templates in `send-swap-email` are a third copy.
+- `activity_logs` origin text (`auditOriginSwapAuto`) and the `🤖 Automático` badge title also say
+  "48h". A rewrite that leaves those saying something else trades one inconsistency for another.
+
+**Justification**
+Nobody lost a day to this, and the workflow behaved exactly as designed — which is the point: the
+only thing that failed was the product's account of itself: answering "how long does the other
+caregiver actually have?" took reading the RPC body. A deadline notice whose number is wrong in both
+directions is worse than no number, because people plan around it.
+
+**Files affected**
+- `supabase/migrations/*` — a new `auto_approve_expired` revision if the sentence changes (start
+  from the LATEST body — see the CLAUDE.md gotcha)
+- `supabase/functions/_shared/push.ts` + `supabase/functions/send-swap-email/index.ts`
+- `packages/entrelares_core/lib/src/localization/strings_*.dart` + the renderer
+- `packages/entrelares_core/test/mirrors/` — the mirrors that hold the three copies together
+- `apps/entrelares_app/lib/screens/frozen_day_sheet.dart`, `notifications_screen.dart` (option 3)
