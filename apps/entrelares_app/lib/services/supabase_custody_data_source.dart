@@ -345,18 +345,21 @@ class SupabaseCustodyDataSource implements CustodyDataSource {
 
   static String _nowUtcIso() => DateTime.now().toUtc().toIso8601String();
 
-  static DateTime _todayLocal() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
-  }
-
   @override
   Future<List<SwapRequest>> fetchFrozenRequestsForMonth(
       int year, int month) async {
     final first = DateTime(year, month, 1);
     final last = DateTime(year, month + 1, 0);
-    if (last.isBefore(_todayLocal())) return [];
 
+    // NEVER shortcut a month for being in the past. An open request OUTLIVES
+    // its day — that is the ATRASADO state the whole workflow models, and the
+    // day-protection trigger exempts the request's target precisely so it can
+    // still be completed. A guard here blanked a whole month the moment it
+    // ended: the ⏳/🔔 badge, the frozen panel on tap and the resolve sheet's
+    // count all come from this list, so a request pending across the turn of
+    // the month became unapprovable and uncancellable from the calendar
+    // (found in production on 01/09/2026, on a request for 31/08).
+    //
     // Filter server-side: months with a long history hold many resolved
     // requests — only the open (frozen) ones matter here.
     final rows = await _client
