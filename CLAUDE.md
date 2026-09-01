@@ -247,6 +247,19 @@ These survived the rewrite because none of them is about the client language.
   hand-written JSON. **When porting a parser, assert against a string captured from the NEW
   platform, never one written from the old contract** (27/08/2026, found by sending one
   invitation on a real device).
+- **A fake data source that REIMPLEMENTS the method under test is evidence about the fake, not
+  about the code it replaces.** `fetchFrozenRequestsForMonth` gave up on a whole month, before
+  touching the network, once that month's LAST day was past — so a request pending across the
+  turn of the month vanished from the calendar overnight, taking the ⏳/🔔 badge, the frozen-day
+  panel and the resolve sheet's count with it, while the row sat untouched in the database. The
+  suite was green throughout: `FakeCustodyDataSource` writes its own version of that method,
+  without the guard, so 524 passing tests described a calendar nobody had. **When the defect
+  lives in a CONCRETE data source, the regression test has to drive THAT class** —
+  `SupabaseClient(url, key, httpClient: MockClient(...))` costs nothing, and asserting the
+  request actually went out is what the fake can never do. (01/09/2026, found in production by
+  the owner on a request for 31/08; `frozen_month_window_test.dart`.) The sibling lesson is the
+  bullet above: both are a test that agrees with the code it was written from instead of with
+  the platform the code runs on.
 - **An Android notification channel that does not exist swallows the notification, silently.**
   On Android 8+ a push whose payload names an unknown `channel_id` is dropped by the SYSTEM with
   no error: FCM reports delivery, the Edge Function logs success, and nothing appears on the
