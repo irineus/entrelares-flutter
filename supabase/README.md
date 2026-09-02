@@ -1974,6 +1974,16 @@ of remembered.
 That is a decision, not an oversight, and it is written here so a late arrival is *answered*
 rather than argued.
 
+**What was actually granted (01/09/2026):** every family with **`id` up to 17**. `families.id`
+is sequential, so the id boundary and the date cutoff describe the same set — the id is simply
+the form the operator could act on family by family in the console. It is also the cheapest way
+to re-derive the cohort later:
+
+```sql
+select id, name, created_at, comp_premium_at, comp_premium_note
+from public.families where id <= 17 order by id;
+```
+
 ### 12.2 Granting — console only, never SQL
 
 `admin_set_comp` is SECURITY DEFINER behind the operator check **and** the S-10 sudo gate, and
@@ -1984,17 +1994,28 @@ F-58 exists to remove, so the grant never happens in the SQL Editor.
 1. Console (`entrelares-console`) → pick environment **prod** at login → tab **Famílias**.
 2. Find the family by a member's e-mail (the console filters the whole base locally, so one
    audited bulk read covers the batch).
-3. **Conceder cortesia**, with the canonical note, character for character:
+3. **Conceder cortesia**, with the batch's note, character for character. The F-53 batch used:
 
    ```
-   F-53 — testador do closed-alpha (promessa de 11/08/2026)
+   Closed Alpha Gift
    ```
 
    The note is **identical across the whole batch on purpose**: it is what makes the cohort
    recognizable later, both in the family's own history and in the operator trail. A per-family
-   free text would answer "why is THIS family premium?" and lose "who else got this?".
+   free text would answer "why is THIS family premium?" and lose "who else got this?" — so
+   **grep for that exact string** when you need the list; it is the join key between a family
+   row and this section.
 4. Confirm the sudo prompt. The grant is **idempotent** — repeating it keeps the ORIGINAL
-   timestamp, so re-running the batch is safe.
+   timestamp, so re-running the batch is safe. Note that idempotent means *nothing happens*:
+   a repeated grant does not rewrite the note either, so **the note is chosen once, at grant
+   time**. Changing it afterwards costs a revoke + re-grant, which writes two more entries into
+   the family's visible history — not worth it for wording.
+
+> **The note is user-visible, so a future batch should be written in PT-BR.** It renders as the
+> value of the family's own `account_logs` entry, which is a UI surface and therefore falls under
+> the language rule in `CLAUDE.md`. The F-53 batch went out in English (`Closed Alpha Gift`) and
+> was left alone: correcting it would mean revoking and re-granting 17 families to fix a caption,
+> writing 34 history entries to improve none of them.
 
 ### 12.3 What the family sees — nothing to deploy
 

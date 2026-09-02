@@ -477,9 +477,10 @@ mostly owner ops, plus small PRs wherever a checkbox turns out to be code.
 
 **Checklist (each box names its own item where one exists)**
 - [x] **F-53 executed** (01/09/2026) — the closed test ended that day, the cutoff was settled
-  (accounts created 11/08/2026 → 01/09/2026 inclusive) and the tester families were granted the
-  permanent comp in the console, under the canonical note. The public promise of 11/08/2026 is
-  kept; procedure and cutoff in [`supabase/README.md`](../supabase/README.md) §12, record in
+  (accounts created 11/08/2026 → 01/09/2026 inclusive, i.e. `families.id` up to 17) and those
+  families were granted the permanent comp in the console under the note `Closed Alpha Gift`.
+  The public promise of 11/08/2026 is kept; procedure and cutoff in
+  [`supabase/README.md`](../supabase/README.md) §12, record in
   [`archive/phase-7.md`](archive/phase-7.md).
 - [ ] **S-18 settled** — Play Data safety caught up (App interactions, the Messages call on
   F-44 notes, the §7 operator list) + the materiality call on the policy text.

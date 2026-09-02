@@ -3804,11 +3804,16 @@ never needs to be. By 01/09 the item had shrunk to what F-58 had explicitly left
 
 **The four questions the record asked, answered (owner, 01/09/2026):**
 
-1. **Marking** — one **canonical note**, character for character across the whole batch:
-   `F-53 — testador do closed-alpha (promessa de 11/08/2026)`. A per-family free text would
-   answer *"why is THIS family premium?"* and lose *"who else got this?"*; the shared string
-   makes the cohort re-findable in both trails (the family's own `account_logs` and
-   `operator_audit_logs`).
+1. **Marking** — one note, character for character across the whole batch. The string the owner
+   granted with is **`Closed Alpha Gift`**. A per-family free text would answer *"why is THIS
+   family premium?"* and lose *"who else got this?"*; the shared string makes the cohort
+   re-findable in both trails (the family's own `account_logs` and `operator_audit_logs`), and
+   it is the join key between a family row and §12 of the runbook. It went out in English, which
+   the language rule would not have chosen — the note renders in the family's own visible
+   history — and it was left alone on purpose: `admin_set_comp` is idempotent in the strict
+   sense (a repeated grant does *nothing*, note included), so rewording it would mean revoking
+   and re-granting 17 families, writing 34 history entries to improve none of them. The lesson
+   for the next batch is in §12: **the note is chosen once, at grant time.**
 2. **Protection against billing downgrades** — answered **by construction**, not by a marker
    check. Pinned by the db-gate, which drives a billing-style downgrade against a comped family
    and asserts the entitlement holds.
@@ -3823,6 +3828,11 @@ never needs to be. By 01/09 the item had shrunk to what F-58 had explicitly left
    `families.created_at`, so the cohort can be **re-derived instead of remembered**. Anyone
    arriving after 01/09/2026 is a normal user on the normal 30-day trial — written down so a
    late arrival is *answered* rather than argued.
+
+**Executed 01/09/2026:** every family with `id` up to **17**, granted one by one in the console
+under the note above. `families.id` is sequential, so the id boundary and the date cutoff name
+the same set — the id is just the form the operator could act on, family by family, and it is
+what §12 records as the re-derivation query.
 
 **Nothing had to be built on the client either.** The T-53 rewrite had already ported the comp
 into the Dart mirror (`computeIsPremium` / `describePlan` in `entrelares_core`, `compPremiumAt`
