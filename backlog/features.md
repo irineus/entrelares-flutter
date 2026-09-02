@@ -486,54 +486,6 @@ user actually stands (looking at a month; opening the wizard).
 
 ---
 
-### F-53 — Closed-alpha tester reward: permanent Premium for tester families
-
-| Field | Value |
-|---|---|
-| **Status** | `pending` |
-| **Priority** | `high` |
-| **Complexity** | `low` |
-| **Impact** | `medium` |
-| **Roadmap** | Roadmap group 4 (Distribuição), first — coupled to the closed-alpha campaign RUNNING now |
-
-**Description**
-The closed-alpha recruitment message (WhatsApp, 11/08/2026) makes a public promise: **whoever
-joins the test gets Premium free, permanently, for their family — current and future paid
-features**. Nothing in the system fulfils that today: a tester signs up like anyone else,
-starts the 30-day trial (F-32) and falls to `free` when it ends. This item is the promise's
-implementation, recorded the day the promise was made (the S-15 lesson: a published claim
-with no implementation is a liability — this one just lives in WhatsApp instead of a policy
-page).
-
-What exists to build on: `set_family_plan(family_id, 'premium')` (service_role-only, F-32) —
-the same mechanism the pre-F-32 grandfathering used. What the analysis must decide:
-- **Marking**: a bare `plan = 'premium'` is indistinguishable from a paying or grandfathered
-  family. The grant should be auditable (e.g. a `premium_origin`/note marker), so a future
-  session can answer "why is this family premium?".
-- **Protection against billing downgrades**: if a tester family ever touches the checkout
-  (subscribes, then cancels or goes overdue), the T-39 dunning path sets `plan='free'` —
-  silently revoking the granted reward. The grant must survive that path (webhook checks the
-  marker before downgrading), or the paywall must not be reachable for these families at all.
-- **Matching testers to families**: the tester list is e-mails (Google group); families are
-  found via `profiles.email` → `family_id`. Manual per-family grant via runbook SQL is
-  acceptable at this scale (~12 testers); the item records the exact statement.
-- **Scope of "tester"**: the promise says who JOINS the test — decide the cutoff (opted-in
-  during the closed-alpha window) and write it down, so late arrivals are a decision instead
-  of an argument.
-
-**Justification**
-The reward is what makes recruiting ~12 testers for 14 uninterrupted days (Play's
-production-access gate) realistic on a personal network. The cost is near zero at this scale;
-the liability of NOT implementing it is a broken public promise to the app's first and most
-engaged users — the exact people whose word of mouth the launch depends on.
-
-**Files affected**
-- Runbook section or migration with the grant SQL (`set_family_plan` + marker)
-- `supabase/functions/billing-webhook/` — downgrade path checks the marker (analysis decides)
-- `store/README.md` §8 (closed test) — cross-reference the reward procedure
-
----
-
 ### F-52 — Aviso de imprevisto (one-tap notice, recorded, no approval)
 
 | Field | Value |

@@ -3773,3 +3773,92 @@ the UPDATE branch and keeps its `created_at`.
 family sharing one telephone is the ordinary case in this product, not the attack — and holding
 the token IS being the device. It is strictly narrower than the alternative of loosening the
 UPDATE policy, which a single WHERE-less statement could have used to sweep the whole registry.
+
+---
+
+### F-53 — Closed-alpha tester reward: permanent Premium for tester families — DELIVERED
+
+| Field | Value |
+|---|---|
+| **Status** | `completed` — **01/09/2026**, the day the closed test ended. The grant itself is operator ops and the owner ran it in the console the same day |
+| **Priority** | `high` |
+| **Complexity** | `low` — and lower than recorded: by the time it came up for execution, F-58 had already reduced it to a decision |
+| **Impact** | `medium` |
+| **Roadmap** | Group 4 (Distribuição), first — it was coupled to the closed-alpha campaign, and closed with it |
+| **Depends on** | **F-58** (delivered 18/08/2026) — the whole mechanism |
+| **Delivered in** | **no build.** Nothing under `apps/` or `packages/` changed, so no version bump; a markdown-only change also runs no CI, by the design recorded in `CLAUDE.md` |
+
+> **The promise** (WhatsApp, 11/08/2026, closed-alpha recruitment): *whoever joins the test gets
+> Premium free, permanently, for their family — current and future paid features.* The item was
+> recorded the same day the promise was published, before anything implemented it — the S-15
+> lesson applied to a claim that lived in WhatsApp instead of a policy page.
+
+**What the item turned out to be.** The record written on 11/08 planned an implementation:
+`set_family_plan` plus a marker column so a grant could be told apart from a paying family, and
+a check inside the billing webhook so the T-39 dunning path could not silently revoke the
+reward. **None of that was built, because F-58 answered it better on 18/08** — the comp is its
+own column (`families.comp_premium_at` + `comp_premium_note`) read by `is_premium()` ITSELF, so
+it is orthogonal to `plan` and no billing writer can reach it. The webhook was never touched and
+never needs to be. By 01/09 the item had shrunk to what F-58 had explicitly left to it: the
+**semantics** — who the promise covers, and the procedure that keeps the answer auditable.
+
+**The four questions the record asked, answered (owner, 01/09/2026):**
+
+1. **Marking** — one **canonical note**, character for character across the whole batch:
+   `F-53 — testador do closed-alpha (promessa de 11/08/2026)`. A per-family free text would
+   answer *"why is THIS family premium?"* and lose *"who else got this?"*; the shared string
+   makes the cohort re-findable in both trails (the family's own `account_logs` and
+   `operator_audit_logs`).
+2. **Protection against billing downgrades** — answered **by construction**, not by a marker
+   check. Pinned by the db-gate, which drives a billing-style downgrade against a comped family
+   and asserts the entitlement holds.
+3. **Matching testers to families, and who executes** — the console (`entrelares-console` →
+   Famílias), **never SQL**. `admin_set_comp` sits behind the operator check *and* the S-10 sudo
+   gate and writes both trails; a hand-run `UPDATE` has none of that, which is the exact risk
+   F-58 exists to remove. The grant is idempotent, so re-running the batch is safe.
+4. **Scope of "tester"** — the cutoff is **accounts created inside the window 11/08/2026 →
+   01/09/2026 inclusive**. Not the Play tester list: someone who accepted the Console invitation
+   and never signed up has no family to reward, and someone who signed up inside the window is
+   exactly who *"quem entrar no teste"* addresses. The window is also checkable against
+   `families.created_at`, so the cohort can be **re-derived instead of remembered**. Anyone
+   arriving after 01/09/2026 is a normal user on the normal 30-day trial — written down so a
+   late arrival is *answered* rather than argued.
+
+**Nothing had to be built on the client either.** The T-53 rewrite had already ported the comp
+into the Dart mirror (`computeIsPremium` / `describePlan` in `entrelares_core`, `compPremiumAt`
+on the `Family` contract), and the copy a comped family sees is the promise almost verbatim:
+**✨ Premium permanente — sem expiração** over **💙 Sua família tem Premium permanente — sem
+expiração e sem cobrança. Aproveite!**, in PT and EN. The trial countdown disappears even mid-
+trial, which is right: the family is premium for a reason that does not expire.
+
+**What was found and deliberately NOT fixed (owner, 01/09/2026).** `computeBillingUi` reaches
+the permanent-Premium block only when there is **no subscription row at all**. A comped family
+that once subscribed and cancelled therefore still sees the OFFER — the product selling a
+subscription to someone who already holds Premium forever, and on the Android build that is a
+live Play purchase button. It is the record's own second bullet, arriving from the other side:
+the *entitlement* is safe (the comp holds; the DB never wavers), only the copy is wrong. No
+tester ever subscribed, so the state is unreachable for this cohort and the fix was declined as
+speculative. The shape of it is written down in the runbook so the next person does not have to
+re-derive it: pass the comp fact into `computeBillingUi` and return `premiumForever` **after**
+the `active`/`overdue`/`scheduled` branches — a family that is actually paying must keep its
+cancel button.
+
+**Why this is a runbook section and not code.** The deliverable of an item whose mechanism
+already exists is the *decision*, and a decision that is not written down is not a decision. §12
+of [`supabase/README.md`](../../supabase/README.md) carries the cutoff, the canonical note, the
+console-only rule, what the family sees, the accepted gap and the revoke semantics — so the
+question "why is this family premium?" has an answer that outlives the session that granted it.
+
+**Files affected**
+- `supabase/README.md` — new **§12** (the cutoff, the grant procedure, the accepted UI gap,
+  revoke semantics)
+- `store/README.md` §5 — the closed test ends carrying this promise, and the closed test's own
+  end date (01/09/2026), with the follow-on rollout pointed at T-59
+- `backlog/technical.md` — T-59's `F-53 executed` checkbox ticked
+- `backlog/features.md` → this record; `backlog/README.md` group 4 table
+
+**Justification**
+The reward is what made recruiting ~12 testers for 14 uninterrupted days realistic on a personal
+network, and Play's production-access gate depended on those testers. The cost at this scale is
+near zero; the liability of *not* honouring it would have been a broken public promise to the
+app's first and most engaged users — the exact people the launch's word of mouth depends on.
