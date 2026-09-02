@@ -1942,3 +1942,111 @@ name every refusal explicitly: `FCM_SERVICE_ACCOUNT not set`, `no registered dev
 > and the app registers a fresh token on its next start. An empty `push_subscriptions` for a
 > profile means that person has not granted the permission on any device — the notification
 > and its e-mail still reached them.
+
+---
+
+## 12. F-53 — the closed-alpha courtesy Premium (who it covers, and how it is granted)
+
+> **Nothing here is new mechanism.** F-58 shipped all of it: `admin_set_comp` writes
+> `families.comp_premium_at` + `comp_premium_note`, and `is_premium()` reads that column
+> ITSELF — never a parallel check. This section is the **semantics** F-58 deliberately left to
+> F-53: who the public promise covers, and the exact procedure that leaves "why is this family
+> premium?" answerable a year from now.
+
+**The promise** (WhatsApp, 11/08/2026, closed-alpha recruitment message): *whoever joins the
+test gets Premium free, permanently, for their family — current and future paid features.* It
+was published before anything implemented it, which is why F-53 was recorded the same day (the
+S-15 lesson: a published claim with no implementation is a liability, and this one lived in
+WhatsApp instead of a policy page).
+
+### 12.1 The cutoff (owner decision, 01/09/2026)
+
+A **tester family** is one whose account was **created inside the closed-alpha window,
+11/08/2026 → 01/09/2026 inclusive** — the day the closed test ended.
+
+Not the Play tester list, which was the other candidate: somebody who accepted the Console
+invitation and never signed up has no family to reward, and somebody who signed up inside the
+window is exactly who the sentence *"quem entrar no teste"* addresses. The window is also
+checkable against the database (`families.created_at`), so the cohort can be re-derived instead
+of remembered.
+
+**Anyone who arrives after 01/09/2026 is a normal user on the normal 30-day trial.**
+That is a decision, not an oversight, and it is written here so a late arrival is *answered*
+rather than argued.
+
+**What was actually granted (01/09/2026):** every family with **`id` up to 17**. `families.id`
+is sequential, so the id boundary and the date cutoff describe the same set — the id is simply
+the form the operator could act on family by family in the console. It is also the cheapest way
+to re-derive the cohort later:
+
+```sql
+select id, name, created_at, comp_premium_at, comp_premium_note
+from public.families where id <= 17 order by id;
+```
+
+### 12.2 Granting — console only, never SQL
+
+`admin_set_comp` is SECURITY DEFINER behind the operator check **and** the S-10 sudo gate, and
+it writes two trails (the family's own `account_logs`, plus the append-only
+`operator_audit_logs`). A hand-run `UPDATE` has none of that — it is the exact class of risk
+F-58 exists to remove, so the grant never happens in the SQL Editor.
+
+1. Console (`entrelares-console`) → pick environment **prod** at login → tab **Famílias**.
+2. Find the family by a member's e-mail (the console filters the whole base locally, so one
+   audited bulk read covers the batch).
+3. **Conceder cortesia**, with the batch's note, character for character. The F-53 batch used:
+
+   ```
+   Closed Alpha Gift
+   ```
+
+   The note is **identical across the whole batch on purpose**: it is what makes the cohort
+   recognizable later, both in the family's own history and in the operator trail. A per-family
+   free text would answer "why is THIS family premium?" and lose "who else got this?" — so
+   **grep for that exact string** when you need the list; it is the join key between a family
+   row and this section.
+4. Confirm the sudo prompt. The grant is **idempotent** — repeating it keeps the ORIGINAL
+   timestamp, so re-running the batch is safe. Note that idempotent means *nothing happens*:
+   a repeated grant does not rewrite the note either, so **the note is chosen once, at grant
+   time**. Changing it afterwards costs a revoke + re-grant, which writes two more entries into
+   the family's visible history — not worth it for wording.
+
+> **The note is user-visible, so a future batch should be written in PT-BR.** It renders as the
+> value of the family's own `account_logs` entry, which is a UI surface and therefore falls under
+> the language rule in `CLAUDE.md`. The F-53 batch went out in English (`Closed Alpha Gift`) and
+> was left alone: correcting it would mean revoking and re-granting 17 families to fix a caption,
+> writing 34 history entries to improve none of them.
+
+### 12.3 What the family sees — nothing to deploy
+
+`is_premium()` returns true from that moment, and the Premium section switches to its
+permanent-Premium block: the badge **✨ Premium permanente — sem expiração** over
+**💙 Sua família tem Premium permanente — sem expiração e sem cobrança. Aproveite!** (PT and
+EN). The trial countdown disappears even if the 30 days are still running — correct, because
+the family is now premium for a reason that does not expire.
+
+### 12.4 What a comp survives, and the one case the UI does not cover
+
+- **Billing downgrades cannot touch it.** `comp_premium_at` is orthogonal to `plan`: the T-39
+  dunning cron and the billing webhook write `plan`, `is_premium()` reads both, and the db-gate
+  pins a comp surviving a billing-style downgrade. This is the "protection against billing
+  downgrades" F-53 asked for, and it was answered by construction rather than by a marker check
+  inside the webhook.
+- **Known UI gap, accepted 01/09/2026 (not a defect in the entitlement).** The Premium
+  section's state machine (`computeBillingUi`, `packages/entrelares_core/lib/src/billing_rules.dart`)
+  reaches the permanent-Premium block only when there is **no subscription row at all**. A
+  comped family that once subscribed and cancelled therefore still sees the OFFER — the product
+  selling a subscription to someone who already holds Premium forever, and on the Android build
+  that is a live Play purchase button. The entitlement itself is never at risk; only the copy is
+  wrong. No tester ever subscribed (owner, 01/09/2026), so the state is unreachable for this
+  cohort today and it was left alone deliberately instead of fixed speculatively. **If one ever
+  lands there** — a tester who subscribes and then cancels — the fix is to pass the comp fact into
+  `computeBillingUi` and return `premiumForever` *after* the `active`/`overdue`/`scheduled`
+  branches — a family that is actually paying must keep its cancel button.
+
+### 12.5 Revoking
+
+`admin_set_comp(granted: false)` takes a reason of its own, and the family's history renders the
+pair as *motivo da cortesia → motivo da revogação* (F-58 QA 4). **There is no legitimate reason
+to revoke an F-53 comp** — the promise was permanent — so a revoke on this cohort should be
+treated as a mistake until proven otherwise.

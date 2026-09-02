@@ -205,6 +205,16 @@ calendar time, so recruit testers early rather than when a build is ready.
 3. Release notes in PT-BR. The Blazor client's release notes are frozen history in
    [`docs/changelog-blazor.md`](../docs/changelog-blazor.md); a Flutter release describes what
    this repo shipped since the previous upload.
+4. **The closed test ends carrying a promise (F-53).** The recruitment message of 11/08/2026
+   promised every tester **permanent Premium for their family**, and nothing grants it
+   automatically — it is one operator action per family. The cutoff (accounts created
+   11/08/2026 → 01/09/2026) and the exact procedure are in
+   [`supabase/README.md`](../supabase/README.md) §12. Do it **before** the track goes public:
+   these are the product's first users, and the promise is already public.
+
+> **The closed test ended on 01/09/2026.** What follows it — production access, the listing
+> going public, and the checkboxes that come with it — is tracked as **T-59** in
+> [`backlog/technical.md`](../backlog/technical.md), not here.
 
 ## 6 · Publishing a new Android build
 

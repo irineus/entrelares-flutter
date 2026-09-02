@@ -476,8 +476,12 @@ console ops (§9-bis) — but the rollout itself had no row. Like T-36, this is 
 mostly owner ops, plus small PRs wherever a checkbox turns out to be code.
 
 **Checklist (each box names its own item where one exists)**
-- [ ] **F-53 executed** — tester families identified and granted the permanent comp (the
-  public promise of 11/08/2026; the mechanism exists since F-58).
+- [x] **F-53 executed** (01/09/2026) — the closed test ended that day, the cutoff was settled
+  (accounts created 11/08/2026 → 01/09/2026 inclusive, i.e. `families.id` up to 17) and those
+  families were granted the permanent comp in the console under the note `Closed Alpha Gift`.
+  The public promise of 11/08/2026 is kept; procedure and cutoff in
+  [`supabase/README.md`](../supabase/README.md) §12, record in
+  [`archive/phase-7.md`](archive/phase-7.md).
 - [ ] **S-18 settled** — Play Data safety caught up (App interactions, the Messages call on
   F-44 notes, the §7 operator list) + the materiality call on the policy text.
 - [x] **T-57 shot** (28/08/2026, Console submission 9) — the listing must not go public with screenshots of the dead Blazor

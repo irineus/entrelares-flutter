@@ -181,8 +181,12 @@ audited RPCs and the courtesy-Premium mechanism live in the database, and the co
 a separate **Flutter** app in the new repo `entrelares-console` — the owner's call, so no
 operator code ships in the public bundle and the future Flutter migration starts on a
 single-user surface. Record in [`archive/phase-7.md`](archive/phase-7.md); the pilot's
-device-level lessons are in that repo's `docs/migracao-flutter.md`. **F-53 is now unblocked** —
-what remains there is only deciding which families are the testers.
+device-level lessons are in that repo's `docs/migracao-flutter.md`. It also left **F-53** with
+nothing to build: **F-53 is DELIVERED (01/09/2026)**, the day the closed test ended — the cutoff
+was settled (accounts created 11/08/2026 → 01/09/2026 inclusive) and the tester families were
+granted the permanent comp in the console, keeping the public promise of 11/08/2026. Procedure
+and cutoff in [`../supabase/README.md`](../supabase/README.md) §12; record in
+[`archive/phase-7.md`](archive/phase-7.md).
 
 > **T-53 left this table on 23/08/2026, delivered.** The Flutter rewrite is no longer a
 > plan in the queue: it IS the product on both channels — the Play package
@@ -204,7 +208,6 @@ what remains there is only deciding which families are the testers.
 
 | Item | What | Notes |
 |---|---|---|
-| **F-53** | Closed-alpha tester reward: permanent Premium for tester families | Added 11/08/2026, the day the closed-alpha recruitment message went out promising it — nothing in the system fulfils the promise today (a tester starts the normal 30-day trial and falls to `free`). The promise is already public. **F-58 is DELIVERED (18/08/2026), so the whole mechanism exists and is in the owner's hand**: the console's Famílias tab grants/revokes the comp through `admin_set_comp` → `families.comp_premium_at`, read by `is_premium()` and immune to the T-39 dunning downgrade by construction, with the reason showing up in the family's own history. What remains is only the SEMANTICS — identifying the tester families and granting them. |
 | **T-40** | iOS channel: **native Flutter build** + App Store listing | Rewritten 26/08/2026 (post-cutover sweep), **absorbing T-47**: the app is Flutter, so iOS is a native build, not a Capacitor wrapper — the Guideline-4.2 "thin wrapper" risk that T-47 existed to measure collapsed with the cutover. Step 1 is a TestFlight validation pass (the surviving half of T-47). Web-first billing (T-39) still keeps it a "manage your plan on the website" client; **US$99/yr** owner ops. Record in [`technical.md`](technical.md). |
 | **T-62** | **Web push** — the channel F-09 left out on purpose | Added 29/08/2026 at the close of F-09. Not effort: `web/service-worker.js` is the PWA's TOMBSTONE, which exists to unregister itself and must keep doing so while any device may still carry the old install — a push handler cannot be bolted onto a file whose job is to delete itself. Web push needs a worker of its own, which is a design decision about three workers on one origin. Almost nothing server-side: the rail, the ten types and the four-state control are built and platform-agnostic, so the client work is one file (`push_messaging_web.dart`, today a stub). Sits after T-40 because **iOS Safari web push needs the site added to the Home Screen** — the installed-PWA scope that died with the cutover — so once the App Store app exists the audience here is desktop and Android browsers. Record in [`technical.md`](technical.md). |
 | **F-59** | **Push pode SUBSTITUIR o e-mail?** — medir antes de decidir | Added 29/08/2026 at the close of F-09, which shipped push as an ADDITION and said why: *"há um token vivo"* é uma das mentiras mais comuns em mobile (app desinstalado, permissão revogada, OEM matando o processo), e trocar um e-mail entregue por um push que talvez não chegue perde o aviso **em silêncio** — e os avisos em questão são prazos de um fluxo de duas partes. **A primeira metade do item é MEDIÇÃO, não política**: hoje o despachante devolve `{sent, retired, failed}` para um trigger que descarta, então ninguém consegue responder quantos responsáveis têm dispositivo nem com que frequência um token morre. O espaço de opções é maior que substituir/não: a mais barata é **parar de contar na cota do F-38 sem parar de enviar**. Placed here for SEQUENCE — precisa dos dois canais existirem. Record in [`features.md`](features.md). |
